@@ -67,10 +67,17 @@ identifier patterns. It blocks the commit if it finds:
 - Specific names from the ignore list (`client-names.local.txt` — not
   committed; you maintain your own list)
 
-Install the hook:
+Install the hook (cross-platform, Node-based — works in PowerShell, cmd,
+bash, zsh):
 
 ```bash
-./scripts/install-hooks.sh
+node scripts/install-hooks.mjs
+```
+
+A bash equivalent exists for macOS/Linux users who prefer it:
+
+```bash
+bash scripts/install-hooks.sh
 ```
 
 If the scan is wrong about a file, add the pattern to `scripts/identifier-scan-allow.txt`

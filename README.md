@@ -36,7 +36,34 @@ cron path. **LLM classifier fallback** wired
 into every adapter. **Memory governance metadata** — `trust`,
 `sensitivity`, `status`, `trace_id` stamped on every ingest. 228 tests.
 
+## Prerequisites
+
+Cortex runs on Windows, macOS, and Linux. You need:
+
+| Tool | Min version | Install |
+|---|---|---|
+| **Node.js** | 20 LTS | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node@20` · Linux: `nvm install 20` (or distro package) |
+| **pnpm** | 9 | `npm install -g pnpm` on every OS |
+| **Git** | 2.30+ | Windows: `winget install Git.Git` (bundles Git Bash, used internally by hooks) · macOS: `brew install git` · Linux: `apt install git` / `pacman -S git` |
+| **Docker** *(optional)* | Latest | Only needed for the compose deployment path (pgvector/ollama profiles). Windows/macOS via Docker Desktop · Linux via `docker.io` / `docker-ce` |
+
+**Platform note for Windows.** The project's dev scripts use Node cross-platform wrappers; you don't need bash on your PATH. Git for Windows ships with bash for the git-hook runtime, which is all the hooks need.
+
 ## Install
+
+Windows (PowerShell):
+
+```powershell
+# Global install (once published)
+npm install -g @onenomad/cortex
+
+# Or develop locally (this is a private repo; access is provisioned)
+git clone <your-cortex-repo-url>
+Set-Location cortex
+pnpm install
+```
+
+macOS / Linux (bash / zsh):
 
 ```bash
 # Global install (once published)
@@ -302,6 +329,8 @@ strategy, and failure-mode handling.
 
 ## Development
 
+Commands below run identically on Windows (PowerShell), macOS, and Linux:
+
 ```bash
 pnpm install              # install all workspace deps
 pnpm typecheck            # tsc --build across the monorepo
@@ -309,6 +338,35 @@ pnpm test                 # unit tests (228 and counting)
 pnpm dev                  # run `cortex start` in watch mode
 pnpm smoke                # live provider smoke test
 ```
+
+### Git hooks
+
+One-time setup after clone — installs the pre-commit identifier scanner
+(see [`docs/PRIVACY.md`](docs/PRIVACY.md)):
+
+```bash
+node scripts/install-hooks.mjs
+```
+
+Cross-platform; requires Node only. A bash equivalent
+(`bash scripts/install-hooks.sh`) exists for macOS/Linux users who prefer it.
+
+### Setting environment variables
+
+Env vars are read from `.env` automatically. If you need to override at the
+shell level:
+
+- **Windows (PowerShell)**: `$env:CORTEX_MCP_TRANSPORT = "http"`
+- **macOS / Linux (bash/zsh)**: `export CORTEX_MCP_TRANSPORT=http`
+- **Windows (cmd)**: `set CORTEX_MCP_TRANSPORT=http`
+
+### Chaining commands
+
+Sequential commands (e.g., `build` then `test`):
+
+- **Windows PowerShell 5.1**: `pnpm build; if ($?) { pnpm test }`
+- **Windows PowerShell 7+** / **macOS** / **Linux**: `pnpm build && pnpm test`
+- **Windows cmd**: `pnpm build && pnpm test`
 
 Workspace layout is described in [CLAUDE.md](CLAUDE.md). Architectural
 decisions that shaped this structure are in

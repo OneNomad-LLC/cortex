@@ -2,20 +2,24 @@
 
 Manual steps before Claude Code can usefully start building.
 
-## Your Three Machines
+Cortex targets **Windows, macOS, and Linux**. Install commands below show
+each variant; pick your OS. Runtime commands (`pnpm ...`, `cortex ...`,
+`docker compose ...`) work identically on all three.
 
-Cortex development and runtime spans three machines. Each has a distinct role:
+## Reference hardware split
+
+Cortex development and runtime can span machines. The author's setup, for
+reference — yours will differ:
 
 | Machine | Role | OS |
 |---------|------|-----|
-| Windows desktop | Primary development, Claude Code runs here, Ollama host | Windows 11 |
-| Work MacBook | Secondary Ollama host, future Obsidian vault | macOS (Apple Silicon, 48GB) |
-| VPS | Always-on host for Cortex/Engram/Persona MCPs | Ubuntu 24.04 (Hetzner CCX13) |
+| Primary dev machine | Where you write code + run Claude Code | Windows / macOS / Linux |
+| Secondary Ollama host (optional) | Fallback LLM if primary is off | macOS or Linux |
+| VPS | Always-on host for Cortex/Engram/Persona MCPs (optional — local-only setups skip this) | Linux (Ubuntu 24.04 reference) |
 
-**Where Claude Code runs**: Windows desktop. All development happens here.
-**Where the services run**: VPS, 24/7 (provision around Phase 4-5).
-**Where Ollama runs**: Windows desktop (primary, 9070 XT with 16GB VRAM).
-Mac is secondary/fallback when desktop is off. OpenRouter is final fallback.
+Individual users can run everything on one machine. Teams typically put the
+shared services on a single VPS and have each dev run a personal Cortex
+daemon locally. See [HOSTING.md](HOSTING.md).
 
 ## Progress Tracker
 
@@ -59,32 +63,90 @@ setup work.
 Currently `Cortex` as a placeholder. Replace throughout the repo once chosen.
 Search-and-replace: `Cortex` -> your name, `cortex` -> lower slug version.
 
-### 2. Install Windows development tools
+### 2. Install development tools
+
+Pick your OS. All three paths end at the same set of tools: Node 20+,
+pnpm, Git, Docker (optional), Claude Code.
+
+**Windows (PowerShell):**
 
 ```powershell
 # Node 20+ via fnm (recommended) or installer from nodejs.org
+winget install Schniz.fnm
 fnm install 20
 fnm use 20
-node -v   # verify 20.x or higher
+node -v
 
-# pnpm (recommended for monorepo workspaces)
+# pnpm
 npm install -g pnpm
-pnpm -v   # verify
+pnpm -v
 
-# Git (if not already installed)
+# Git — bundles Git Bash, which git uses to run hooks
 winget install --id Git.Git
 
-# Configure git to use LF line endings (critical for Linux compatibility)
+# Line endings (critical for cross-OS contributor work)
 git config --global core.autocrlf input
 
-# VS Code (if not already installed)
+# VS Code (optional)
 winget install --id Microsoft.VisualStudioCode
 
-# Docker Desktop (required for docker-compose)
+# Docker Desktop (only needed if you plan to run docker compose)
 winget install --id Docker.DockerDesktop
 
-# Claude Code
-# Install from https://claude.ai/download or Anthropic's install guide
+# Claude Code — install from https://claude.ai/download
+```
+
+**macOS (zsh/bash, Homebrew):**
+
+```bash
+# Homebrew if you don't have it
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Node 20+
+brew install node@20
+brew link --force --overwrite node@20
+node -v
+
+# pnpm
+npm install -g pnpm
+pnpm -v
+
+# Git
+brew install git
+git config --global core.autocrlf input
+
+# VS Code (optional)
+brew install --cask visual-studio-code
+
+# Docker Desktop (only needed for docker compose)
+brew install --cask docker
+
+# Claude Code — install from https://claude.ai/download
+```
+
+**Linux (bash, Debian/Ubuntu shown; adapt for Arch/Fedora):**
+
+```bash
+# Node 20+ via nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20
+node -v
+
+# pnpm
+npm install -g pnpm
+pnpm -v
+
+# Git
+sudo apt update && sudo apt install -y git
+git config --global core.autocrlf input
+
+# Docker (optional; only for compose deployments)
+sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker $USER    # log out / back in for group change
+
+# Claude Code — install from https://claude.ai/download
 ```
 
 Why pnpm: npm workspaces work but pnpm is faster and handles the monorepo
@@ -93,11 +155,21 @@ also works; pick pnpm unless you have an existing preference.
 
 ### 3. Create the repo
 
-Private GitHub repo, initialized empty. Clone to Windows:
+Private GitHub repo, initialized empty. Clone it:
+
+**Windows (PowerShell):**
 
 ```powershell
-cd C:\Users\<you>\code   # or wherever you keep code
-git clone git@github.com:<you>/cortex.git
+Set-Location C:\Users\<you>\code
+git clone <your-cortex-repo-url>
+Set-Location cortex
+```
+
+**macOS / Linux:**
+
+```bash
+cd ~/code
+git clone <your-cortex-repo-url>
 cd cortex
 ```
 
@@ -110,11 +182,29 @@ first commit: "Initial docs and architecture."
 Keep them as separate directories next to Cortex. They'll be run as services
 during dev, consumed over MCP.
 
+**Windows (PowerShell):**
+
 ```powershell
+Set-Location ..
+git clone <your-engram-repo-url>
+Set-Location engram
+pnpm install
+pnpm run build
+
+Set-Location ..
+git clone <your-persona-repo-url>
+Set-Location persona
+pnpm install
+pnpm run build
+```
+
+**macOS / Linux:**
+
+```bash
 cd ..
 git clone <your-engram-repo-url>
 cd engram
-pnpm install    # or npm install
+pnpm install
 pnpm run build
 
 cd ..
@@ -127,23 +217,43 @@ pnpm run build
 Verify both start successfully. Note the MCP ports/endpoints they use. Phase 1
 will configure Cortex to talk to them.
 
-### 5. Verify Ollama is reachable over Tailscale
+### 5. Verify Ollama is reachable
 
-Already done on Windows. Test from the Mac:
+Skip if you haven't set up a remote Ollama host. If you have: test from any
+machine that isn't the Ollama host.
+
+**macOS / Linux:**
 
 ```bash
-curl http://<windows-tailscale-name>:11434/api/tags
+curl http://<ollama-host>:11434/api/tags
 ```
 
-Should return a JSON list of installed models including `qwen3:14b`.
-Do NOT skip this. If it fails, fix Tailscale or Ollama binding before
-proceeding — every later step depends on this working.
+**Windows (PowerShell):**
+
+```powershell
+Invoke-RestMethod http://<ollama-host>:11434/api/tags
+```
+
+Should return a JSON list of installed models including the one you pulled
+(e.g., `qwen3:14b`). Do NOT skip this. If it fails, fix the host/binding
+before proceeding — every later step depends on this working.
 
 Also test actual inference speed (first call is slower due to model load):
 
+**macOS / Linux:**
+
 ```bash
-time curl -X POST http://<windows-tailscale-name>:11434/api/generate \
+time curl -X POST http://<ollama-host>:11434/api/generate \
   -d '{"model":"qwen3:14b","prompt":"Say hello","stream":false}'
+```
+
+**Windows (PowerShell):**
+
+```powershell
+Measure-Command {
+  Invoke-RestMethod -Method POST -Uri http://<ollama-host>:11434/api/generate `
+    -Body '{"model":"qwen3:14b","prompt":"Say hello","stream":false}'
+}
 ```
 
 Second call should be under 3 seconds. If it's 30+ seconds on a warm model,
