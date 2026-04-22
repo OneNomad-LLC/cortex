@@ -18,9 +18,9 @@ import { ALL_TOOLS } from "./tools/index.js";
 import type { AnyMcpTool, ToolContext } from "./tool.js";
 
 /**
- * Boots the Cortex MCP server. Phase 1: advertises zero tools but verifies
- * the full wiring — config loads, providers init, Engram/Persona clients
- * construct, MCP stdio transport connects.
+ * Boots the Cortex MCP server. Loads config + taxonomy, stands up the LLM
+ * router, spawns Engram and Persona as MCP subprocesses, and starts the
+ * stdio MCP server advertising Cortex's tools.
  */
 export async function startServer(): Promise<void> {
   const logger = createLogger({ component: "cortex-server" });
@@ -51,16 +51,20 @@ export async function startServer(): Promise<void> {
     taskCount: Object.keys(cfg.llm.tasks).length,
   });
 
-  const engram = createEngramClient({
-    url: process.env.ENGRAM_MCP_URL ?? "http://localhost:3101",
-  });
-  const persona = createPersonaClient({
-    url: process.env.PERSONA_MCP_URL ?? "http://localhost:3102",
-  });
+  // Engram and Persona are stdio MCP subprocesses. Spawn once at startup
+  // and reuse for every tool call. Failures to spawn are fatal for now —
+  // every Cortex tool past list_projects needs at least Engram.
+  const engram = await createEngramClient({ logger });
+  const engramHealth = await engram.healthCheck();
+  logger.info("engram.ready", { healthy: engramHealth.healthy });
+
+  const persona = await createPersonaClient({ logger });
+  const personaHealth = await persona.healthCheck();
+  logger.info("persona.ready", { healthy: personaHealth.healthy });
 
   const scheduler = createScheduler(logger);
 
-  // Adapter registry — empty in Phase 1.
+  // Adapter registry — empty in Phase 1/2.
   await buildAdapterRegistry({
     cfg,
     logger,
@@ -69,9 +73,8 @@ export async function startServer(): Promise<void> {
     },
   });
 
-  // Void-reference the stubs so the server proves them constructible.
-  void engram;
-  void persona;
+  // Void-reference the pieces we don't consume from tools yet so TypeScript
+  // doesn't complain and we keep them in the ownership tree for shutdown.
   void router;
   void scheduler;
 
@@ -80,7 +83,7 @@ export async function startServer(): Promise<void> {
     { capabilities: { tools: {} } },
   );
 
-  const toolContext: ToolContext = { taxonomy, logger };
+  const toolContext: ToolContext = { taxonomy, logger, engram, persona };
   const toolsByName = new Map<string, AnyMcpTool>();
   for (const tool of ALL_TOOLS) toolsByName.set(tool.name, tool);
 
@@ -141,6 +144,20 @@ export async function startServer(): Promise<void> {
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    }
+    try {
+      await engram.shutdown();
+    } catch (err) {
+      logger.warn("engram.shutdown.error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    try {
+      await persona.shutdown();
+    } catch (err) {
+      logger.warn("persona.shutdown.error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
     logger.info("shutdown.done");
   };

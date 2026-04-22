@@ -26,13 +26,19 @@
       "type": "string",
       "enum": [
         "loom",
+        "google_meet",
         "confluence",
+        "notion",
+        "google_drive",
+        "jira",
+        "linear",
         "bitbucket",
-        "obsidian",
+        "github",
         "calendar",
         "slack",
-        "notion",
-        "email"
+        "teams",
+        "email",
+        "obsidian"
       ]
     },
     "source_id": {

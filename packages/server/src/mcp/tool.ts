@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { LoadedTaxonomy } from "../taxonomy.js";
 import type { Logger } from "@cortex/core";
+import type { EngramClient } from "../clients/engram.js";
+import type { PersonaClient } from "../clients/persona.js";
 
 /**
  * Execution context handed to every MCP tool. Thin by design — tools that
@@ -9,6 +11,8 @@ import type { Logger } from "@cortex/core";
 export interface ToolContext {
   taxonomy: LoadedTaxonomy;
   logger: Logger;
+  engram: EngramClient;
+  persona: PersonaClient;
 }
 
 /**

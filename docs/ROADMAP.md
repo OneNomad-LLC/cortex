@@ -4,10 +4,10 @@ Canonical build order and current state. Update after every meaningful session.
 
 ## Current Phase
 
-**Phase 2: Project Taxonomy** — Project/Person schemas, taxonomy loader,
-and the first two MCP tools (`list_projects`, `get_project_context`) are in.
-Pending: real Engram/Persona MCP clients so `get_project_context` can
-surface recent activity instead of returning an empty array.
+**Phase 2: Project Taxonomy** — complete. Project/Person schemas, taxonomy
+loader, first two MCP tools, and real Engram + Persona MCP clients are all
+live. Cortex now spawns both upstream servers as subprocesses and wires
+them into every tool's context. Next: Phase 3 meeting pipeline on fixtures.
 
 ## Phase 0: Setup (manual, pre-development)
 
@@ -59,8 +59,9 @@ Ollama and OpenRouter clients both work in isolation against live endpoints.
       pending real Engram client)
 - [x] MCP tool framework (`McpTool`, `ToolContext`, tool registry)
 - [x] Tests with fixture config files (15 server tests total)
-- [ ] Real Engram client so `get_project_context` returns recent activity
-- [ ] Real Persona client (cognitive-load-aware response shaping)
+- [x] Real Engram client (stdio MCP subprocess, typed ingest/search/health)
+- [x] Real Persona client (stdio MCP subprocess, cognitiveLoad/signal/health)
+- [x] get_project_context pulls recent activity from Engram
 
 Exit criteria: Ask Claude Code in claude.ai "what projects am I working on"
 and get a real answer from Cortex. Tools appear in `/mcp` tool listing.
@@ -226,3 +227,8 @@ Record a one-line summary after each Claude Code session.
   (`list_projects`, `get_project_context`). 29 tests total, live MCP
   server boots and advertises tools. Real Engram/Persona clients still
   stubbed.
+- 2026-04-21: Phase 2 close. Real Engram + Persona MCP clients via stdio
+  subprocesses. get_project_context queries Engram for recent_activity.
+  SourceType + metadata schema expanded to include jira, linear, notion,
+  google_drive, google_meet, github, teams. 32 tests total; live boot
+  against @onenomad/engram-memory and @onenomad/persona-mcp confirmed.

@@ -3,14 +3,28 @@
  * is consistent across the system.
  */
 export type SourceType =
+  // Meetings / recordings
   | "loom"
+  | "google_meet"
+  // Docs / wiki
   | "confluence"
-  | "bitbucket"
-  | "obsidian"
-  | "calendar"
-  | "slack"
   | "notion"
-  | "email";
+  | "google_drive"
+  // Tickets / issues
+  | "jira"
+  | "linear"
+  // Code
+  | "bitbucket"
+  | "github"
+  // Calendars
+  | "calendar" // google calendar (legacy id; kept for back-compat)
+  // Chat / conversation
+  | "slack"
+  | "teams"
+  // Mail
+  | "email"
+  // Personal notes
+  | "obsidian";
 
 /**
  * Canonical content types. Pipelines route on these.
