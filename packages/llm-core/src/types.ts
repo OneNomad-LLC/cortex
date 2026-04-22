@@ -55,6 +55,34 @@ export interface LLMResponse {
 }
 
 /**
+ * One-shot embedding request. Batches intentionally deferred — the current
+ * call site (pgvector ingest + search) embeds one item at a time, and
+ * batching the ingest path is a latency optimization we can add without
+ * changing the contract.
+ */
+export interface EmbedRequest {
+  /** Text to embed. */
+  input: string;
+  /** Model id understood by the target provider. */
+  model: string;
+  /** Abort signal. */
+  signal?: AbortSignal;
+}
+
+export interface EmbedResponse {
+  /** The vector itself. Length must match the model's declared dimension. */
+  vector: number[];
+  /** Convenience accessor — `vector.length`. */
+  dim: number;
+  /** Model id the provider served. */
+  model: string;
+  /** Which provider served the call. */
+  provider: string;
+  /** Latency in ms. */
+  latencyMs: number;
+}
+
+/**
  * Typed error raised by providers and router. Carries enough info to route
  * retries and fallbacks intelligently.
  */

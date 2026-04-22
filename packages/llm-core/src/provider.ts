@@ -1,6 +1,11 @@
 import type { z } from "zod";
 import type { HealthStatus } from "@cortex/core";
-import type { LLMRequest, LLMResponse } from "./types.js";
+import type {
+  EmbedRequest,
+  EmbedResponse,
+  LLMRequest,
+  LLMResponse,
+} from "./types.js";
 
 /**
  * Every LLM provider package exports a factory that produces this. The
@@ -37,6 +42,13 @@ export interface LLMProvider {
    * and can reject misconfigured tasks early.
    */
   listModels?(): Promise<string[]>;
+
+  /**
+   * Optional: produce an embedding for a single string. Providers that
+   * don't expose embeddings (most cloud chat aggregators) simply omit this
+   * and the router will skip them when resolving `embed` tasks.
+   */
+  embed?(req: EmbedRequest): Promise<EmbedResponse>;
 }
 
 /**

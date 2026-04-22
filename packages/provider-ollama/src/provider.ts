@@ -1,5 +1,11 @@
 import { z } from "zod";
-import type { LLMProviderFactory, LLMRequest, LLMResponse } from "@cortex/llm-core";
+import type {
+  EmbedRequest,
+  EmbedResponse,
+  LLMProviderFactory,
+  LLMRequest,
+  LLMResponse,
+} from "@cortex/llm-core";
 import { LLMError } from "@cortex/llm-core";
 import { BaseLLMProvider, httpFetch } from "@cortex/llm-sdk";
 
@@ -94,6 +100,47 @@ export class OllamaProvider extends BaseLLMProvider {
     };
   }
 
+  override async embed(req: EmbedRequest): Promise<EmbedResponse> {
+    const started = Date.now();
+    const data = await httpFetch<OllamaEmbedResponse>(
+      `${this.host()}/api/embed`,
+      {
+        method: "POST",
+        body: {
+          model: req.model || this.cfg.defaultModel,
+          input: req.input,
+          keep_alive: this.cfg.keepAlive,
+        },
+        provider: this.id,
+        timeoutMs: this.cfg.timeoutMs,
+        ...(req.signal ? { signal: req.signal } : {}),
+      },
+    );
+
+    // Ollama's /api/embed returns `embeddings: number[][]` even for a single
+    // input — pick the first row. Older Ollama builds use `/api/embeddings`
+    // with `embedding: number[]`; we don't target that endpoint any more
+    // but surface a helpful error if the newer one is unavailable.
+    const vector = data.embeddings?.[0];
+    if (!Array.isArray(vector) || vector.length === 0) {
+      throw new LLMError(
+        "ollama: /api/embed returned no embedding rows",
+        "provider_error",
+        this.id,
+      );
+    }
+
+    this.markSuccess();
+
+    return {
+      vector,
+      dim: vector.length,
+      model: data.model ?? req.model,
+      provider: this.id,
+      latencyMs: Date.now() - started,
+    };
+  }
+
   override async listModels(): Promise<string[]> {
     const data = await httpFetch<OllamaTagsResponse>(
       `${this.host()}/api/tags`,
@@ -169,4 +216,9 @@ interface OllamaGenerateResponse {
 
 interface OllamaTagsResponse {
   models?: Array<{ name: string }>;
+}
+
+interface OllamaEmbedResponse {
+  model?: string;
+  embeddings?: number[][];
 }

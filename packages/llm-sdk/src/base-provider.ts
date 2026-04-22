@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { HealthStatus } from "@cortex/core";
 import type {
+  EmbedRequest,
+  EmbedResponse,
   LLMProvider,
   LLMRequest,
   LLMResponse,
@@ -62,6 +64,13 @@ export abstract class BaseLLMProvider implements LLMProvider {
   abstract complete(req: LLMRequest): Promise<LLMResponse>;
 
   listModels?(): Promise<string[]>;
+
+  /**
+   * Optional embeddings. Concrete providers override with `override async
+   * embed(...)`. Declared here so subclasses can use the `override` keyword
+   * with our strict TS settings; the default base implementation is absent.
+   */
+  embed?(req: EmbedRequest): Promise<EmbedResponse>;
 
   /** Mark a successful call for health reporting. Providers call after complete(). */
   protected markSuccess(): void {

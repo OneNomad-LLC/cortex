@@ -1,6 +1,8 @@
 import type { LLMProvider } from "./provider.js";
 import {
   LLMError,
+  type EmbedRequest,
+  type EmbedResponse,
   type LLMRequest,
   type LLMResponse,
   type TaskPurpose,
@@ -130,6 +132,90 @@ export class LLMRouter {
           const fErr = toLLMError(fallbackErr, fallbackId);
           if (!fErr.isRetryable) throw fErr;
           this.cfg.logger?.warn("llm.fallback_failed", {
+            task: args.task,
+            provider: fallbackId,
+            kind: fErr.kind,
+          });
+        }
+      }
+
+      throw llmErr;
+    }
+  }
+
+  /**
+   * Execute an embedding request. Same fallback behavior as `complete()`,
+   * but skips any provider that doesn't implement `embed` — they're
+   * advisory-only for embedding routes, never fatal.
+   */
+  async embed(
+    args: RouteArgs & Omit<EmbedRequest, "model">,
+  ): Promise<EmbedResponse> {
+    const primary = this.resolve(args);
+    const tried = new Set<string>();
+
+    const attempt = async (
+      providerId: string,
+      model: string,
+    ): Promise<EmbedResponse> => {
+      tried.add(providerId);
+      const provider = this.cfg.providers[providerId];
+      if (!provider) {
+        throw new LLMError(
+          `Provider '${providerId}' not registered`,
+          "provider_error",
+          providerId,
+        );
+      }
+      if (!provider.embed) {
+        throw new LLMError(
+          `Provider '${providerId}' does not support embeddings`,
+          "invalid_request",
+          providerId,
+        );
+      }
+      return provider.embed({
+        input: args.input,
+        model,
+        ...(args.signal ? { signal: args.signal } : {}),
+      });
+    };
+
+    try {
+      return await attempt(primary.provider, primary.model);
+    } catch (err) {
+      const llmErr = toLLMError(err, primary.provider);
+      // invalid_request on "no embed support" is structurally non-retryable,
+      // but we still want to try the next provider in the chain — the point
+      // of fallback for embed tasks is exactly "skip providers that can't".
+      const shouldWalkChain =
+        llmErr.isRetryable || llmErr.kind === "invalid_request";
+      if (!shouldWalkChain) throw llmErr;
+      this.cfg.logger?.warn("llm.embed.primary_failed", {
+        task: args.task,
+        provider: primary.provider,
+        kind: llmErr.kind,
+      });
+
+      for (const fallbackId of this.cfg.fallbackChain) {
+        if (tried.has(fallbackId)) continue;
+        const fallbackProvider = this.cfg.providers[fallbackId];
+        if (!fallbackProvider?.embed) continue;
+        try {
+          const fallbackModel = this.pickFallbackModel(fallbackId, primary);
+          this.cfg.logger?.info("llm.embed.fallback_attempt", {
+            task: args.task,
+            from: primary.provider,
+            to: fallbackId,
+            model: fallbackModel,
+          });
+          return await attempt(fallbackId, fallbackModel);
+        } catch (fallbackErr) {
+          const fErr = toLLMError(fallbackErr, fallbackId);
+          if (!fErr.isRetryable && fErr.kind !== "invalid_request") {
+            throw fErr;
+          }
+          this.cfg.logger?.warn("llm.embed.fallback_failed", {
             task: args.task,
             provider: fallbackId,
             kind: fErr.kind,
