@@ -52,6 +52,19 @@ adapters:
       teamToProject: {}            # e.g. { ENG: engineering }
       defaultProject: ""
 
+  loom:
+    package: "@cortex/adapter-loom"
+    enabled: false
+    schedule: "*/15 * * * *"
+    config:
+      workspace: "yourcompany"     # Loom workspace slug
+      folders: []                  # scope to folder ids, empty = all
+      pageSize: 50
+      maxRecordingsPerRun: 0
+      folderToProject: {}          # e.g. { fld_abc: engineering }
+      defaultProject: ""
+      skipWithoutTranscript: true
+
   notion:
     package: "@cortex/adapter-notion"
     enabled: false
@@ -77,7 +90,6 @@ adapters:
       maxFileBytes: 1048576
 
   # Future adapters — each lands as its own package.
-  # loom:           { package: "@cortex/adapter-loom",           enabled: false }
   # bitbucket:      { package: "@cortex/adapter-bitbucket",      enabled: false }
   # github:         { package: "@cortex/adapter-github",         enabled: false }
   # google-drive:   { package: "@cortex/adapter-google-drive",   enabled: false }

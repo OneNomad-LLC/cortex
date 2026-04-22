@@ -19,6 +19,7 @@
     { "path": "../adapter-confluence" },
     { "path": "../adapter-jira" },
     { "path": "../adapter-linear" },
+    { "path": "../adapter-loom" },
     { "path": "../adapter-notion" },
     { "path": "../adapter-obsidian" }
   ]

@@ -16,13 +16,13 @@ and LLM provider is a standalone package — install only what you use.
 
 ## Status
 
-Two MCP tools live (`list_projects`, `get_project_context`). Five source
-adapters shipped — Confluence, Jira, Linear, Notion, Obsidian — all
-sharing `@cortex/pipeline-doc`. The 3-pass meeting extraction pipeline
-(`@cortex/pipeline-meeting`) is live with prompts as `.md` files; Loom
-adapter slots on next. 83 tests. `cortex sync <adapter>` runs a full
-ingestion cycle on demand — the LLM router is now wired in, so any
-adapter that declares pipeline-meeting runs end-to-end. See
+Two MCP tools live (`list_projects`, `get_project_context`). **Six
+source adapters** shipped — Confluence, Jira, Linear, Loom, Notion,
+Obsidian. **Two pipelines** shipped — `@cortex/pipeline-doc` (prose →
+chunked memories) and `@cortex/pipeline-meeting` (3-pass extraction:
+structural → synthesis → brief, prompts as `.md` files). 93 tests.
+`cortex sync <adapter>` runs a full ingestion cycle on demand with the
+LLM router wired into the pipeline context. See
 [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's next.
 
 ## Install
@@ -77,9 +77,9 @@ cortex help
 | `@cortex/adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
 | `@cortex/adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
 | `@cortex/adapter-linear` | ✅ shipped | `LINEAR_API_KEY` | `pipeline-doc` |
+| `@cortex/adapter-loom` | ✅ shipped | `LOOM_API_KEY` | `pipeline-meeting` |
 | `@cortex/adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
 | `@cortex/adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
-| `@cortex/adapter-loom` | next up | `LOOM_API_KEY` | `pipeline-meeting` ✅ ready |
 | `@cortex/adapter-google-calendar` | planned | Google OAuth | `pipeline-event` |
 | `@cortex/adapter-google-drive` | planned | Google OAuth | `pipeline-doc` |
 | `@cortex/adapter-gmail` | planned | Google OAuth | `pipeline-email` |
@@ -159,9 +159,11 @@ Cortex MCP server
        ├── Source adapters       (modular, one package each)
        │     ├── @cortex/adapter-confluence ✅
        │     ├── @cortex/adapter-jira       ✅
+       │     ├── @cortex/adapter-linear     ✅
+       │     ├── @cortex/adapter-loom       ✅
        │     ├── @cortex/adapter-notion     ✅
        │     ├── @cortex/adapter-obsidian   ✅
-       │     └── (… Linear / Loom / Google / GitHub / Slack / …)
+       │     └── (… Google / GitHub / Bitbucket / Slack / …)
        │
        ├── Pipelines             (shape-specific, reusable)
        │     ├── @cortex/pipeline-doc       ✅  (prose → chunked memories)

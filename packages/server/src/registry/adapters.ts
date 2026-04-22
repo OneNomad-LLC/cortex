@@ -7,6 +7,7 @@ import type {
 import { createAdapter as createConfluenceAdapter } from "@cortex/adapter-confluence";
 import { createAdapter as createJiraAdapter } from "@cortex/adapter-jira";
 import { createAdapter as createLinearAdapter } from "@cortex/adapter-linear";
+import { createAdapter as createLoomAdapter } from "@cortex/adapter-loom";
 import { createAdapter as createNotionAdapter } from "@cortex/adapter-notion";
 import { createAdapter as createObsidianAdapter } from "@cortex/adapter-obsidian";
 import type { CortexConfig } from "../config.js";
@@ -20,10 +21,10 @@ const adapterFactories: Record<string, AdapterFactory> = {
   "@cortex/adapter-confluence": createConfluenceAdapter,
   "@cortex/adapter-jira": createJiraAdapter,
   "@cortex/adapter-linear": createLinearAdapter,
+  "@cortex/adapter-loom": createLoomAdapter,
   "@cortex/adapter-notion": createNotionAdapter,
   "@cortex/adapter-obsidian": createObsidianAdapter,
   // Future adapters, each in its own package:
-  // "@cortex/adapter-loom": createLoomAdapter,
   // "@cortex/adapter-google-calendar": createCalendarAdapter,
   // "@cortex/adapter-google-drive": createGoogleDriveAdapter,
   // "@cortex/adapter-bitbucket": createBitbucketAdapter,

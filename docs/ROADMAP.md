@@ -4,15 +4,13 @@ Canonical build order and current state. Update after every meaningful session.
 
 ## Current Phase
 
-**Five doc-adjacent adapters live + pipeline-meeting infrastructure.**
-Source adapters: Confluence, Jira, Linear, Notion, Obsidian — all
-sharing `@cortex/pipeline-doc`. The 3-pass meeting extraction pipeline
-(`@cortex/pipeline-meeting`) is built with prompts as .md files and 9
-tests covering the stub LLM flow. `cortex sync` now wires the real
-LLMRouter into pipeline contexts, so any adapter declaring
-pipeline-meeting can run end-to-end. Loom is the next adapter to slot
-in. Still remaining: Google family (OAuth), Bitbucket/GitHub
-(pipeline-code), Slack/Gmail (pipeline-conversation).
+**Six source adapters + two pipelines live.** Adapters: Confluence,
+Jira, Linear, Loom, Notion, Obsidian. Pipelines: `@cortex/pipeline-doc`
+and `@cortex/pipeline-meeting`. Loom feeds pipeline-meeting end-to-end;
+transcripts come in, briefs + decisions + action items come out.
+`cortex sync` wires the LLM router into pipelines. 93 tests. Remaining:
+Google family (OAuth), Bitbucket/GitHub (pipeline-code), Slack/Gmail
+(pipeline-conversation).
 
 ## Phase 0: Setup (manual, pre-development)
 

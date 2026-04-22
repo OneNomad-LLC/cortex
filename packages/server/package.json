@@ -45,6 +45,7 @@
     "@cortex/adapter-confluence": "workspace:*",
     "@cortex/adapter-jira": "workspace:*",
     "@cortex/adapter-linear": "workspace:*",
+    "@cortex/adapter-loom": "workspace:*",
     "@cortex/adapter-notion": "workspace:*",
     "@cortex/adapter-obsidian": "workspace:*",
     "@inquirer/prompts": "^7.0.0",
