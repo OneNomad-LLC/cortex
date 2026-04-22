@@ -4,7 +4,7 @@ import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { buildAdapterRegistry } from "../registry/adapters.js";
 import { buildLLMRouter } from "../registry/providers.js";
-import { createEngramClient } from "../clients/engram.js";
+import { createMemoryClient } from "../clients/memory.js";
 import { runSync } from "../sync.js";
 
 export interface SyncCliOptions {
@@ -73,15 +73,20 @@ export async function runSyncCli(argv: readonly string[]): Promise<number> {
     adapters: { [parsed.adapterId]: entry },
   };
 
-  const engram = await createEngramClient({ logger });
-
-  // Build LLM router up front — pipelines that need it (pipeline-meeting,
-  // future LLM classifiers) get it; adapters that don't just ignore it.
+  // Build LLM router first — the pgvector memory backend uses router.embed()
+  // during bootstrap, so it has to exist before we touch memory.
   const { router: llmRouter } = await buildLLMRouter({
     cfg,
     env: process.env,
     logger,
   });
+
+  const memoryBoot = await createMemoryClient({
+    memory: cfg.memory,
+    llmRouter,
+    logger,
+  });
+  const engram = memoryBoot.client;
 
   const registry = await buildAdapterRegistry({
     cfg: trimmedCfg,

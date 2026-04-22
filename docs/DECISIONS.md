@@ -359,6 +359,58 @@ Three shapes were considered:
   meaningful next step once this ships; the pipeline shape accommodates
   it (add a retrieval loop in pass 1).
 
+## ADR-012: Native Postgres + pgvector backend as a fallback for Engram (2026-04-22)
+
+**Status**: Accepted
+
+**Context**: Engram is the default memory backend (ADR-001), consumed over
+MCP. Two gaps:
+1. If the Engram subprocess dies or isn't installed, every Cortex tool past
+   `list_projects` breaks — we don't want the whole server to go dark.
+2. Some deployments (a small Hetzner box that already runs Postgres for
+   other services, a laptop without the Engram binary) would rather use a
+   SQL store than run a second process.
+
+**Decision**:
+
+- New package `@cortex/memory-pgvector`. Implements the same ingest/search/
+  healthCheck shape as the Engram MCP client using Postgres + `pgvector` for
+  vector similarity and `tsvector` for full-text, fused via reciprocal rank
+  fusion (k=60).
+- Embeddings are an injected callback, not a hard dep on the LLM router —
+  the package is independently testable.
+- `LLMProvider` gains an optional `embed()` method; `LLMRouter.embed()`
+  routes it the same way `complete()` is routed, skipping providers that
+  don't implement it. Ollama ships with `/api/embed` support today.
+- `config/cortex.yaml` gains a `memory:` block:
+  ```yaml
+  memory:
+    primary: engram
+    fallback: pgvector          # optional
+    pgvector:
+      connectionString: "${POSTGRES_URL}"
+      embeddingDim: 768
+  ```
+- Boot policy: at startup, health-check the primary. If healthy, use it.
+  If not, spawn the fallback; if that's healthy, run the whole session on
+  it. If neither is healthy, refuse to start. Runtime per-call fallback
+  was rejected: memory write paths are hard to reason about if they split
+  mid-session, and operators prefer a clear log line over intermittent
+  tool behavior.
+
+**Consequences**:
+- Cortex can now run without Engram installed at all, using pgvector as the
+  primary. Also inverts: if the user prefers Engram's cognitive layers as
+  primary and wants pgvector as a safety net, one line of config flips it.
+- Adds a real (non-MCP) dep on `pg`. Kept inside `@cortex/memory-pgvector`;
+  core packages stay clean.
+- `embed` is now a first-class TaskPurpose. Adapters and pipelines could
+  consume it later (semantic dedup during ingest, for example) without
+  another refactor.
+- The same SQL store can be used by upstream Engram if that project ever
+  grows a Postgres backend — the schema is deliberately close to what a
+  LanceDB equivalent would hold.
+
 ---
 
 _Add new ADRs below this line._

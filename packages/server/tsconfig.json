@@ -11,6 +11,7 @@
     { "path": "../adapter-sdk" },
     { "path": "../llm-core" },
     { "path": "../llm-sdk" },
+    { "path": "../memory-pgvector" },
     { "path": "../pipeline-code" },
     { "path": "../pipeline-conversation" },
     { "path": "../pipeline-core" },

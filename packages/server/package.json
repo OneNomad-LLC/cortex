@@ -37,6 +37,7 @@
     "@cortex/adapter-sdk": "workspace:*",
     "@cortex/llm-core": "workspace:*",
     "@cortex/llm-sdk": "workspace:*",
+    "@cortex/memory-pgvector": "workspace:*",
     "@cortex/pipeline-core": "workspace:*",
     "@cortex/pipeline-code": "workspace:*",
     "@cortex/pipeline-conversation": "workspace:*",

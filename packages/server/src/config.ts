@@ -20,6 +20,33 @@ export const adapterEntrySchema = z.object({
   config: z.record(z.unknown()).default({}),
 });
 
+export const memoryBackendName = z.enum(["engram", "pgvector"]);
+
+export const memoryConfigSchema = z
+  .object({
+    /** Primary backend. Falls back to `fallback` at startup if unhealthy. */
+    primary: memoryBackendName.default("engram"),
+    /** Optional fallback backend. Omit or set equal to primary for none. */
+    fallback: memoryBackendName.optional(),
+    engram: z
+      .object({
+        command: z.string().optional(),
+        args: z.array(z.string()).default([]),
+        env: z.record(z.string()).default({}),
+      })
+      .default({}),
+    pgvector: z
+      .object({
+        connectionString: z.string().optional(),
+        table: z.string().default("cortex_memories"),
+        embeddingDim: z.number().int().positive().default(768),
+        /** Task id to use when calling router.embed(). Default: 'embed'. */
+        embedTask: z.string().default("embed"),
+      })
+      .default({}),
+  })
+  .default({});
+
 export const cortexConfigSchema = z.object({
   llm: z.object({
     providers: z.record(providerEntrySchema),
@@ -30,8 +57,12 @@ export const cortexConfigSchema = z.object({
       }),
     fallbackChain: z.array(z.string()).default([]),
   }),
+  memory: memoryConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
 });
+
+export type MemoryConfig = z.infer<typeof memoryConfigSchema>;
+export type MemoryBackendName = z.infer<typeof memoryBackendName>;
 
 export type CortexConfig = z.infer<typeof cortexConfigSchema>;
 export type ProviderEntry = z.infer<typeof providerEntrySchema>;

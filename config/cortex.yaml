@@ -15,8 +15,21 @@ llm:
     synthesis:  { provider: ollama, model: "qwen3:14b" }
     brief:      { provider: ollama, model: "qwen3:14b" }
     classify:   { provider: ollama, model: "qwen3:14b" }
+    embed:      { provider: ollama, model: "nomic-embed-text" }
 
   fallbackChain: []
+
+memory:
+  primary: engram
+  # Uncomment to enable the native Postgres fallback. At boot, Cortex health-
+  # checks the primary and, if it's unreachable, switches to the fallback for
+  # the rest of the session. Requires pgvector installed on the target DB.
+  # fallback: pgvector
+  # pgvector:
+  #   connectionString: "${POSTGRES_URL}"
+  #   table: cortex_memories
+  #   embeddingDim: 768       # must match the model bound to llm.tasks.embed
+  #   embedTask: embed
 
 adapters:
   confluence:

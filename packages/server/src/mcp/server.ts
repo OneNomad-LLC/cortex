@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -10,7 +11,8 @@ import { createLogger } from "../logger.js";
 import { buildLLMRouter } from "../registry/providers.js";
 import { buildAdapterRegistry } from "../registry/adapters.js";
 import { createScheduler } from "../scheduler.js";
-import { createEngramClient } from "../clients/engram.js";
+import { HeartbeatWriter } from "../heartbeat.js";
+import { createMemoryClient } from "../clients/memory.js";
 import { createPersonaClient } from "../clients/persona.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
@@ -51,20 +53,36 @@ export async function startServer(): Promise<void> {
     taskCount: Object.keys(cfg.llm.tasks).length,
   });
 
-  // Engram and Persona are stdio MCP subprocesses. Spawn once at startup
-  // and reuse for every tool call. Failures to spawn are fatal for now —
-  // every Cortex tool past list_projects needs at least Engram.
-  const engram = await createEngramClient({ logger });
+  // Memory backend — engram (primary) or pgvector (local Postgres fallback).
+  // The factory handles health checks and falls back to the configured
+  // secondary if the primary is unreachable at boot. Past this point the
+  // rest of the server only sees an EngramClient shape; whether it's
+  // backed by the MCP subprocess or a SQL store is opaque to the tools.
+  const memoryBoot = await createMemoryClient({
+    memory: cfg.memory,
+    llmRouter: router,
+    logger,
+  });
+  const engram = memoryBoot.client;
   const engramHealth = await engram.healthCheck();
-  logger.info("engram.ready", { healthy: engramHealth.healthy });
+  logger.info("memory.ready", {
+    selected: memoryBoot.selected,
+    primaryHealthy: memoryBoot.primaryHealthy,
+    healthy: engramHealth.healthy,
+  });
 
   const persona = await createPersonaClient({ logger });
   const personaHealth = await persona.healthCheck();
   logger.info("persona.ready", { healthy: personaHealth.healthy });
 
+  const heartbeat = new HeartbeatWriter({ logger });
+  heartbeat.setUpstream(engramHealth.healthy, personaHealth.healthy);
+  await heartbeat.start();
+
   const scheduler = createScheduler({
     engram,
     llmRouter: router,
+    heartbeat,
     logger,
   });
 
@@ -147,9 +165,22 @@ export async function startServer(): Promise<void> {
         isError: true,
       };
     }
+    // One trace id per call. Logger bound so every log line on this
+    // invocation carries it; any memory written during the call gets
+    // it stamped on metadata.
+    const traceId = randomUUID();
+    const callLogger = logger.child({ traceId, tool: tool.name });
+    const callContext: ToolContext = {
+      ...toolContext,
+      logger: callLogger,
+      traceId,
+    };
+    const started = Date.now();
+    callLogger.info("tool.call.begin");
     try {
       const parsed = tool.inputSchema.parse(req.params.arguments ?? {});
-      const result = await tool.handler(parsed, toolContext);
+      const result = await tool.handler(parsed, callContext);
+      callLogger.info("tool.call.done", { ms: Date.now() - started });
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
@@ -173,10 +204,12 @@ export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
   logger.info("mcp.connected", { transport: "stdio" });
+  heartbeat.setMcpConnected(true, "stdio");
 
   const shutdown = async (): Promise<void> => {
     logger.info("shutdown.begin");
     await scheduler.stop();
+    await heartbeat.stop();
     for (const provider of Object.values(providers)) {
       try {
         await provider.shutdown();

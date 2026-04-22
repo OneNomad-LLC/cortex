@@ -55,6 +55,55 @@ describe("cortexConfigSchema", () => {
     expect(parsed.llm.providers.ollama?.enabled).toBe(true);
   });
 
+  it("fills memory defaults when the memory block is absent", () => {
+    const parsed = cortexConfigSchema.parse({
+      llm: {
+        providers: {},
+        tasks: { default: { provider: "ollama", model: "qwen3:14b" } },
+        fallbackChain: [],
+      },
+    });
+    expect(parsed.memory.primary).toBe("engram");
+    expect(parsed.memory.fallback).toBeUndefined();
+    expect(parsed.memory.pgvector.embeddingDim).toBe(768);
+    expect(parsed.memory.pgvector.table).toBe("cortex_memories");
+    expect(parsed.memory.pgvector.embedTask).toBe("embed");
+  });
+
+  it("accepts a memory block with pgvector fallback", () => {
+    const parsed = cortexConfigSchema.parse({
+      llm: {
+        providers: {},
+        tasks: { default: { provider: "ollama", model: "qwen3:14b" } },
+      },
+      memory: {
+        primary: "engram",
+        fallback: "pgvector",
+        pgvector: {
+          connectionString: "postgres://x:y@host/db",
+          embeddingDim: 1024,
+        },
+      },
+    });
+    expect(parsed.memory.fallback).toBe("pgvector");
+    expect(parsed.memory.pgvector.connectionString).toBe(
+      "postgres://x:y@host/db",
+    );
+    expect(parsed.memory.pgvector.embeddingDim).toBe(1024);
+  });
+
+  it("rejects an unknown memory backend", () => {
+    expect(() =>
+      cortexConfigSchema.parse({
+        llm: {
+          providers: {},
+          tasks: { default: { provider: "ollama", model: "qwen3:14b" } },
+        },
+        memory: { primary: "nonsense" },
+      }),
+    ).toThrow();
+  });
+
   it("rejects configs without a default task", () => {
     expect(() =>
       cortexConfigSchema.parse({
