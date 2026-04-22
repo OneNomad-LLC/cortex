@@ -4,13 +4,13 @@ Canonical build order and current state. Update after every meaningful session.
 
 ## Current Phase
 
-**Phase 5 kickoff: Confluence adapter + pipeline-doc + sync CLI.**
-First real source adapter lives as `@cortex/adapter-confluence`, sharing
-a new `@cortex/pipeline-doc` that Notion/Jira/Google Drive/Obsidian will
-reuse. `cortex sync <adapter>` runs one adapter's full fetch → transform
-→ classify → pipeline → ingest cycle for manual testing. Confluence is
-disabled by default — flip `enabled: true` in `config/cortex.yaml`, add
-Atlassian creds to `.env`, and run `cortex sync confluence` to ingest.
+**Doc-adjacent adapters live.** Four real source adapters — Confluence,
+Jira, Notion, Obsidian — all sharing `@cortex/pipeline-doc`. All four
+are disabled by default; flip `enabled: true` in `config/cortex.yaml`,
+set the relevant secrets in `.env`, run `cortex sync <adapter>`.
+Remaining: Google family (OAuth), Loom (needs pipeline-meeting),
+Bitbucket/GitHub (needs pipeline-code), Slack/Gmail (needs
+pipeline-conversation).
 
 ## Phase 0: Setup (manual, pre-development)
 
@@ -252,3 +252,9 @@ Record a one-line summary after each Claude Code session.
   chunker, shared across doc-shaped sources). `cortex sync` CLI runs one
   adapter's full fetch→transform→classify→pipeline→ingest cycle.
   Adapter registry now real, not stubbed. 48 tests total.
+- 2026-04-22: Three more adapters. @cortex/adapter-jira (Cloud REST v3,
+  basic auth shared with Confluence, ADF→markdown, rule-based
+  projectKey→project). @cortex/adapter-notion (bearer auth, block-tree
+  →markdown, databases+pages). @cortex/adapter-obsidian (filesystem
+  walk, YAML frontmatter parser, path-prefix classifier with frontmatter
+  override). All reuse pipeline-doc. 71 tests total.

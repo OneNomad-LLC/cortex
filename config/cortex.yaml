@@ -29,11 +29,48 @@ adapters:
       pageSize: 50
       spaceToProject: {}           # e.g. { ENG: engineering }
 
-  # Additional adapters — uncomment and configure as each package lands.
-  # loom:           { package: "@cortex/adapter-loom",          enabled: false }
-  # jira:           { package: "@cortex/adapter-jira",          enabled: false }
-  # bitbucket:      { package: "@cortex/adapter-bitbucket",     enabled: false }
-  # notion:         { package: "@cortex/adapter-notion",        enabled: false }
-  # google-drive:   { package: "@cortex/adapter-google-drive",  enabled: false }
-  # google-calendar:{ package: "@cortex/adapter-google-calendar", enabled: false }
-  # obsidian:       { package: "@cortex/adapter-obsidian",      enabled: false, config: { vaultPath: "${OBSIDIAN_VAULT_PATH}" } }
+  jira:
+    package: "@cortex/adapter-jira"
+    enabled: false
+    schedule: "0 */3 * * *"
+    config:
+      workspace: "yourcompany"     # same subdomain as Confluence
+      projects: []                 # Jira project keys, e.g. [ENG, ROAD]
+      jql: ""                      # optional extra filter
+      pageSize: 50
+      maxIssuesPerRun: 0
+      projectToCortex: {}          # e.g. { ENG: engineering }
+
+  notion:
+    package: "@cortex/adapter-notion"
+    enabled: false
+    schedule: "0 */6 * * *"
+    config:
+      databases: []                # database ids to sync
+      pages: []                    # standalone page ids to include
+      pageSize: 50
+      maxPagesPerRun: 0
+      databaseToProject: {}        # e.g. { abc123def: engineering }
+      defaultProject: ""
+
+  obsidian:
+    package: "@cortex/adapter-obsidian"
+    enabled: false
+    config:
+      # vaultPath only resolves when this block is enabled; commented
+      # blocks are skipped by expandEnv regardless.
+      vaultPath: "${OBSIDIAN_VAULT_PATH}"
+      pathToProject: []            # [{ prefix: "work/alpha/", project: project-alpha }]
+      ignore: [".obsidian", ".trash", ".git", "node_modules"]
+      defaultProject: ""
+      maxFileBytes: 1048576
+
+  # Future adapters — each lands as its own package.
+  # loom:           { package: "@cortex/adapter-loom",           enabled: false }
+  # bitbucket:      { package: "@cortex/adapter-bitbucket",      enabled: false }
+  # github:         { package: "@cortex/adapter-github",         enabled: false }
+  # google-drive:   { package: "@cortex/adapter-google-drive",   enabled: false }
+  # google-calendar:{ package: "@cortex/adapter-google-calendar",enabled: false }
+  # gmail:          { package: "@cortex/adapter-gmail",          enabled: false }
+  # slack:          { package: "@cortex/adapter-slack",          enabled: false }
+  # linear:         { package: "@cortex/adapter-linear",         enabled: false }
