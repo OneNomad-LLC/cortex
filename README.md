@@ -1,26 +1,26 @@
 # Cortex
 
-Work-knowledge MCP server. Unifies meetings (Loom), docs (Confluence),
-code (Bitbucket), and personal notes (Obsidian) into a single
-searchable layer Claude Code and Claude.ai can query.
+Work-knowledge MCP server. Unifies docs (Confluence, Notion), tickets
+(Jira), personal notes (Obsidian) — and later meetings, code, email,
+and chat — into a single searchable layer Claude Code and Claude.ai
+can query.
 
 Built as an orchestration layer on top of two standalone MCP servers:
 
 - [**@onenomad/engram-memory**](https://www.npmjs.com/package/@onenomad/engram-memory) — memory, hybrid search, knowledge graph
 - [**@onenomad/persona-mcp**](https://www.npmjs.com/package/@onenomad/persona-mcp) — evolving personality, style signals
 
-Cortex consumes both over MCP. It adds domain-specific tools (projects,
-meetings, briefs, action items, research), modular source adapters, and
-a pluggable LLM provider layer (local Ollama, OpenRouter, BYOK direct
-providers — configurable per-task).
+Cortex adds domain-specific MCP tools (projects, meetings, briefs,
+action items, research) and modular source adapters. Every adapter
+and LLM provider is a standalone package — install only what you use.
 
 ## Status
 
-Phase 1 complete. Monorepo scaffolded, LLM provider layer working,
-CLI + setup wizard in place. No adapters enabled yet — Phase 3 starts
-with the meeting pipeline on fixtures, then Loom in Phase 4.
-
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for current progress.
+Two MCP tools live (`list_projects`, `get_project_context`) and four
+source adapters shipped — Confluence, Jira, Notion, Obsidian. All share
+`@cortex/pipeline-doc`. 71 tests, `cortex sync <adapter>` runs a full
+ingestion cycle on demand. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for
+what's next.
 
 ## Install
 
@@ -37,35 +37,93 @@ pnpm install
 ## First-run setup
 
 Run the interactive wizard. It detects whether Engram and Persona are
-installed globally, offers to install the missing ones, and writes
-`.env` + `config/cortex.yaml`.
+installed globally, offers to install the missing ones, auto-installs
+local Ollama if you pick it, and writes `.env` + `config/cortex.yaml`.
 
 ```bash
 cortex init
 ```
 
-What the wizard does:
+The wizard:
 
-1. Checks `persona-mcp` and `engram-memory` bins on PATH.
-   Installs any that are missing via `npm install -g`.
-2. Prompts for LLM providers (Ollama local, OpenRouter, or both).
-3. Prompts for API keys and Ollama host.
-4. Writes config files (backs up any existing versions).
-5. Runs a live smoke test against every enabled provider.
+1. Probes `persona-mcp` and `engram-memory` on PATH; `npm install -g`s any missing.
+2. If you pick Ollama local: detects `ollama`, offers to auto-install
+   (winget / brew / shell script), waits for the daemon, pulls the
+   chosen model.
+3. Prompts for LLM providers, API keys, host.
+4. Writes config (backs up any existing versions with `.bak.<ts>`).
+5. Runs a live smoke test.
 
 ## Commands
 
 ```bash
-cortex init      # interactive setup wizard
-cortex start     # boot the MCP server over stdio
-cortex smoke     # live probe of every enabled LLM provider
-cortex help      # show usage
+cortex init                 # interactive setup wizard
+cortex start                # boot the MCP server over stdio
+cortex smoke                # live probe of every enabled LLM provider
+cortex sync <adapter>       # run one adapter's full ingestion cycle
+  --since=ISO                 only items updated after this date
+  --limit=N                   cap items processed
+  --dry-run                   don't write to Engram
+cortex help
 ```
+
+## Source adapters
+
+| Adapter | Status | Auth | Reuses |
+|---|---|---|---|
+| `@cortex/adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
+| `@cortex/adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
+| `@cortex/adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
+| `@cortex/adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
+| `@cortex/adapter-linear` | planned | Linear API key | `pipeline-doc` |
+| `@cortex/adapter-loom` | planned | Loom API key | `pipeline-meeting` |
+| `@cortex/adapter-google-calendar` | planned | Google OAuth | `pipeline-event` |
+| `@cortex/adapter-google-drive` | planned | Google OAuth | `pipeline-doc` |
+| `@cortex/adapter-gmail` | planned | Google OAuth | `pipeline-email` |
+| `@cortex/adapter-bitbucket` | planned | Atlassian token | `pipeline-code` |
+| `@cortex/adapter-github` | planned | GitHub PAT | `pipeline-code` |
+| `@cortex/adapter-slack` | planned | Slack token | `pipeline-conversation` |
+
+Enabling an adapter is a three-step flip:
+
+```yaml
+# config/cortex.yaml
+adapters:
+  confluence:
+    enabled: true            # 1. flip on
+    config:
+      workspace: "yourco"    # 2. tell it where
+      spaces: ["ENG"]
+      spaceToProject:
+        ENG: engineering
+```
+
+```bash
+# .env — 3. credentials
+ATLASSIAN_EMAIL=you@example.com
+ATLASSIAN_API_TOKEN=...
+```
+
+Then `cortex sync confluence --dry-run --limit=5` to preview, drop the
+flags to actually ingest.
+
+## LLM providers
+
+Pluggable — toggle between local Ollama, OpenRouter, or BYOK direct
+providers (Anthropic/OpenAI/Google) per-task via
+`config/cortex.yaml > llm.tasks`. See [ADR-010](docs/DECISIONS.md).
+
+Current provider packages:
+
+- `@cortex/provider-ollama` — local (Ollama, any model it supports; `think: false` by default)
+- `@cortex/provider-openrouter` — BYOK cloud aggregator
+
+Future: `@cortex/provider-anthropic`, `@cortex/provider-openai`,
+`@cortex/provider-google` for direct-provider BYOK.
 
 ## Connect to Claude Code
 
-Add this to your Claude Code MCP config (adjust the command path if
-running from source):
+Add this to your Claude Code MCP config:
 
 ```json
 {
@@ -78,8 +136,8 @@ running from source):
 }
 ```
 
-Then reload Claude Code. Cortex advertises zero tools in Phase 1 — that's
-expected; it's the foundation the adapters plug into.
+Reload Claude Code. `cortex` should appear in `/mcp` with the two tools
+currently shipped.
 
 ## Architecture
 
@@ -88,29 +146,36 @@ AI Client (Claude Code / Claude.ai)
        │ MCP
        ▼
 Cortex MCP server
-       ├── LLM provider layer (modular packages)
+       ├── MCP tools             list_projects, get_project_context, …
+       │
+       ├── LLM provider layer    (pluggable, per-task routing)
        │     ├── @cortex/provider-ollama
        │     ├── @cortex/provider-openrouter
        │     └── (future: anthropic, openai, google)
        │
-       ├── Source adapters (modular packages)
-       │     ├── @cortex/adapter-loom       (Phase 4)
-       │     ├── @cortex/adapter-confluence (Phase 5)
-       │     ├── @cortex/adapter-calendar   (Phase 6)
-       │     ├── @cortex/adapter-obsidian   (Phase 9)
-       │     └── @cortex/adapter-bitbucket  (Phase 10)
+       ├── Source adapters       (modular, one package each)
+       │     ├── @cortex/adapter-confluence ✅
+       │     ├── @cortex/adapter-jira       ✅
+       │     ├── @cortex/adapter-notion     ✅
+       │     ├── @cortex/adapter-obsidian   ✅
+       │     └── (… Linear / Loom / Google / GitHub / Slack / …)
+       │
+       ├── Pipelines             (shape-specific, reusable)
+       │     ├── @cortex/pipeline-doc       ✅  (prose → chunked memories)
+       │     └── (future: pipeline-meeting, pipeline-code, pipeline-conversation)
        │
        └── Upstream MCP clients
-             ├── @onenomad/engram-memory
-             └── @onenomad/persona-mcp
+             ├── @onenomad/engram-memory    (spawned as stdio subprocess)
+             └── @onenomad/persona-mcp      (spawned as stdio subprocess)
 ```
 
 Every adapter implements the same `SourceAdapter` contract. Every LLM
-provider implements the same `LLMProvider` contract. Both are loaded
+provider implements the same `LLMProvider` contract. Every pipeline
+implements the same `Pipeline` contract. All three layers are loaded
 from config at startup, so swapping or disabling any piece is a config
-edit, not a code change.
+edit — not a code change.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full story,
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full story
 including the 3-pass meeting extraction pipeline, classification
 strategy, and failure-mode handling.
 
@@ -119,7 +184,7 @@ strategy, and failure-mode handling.
 ```bash
 pnpm install              # install all workspace deps
 pnpm typecheck            # tsc --build across the monorepo
-pnpm test                 # unit tests
+pnpm test                 # unit tests (71 and counting)
 pnpm dev                  # run `cortex start` in watch mode
 pnpm smoke                # live provider smoke test
 ```
