@@ -80,4 +80,30 @@ describe("createDocPipeline", () => {
     );
     expect(mems[0]?.metadata.project).toEqual(["engineering", "product"]);
   });
+
+  it("stamps engagement / sub_brand / team from ClassifiedItem when present", async () => {
+    const pipeline = createDocPipeline({ minChunkChars: 0 });
+    const mems = await pipeline.run(
+      makeItem({
+        engagement: "acme-corp",
+        subBrand: "alpha-retail",
+        team: "alpha",
+      }),
+      makeCtx(),
+    );
+    expect(mems[0]?.metadata).toMatchObject({
+      engagement: "acme-corp",
+      sub_brand: "alpha-retail",
+      team: "alpha",
+    });
+  });
+
+  it("omits context fields when ClassifiedItem doesn't carry them (back-compat)", async () => {
+    const pipeline = createDocPipeline({ minChunkChars: 0 });
+    const mems = await pipeline.run(makeItem(), makeCtx());
+    expect(mems[0]?.metadata).not.toHaveProperty("engagement");
+    expect(mems[0]?.metadata).not.toHaveProperty("sub_brand");
+    expect(mems[0]?.metadata).not.toHaveProperty("team");
+    expect(mems[0]?.metadata).not.toHaveProperty("release");
+  });
 });

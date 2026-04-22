@@ -85,6 +85,23 @@ export const memoryMetadataSchema = z.object({
   status: z
     .enum(["draft", "in_review", "approved", "revoked"])
     .optional(),
+  /**
+   * Client-engagement context. Forms a 3-level hierarchy with `sub_brand`
+   * and `project` — e.g. engagement="driven-brands", sub_brand="jiffy-lube",
+   * project="rebrand-2026". All optional; individual users and org-wide
+   * memories leave them unset. See ADR-014 (toolkit + engagement model).
+   */
+  engagement: z.string().min(1).optional(),
+  /** Sub-brand slug within an engagement (client multi-brand rollups). */
+  sub_brand: z.string().min(1).optional(),
+  /** Release tag or version this memory belongs to (e.g. "v2.3"). */
+  release: z.string().min(1).optional(),
+  /**
+   * Dev team slug. Cross-cuts engagements — the same team often works
+   * across multiple clients, so team is tagged independently of
+   * engagement. Used by capacity / standup / cross-engagement views.
+   */
+  team: z.string().min(1).optional(),
 });
 
 export type MemoryMetadata = z.infer<typeof memoryMetadataSchema>;

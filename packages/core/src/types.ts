@@ -100,6 +100,17 @@ export interface ClassifiedItem extends NormalizedItem {
     | "rule"
     | "path-based"
     | "manual";
+  /**
+   * Client-engagement context. Optional — set by adapters that can derive
+   * it from their source (per-space mapping for Confluence, per-project for
+   * Jira, per-repo for GitHub, etc.). Pipeline-* stamps these onto every
+   * emitted memory when present. See `memoryMetadataSchema` for the
+   * hierarchy shape and ADR-014 for rationale.
+   */
+  engagement?: string;
+  subBrand?: string;
+  release?: string;
+  team?: string;
 }
 
 /**

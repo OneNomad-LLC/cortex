@@ -99,6 +99,13 @@ function buildBaseMetadata(
     ...(input.title ? { title: input.title } : {}),
     ...(input.parentId ? { parent_id: input.parentId } : {}),
     ...(traceId ? { trace_id: traceId } : {}),
+    // Engagement context, stamped when the adapter classified with a
+    // spaceToContext-style rule. Optional by design — simple setups that
+    // only use spaceToProject leave these unset.
+    ...(input.engagement ? { engagement: input.engagement } : {}),
+    ...(input.subBrand ? { sub_brand: input.subBrand } : {}),
+    ...(input.release ? { release: input.release } : {}),
+    ...(input.team ? { team: input.team } : {}),
   };
 }
 

@@ -89,6 +89,37 @@ describe("ConfluenceAdapter", () => {
     expect(classified.classificationMethod).toBe("rule");
   });
 
+  it("spaceToContext wins over spaceToProject and carries engagement/subBrand/team", async () => {
+    const adapter = new ConfluenceAdapter();
+    await adapter.init(
+      makeCtx({
+        workspace: "yourcompany",
+        spaceToProject: { ENG: "engineering" },
+        spaceToContext: {
+          ENG: {
+            engagement: "acme-corp",
+            subBrand: "alpha-retail",
+            project: "pos-refresh",
+            team: "alpha",
+          },
+        },
+      }),
+    );
+
+    const normalized = await adapter.transform({
+      sourceId: "confluence:page:100001",
+      raw: { page: fixture, spaceKey: "ENG" },
+    });
+    const classified = await adapter.classify(normalized, {});
+
+    expect(classified.projects).toEqual(["pos-refresh"]);
+    expect(classified.engagement).toBe("acme-corp");
+    expect(classified.subBrand).toBe("alpha-retail");
+    expect(classified.team).toBe("alpha");
+    expect(classified.confidence).toBeGreaterThanOrEqual(0.95);
+    expect(classified.classificationMethod).toBe("rule");
+  });
+
   it("returns unclassified (confidence 0) when no rule matches", async () => {
     const adapter = new ConfluenceAdapter();
     await adapter.init(

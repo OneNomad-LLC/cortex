@@ -13,6 +13,20 @@ import { BaseAdapter } from "@cortex/adapter-sdk";
 import { ConfluenceClient, type ConfluencePageFull } from "./client.js";
 import { storageToMarkdown } from "./storage.js";
 
+/** Full engagement/sub-brand/project tuple for a single space. */
+export const spaceContextSchema = z.object({
+  /** Engagement slug — maps to the `engagement:*` domain and engagements.yaml. */
+  engagement: z.string().min(1).optional(),
+  /** Sub-brand slug within the engagement (e.g. "jiffy-lube"). */
+  subBrand: z.string().min(1).optional(),
+  /** Project slug — same meaning as projects.yaml; becomes the `project` metadata field. */
+  project: z.string().min(1),
+  /** Dev team slug if the space is owned by a specific team. */
+  team: z.string().min(1).optional(),
+});
+
+export type SpaceContext = z.infer<typeof spaceContextSchema>;
+
 export const confluenceConfigSchema = z.object({
   /** The `<subdomain>.atlassian.net` subdomain only. */
   workspace: z.string().min(1),
@@ -22,11 +36,18 @@ export const confluenceConfigSchema = z.object({
   /** Max pages per sync run per space. 0 = unlimited. */
   maxPagesPerRun: z.number().int().min(0).default(0),
   /**
-   * Rule-based classifier: space key -> project slug. Anything not in
-   * this map falls through to the LLM classifier (or unclassified with
-   * confidence 0).
+   * Shorthand classifier: space key -> project slug. Used when the only
+   * context that matters is the Cortex project. Kept for simple setups
+   * and back-compat; pairs with `spaceToContext` for richer mappings.
    */
   spaceToProject: z.record(z.string()).default({}),
+  /**
+   * Rich classifier: space key -> full context tuple
+   * `{engagement, subBrand, project, team}`. When present, fields are
+   * stamped onto every memory emitted from that space. Falls back to
+   * `spaceToProject` if a space isn't in this map.
+   */
+  spaceToContext: z.record(spaceContextSchema).default({}),
 });
 
 export type ConfluenceConfig = z.infer<typeof confluenceConfigSchema>;
@@ -152,6 +173,21 @@ export class ConfluenceAdapter extends BaseAdapter {
     const spaceKey =
       (item.rawMetadata.spaceKey as string | undefined) ?? undefined;
 
+    // Rich mapping wins — carries the full engagement/sub-brand/team tuple.
+    const ctx = spaceKey ? this.cfg.spaceToContext[spaceKey] : undefined;
+    if (ctx) {
+      return {
+        ...item,
+        projects: [ctx.project],
+        confidence: 0.98,
+        classificationMethod: "rule",
+        ...(ctx.engagement ? { engagement: ctx.engagement } : {}),
+        ...(ctx.subBrand ? { subBrand: ctx.subBrand } : {}),
+        ...(ctx.team ? { team: ctx.team } : {}),
+      };
+    }
+
+    // Shorthand map — project only, no engagement context.
     const mapped = spaceKey ? this.cfg.spaceToProject[spaceKey] : undefined;
     if (mapped) {
       return {

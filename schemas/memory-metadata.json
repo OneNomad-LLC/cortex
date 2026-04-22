@@ -121,6 +121,26 @@
       "type": "string",
       "enum": ["draft", "in_review", "approved", "revoked"],
       "description": "Lifecycle status for curated memories (references, decisions)."
+    },
+    "engagement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Client-engagement slug (e.g. \"driven-brands\"). Root of the engagement/sub_brand/project hierarchy."
+    },
+    "sub_brand": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Sub-brand slug within an engagement (client multi-brand rollups)."
+    },
+    "release": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Release tag or version this memory belongs to (e.g. \"v2.3\")."
+    },
+    "team": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dev team slug. Cross-cuts engagements — same team often works across multiple clients."
     }
   }
 }
