@@ -4,9 +4,10 @@ Canonical build order and current state. Update after every meaningful session.
 
 ## Current Phase
 
-**Phase 1: Foundation** — monorepo scaffolded, LLM provider layer built.
-Pending: `pnpm install`, live Ollama + OpenRouter smoke test, Engram/Persona
-MCP client implementations.
+**Phase 2: Project Taxonomy** — Project/Person schemas, taxonomy loader,
+and the first two MCP tools (`list_projects`, `get_project_context`) are in.
+Pending: real Engram/Persona MCP clients so `get_project_context` can
+surface recent activity instead of returning an empty array.
 
 ## Phase 0: Setup (manual, pre-development)
 
@@ -49,17 +50,20 @@ Ollama and OpenRouter clients both work in isolation against live endpoints.
 
 ## Phase 2: Project Taxonomy
 
-- [ ] `config/projects.yaml` schema defined
-- [ ] `config/people.yaml` schema defined
-- [ ] Domain types: `Project`, `Person` (`src/domain/project.ts`, etc.)
-- [ ] Loader with validation
-- [ ] MCP tool: `list_projects`
-- [ ] MCP tool: `get_project_context` (reads from config + queries Engram for
-      recent activity)
-- [ ] Tests with fixture config files
+- [x] `config/projects.yaml` schema (Zod) in `@cortex/core`
+- [x] `config/people.yaml` schema (Zod) in `@cortex/core`
+- [x] Domain types: `Project`, `Person` (zod-inferred)
+- [x] Taxonomy loader with validation and lookup index
+- [x] MCP tool: `list_projects` (with `activeOnly` filter)
+- [x] MCP tool: `get_project_context` (config-only — recent activity stubbed
+      pending real Engram client)
+- [x] MCP tool framework (`McpTool`, `ToolContext`, tool registry)
+- [x] Tests with fixture config files (15 server tests total)
+- [ ] Real Engram client so `get_project_context` returns recent activity
+- [ ] Real Persona client (cognitive-load-aware response shaping)
 
 Exit criteria: Ask Claude Code in claude.ai "what projects am I working on"
-and get a real answer from Cortex.
+and get a real answer from Cortex. Tools appear in `/mcp` tool listing.
 
 ## Phase 3: Meeting Pipeline (Fixtures First)
 
@@ -217,3 +221,8 @@ Record a one-line summary after each Claude Code session.
 - 2026-04-21: Phase 1 scaffolding. Monorepo, 8 packages, ADR-010 for
   pluggable LLM providers, MCP skeleton wires end-to-end without adapters.
   Moved docs to `docs/` and aligned CLAUDE.md with ADR-008 monorepo layout.
+- 2026-04-21: Phase 2 kickoff. Project/Person zod schemas, taxonomy loader
+  with alias-normalized lookup, MCP tool framework, first two tools
+  (`list_projects`, `get_project_context`). 29 tests total, live MCP
+  server boots and advertises tools. Real Engram/Persona clients still
+  stubbed.

@@ -1,0 +1,14 @@
+people:
+  - slug: alex
+    name: "Alex Example"
+    email: alex@example.com
+    projects: [project-alpha, project-beta]
+    role: "Engineering"
+    aliases: ["Alexander", "AE"]
+
+  - slug: sarah
+    name: "Sarah Example"
+    email: Sarah.Example@company.com
+    projects: [project-alpha]
+    role: "Product"
+    aliases: []

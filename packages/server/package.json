@@ -9,7 +9,7 @@
     "knowledge",
     "memory"
   ],
-  "author": "Matt Stvartak <hello@mattstvartak.com>",
+  "author": "OneNomad",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -43,7 +43,8 @@
     "@inquirer/prompts": "^7.0.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "yaml": "^2.6.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

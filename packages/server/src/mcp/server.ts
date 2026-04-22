@@ -12,6 +12,10 @@ import { buildAdapterRegistry } from "../registry/adapters.js";
 import { createScheduler } from "../scheduler.js";
 import { createEngramClient } from "../clients/engram.js";
 import { createPersonaClient } from "../clients/persona.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { loadTaxonomy } from "../taxonomy.js";
+import { ALL_TOOLS } from "./tools/index.js";
+import type { AnyMcpTool, ToolContext } from "./tool.js";
 
 /**
  * Boots the Cortex MCP server. Phase 1: advertises zero tools but verifies
@@ -26,6 +30,16 @@ export async function startServer(): Promise<void> {
 
   logger.info("startup.begin", { configPath });
   const cfg = await loadCortexConfig(configPath);
+
+  const repoRoot = path.resolve(path.dirname(configPath), "..");
+  const taxonomy = await loadTaxonomy({
+    projectsPath: path.join(repoRoot, "config", "projects.yaml"),
+    peoplePath: path.join(repoRoot, "config", "people.yaml"),
+  });
+  logger.info("taxonomy.ready", {
+    projects: taxonomy.projects.length,
+    people: taxonomy.people.length,
+  });
 
   const { router, providers } = await buildLLMRouter({
     cfg,
@@ -66,17 +80,49 @@ export async function startServer(): Promise<void> {
     { capabilities: { tools: {} } },
   );
 
-  mcp.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [] }));
+  const toolContext: ToolContext = { taxonomy, logger };
+  const toolsByName = new Map<string, AnyMcpTool>();
+  for (const tool of ALL_TOOLS) toolsByName.set(tool.name, tool);
+
+  mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: ALL_TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: zodToJsonSchema(t.inputSchema),
+    })),
+  }));
+
   mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Tool '${req.params.name}' not found. Cortex advertises no tools yet.`,
-        },
-      ],
-      isError: true,
-    };
+    const tool = toolsByName.get(req.params.name);
+    if (!tool) {
+      return {
+        content: [
+          { type: "text", text: `Tool '${req.params.name}' not found.` },
+        ],
+        isError: true,
+      };
+    }
+    try {
+      const parsed = tool.inputSchema.parse(req.params.arguments ?? {});
+      const result = await tool.handler(parsed, toolContext);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (err) {
+      logger.warn("tool.failed", {
+        tool: tool.name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: err instanceof Error ? err.message : String(err),
+          },
+        ],
+        isError: true,
+      };
+    }
   });
 
   const transport = new StdioServerTransport();

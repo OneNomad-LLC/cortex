@@ -1,3 +1,5 @@
+import type { Person } from "./person.js";
+import type { Project } from "./project.js";
 import type { HealthStatus } from "./types.js";
 
 /**
@@ -17,30 +19,19 @@ export interface Logger {
  * the context. Adapters should never read the config files directly.
  */
 export interface TaxonomyReader {
-  listProjects(): ProjectSummary[];
-  findProjectBySlug(slug: string): ProjectSummary | undefined;
-  findProjectByAlias(alias: string): ProjectSummary | undefined;
+  listProjects(opts?: { activeOnly?: boolean }): Project[];
+  findProjectBySlug(slug: string): Project | undefined;
+  /**
+   * Match against slug or any alias. Returns the best match, preferring an
+   * exact slug hit over alias matches.
+   */
+  findProject(query: string): Project | undefined;
 
-  listPeople(): PersonSummary[];
-  findPersonByEmail(email: string): PersonSummary | undefined;
-  findPersonByName(name: string): PersonSummary | undefined;
-}
-
-export interface ProjectSummary {
-  slug: string;
-  name: string;
-  description: string;
-  active: boolean;
-  aliases: readonly string[];
-  people: readonly string[];
-}
-
-export interface PersonSummary {
-  slug: string;
-  name: string;
-  email: string;
-  projects: readonly string[];
-  role?: string;
+  listPeople(): Person[];
+  findPersonBySlug(slug: string): Person | undefined;
+  findPersonByEmail(email: string): Person | undefined;
+  /** Match by name or alias (case-insensitive, punctuation-insensitive). */
+  findPerson(query: string): Person | undefined;
 }
 
 /**

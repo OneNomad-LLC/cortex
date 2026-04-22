@@ -1,0 +1,26 @@
+projects:
+  - slug: project-alpha
+    name: "Project Alpha"
+    description: "The first test project."
+    active: true
+    aliases: ["Alpha", "Proj A"]
+    people: [alex, sarah]
+    sources:
+      confluence_space: "ALPHA"
+      bitbucket_repos: ["alpha-backend"]
+
+  - slug: project-beta
+    name: "Project Beta"
+    description: "Another active project."
+    active: true
+    aliases: ["Beta"]
+    people: [alex]
+    sources: {}
+
+  - slug: project-legacy
+    name: "Legacy System"
+    description: "No longer actively worked on."
+    active: false
+    aliases: []
+    people: []
+    sources: {}

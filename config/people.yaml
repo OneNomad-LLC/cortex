@@ -2,8 +2,9 @@
 # Changes require a server restart.
 
 people: []
-  # - slug: matt
-  #   name: "Matt Stvartak"
-  #   email: hello@mattstvartak.com
+  # - slug: me
+  #   name: "Your Name"
+  #   email: you@example.com
   #   projects: []
   #   role: "Engineering"
+  #   aliases: []
