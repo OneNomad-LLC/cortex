@@ -188,7 +188,10 @@ switch). See [ADR-012](docs/DECISIONS.md).
 
 ## Connect to Claude Code
 
-Add this to your Claude Code MCP config:
+Two transports are supported; pick the one that matches how you're
+running Cortex.
+
+**Local (stdio, default):**
 
 ```json
 {
@@ -201,8 +204,47 @@ Add this to your Claude Code MCP config:
 }
 ```
 
+**Remote / containerized (HTTP):**
+
+Set `CORTEX_MCP_TRANSPORT=http` on the server side (defaults to port
+3100). Point Claude Code at the URL:
+
+```json
+{
+  "mcpServers": {
+    "cortex": {
+      "url": "http://your-host:3100"
+    }
+  }
+}
+```
+
 Reload Claude Code. `cortex` should appear in `/mcp` with all ten
 tools currently shipped.
+
+## Deploy with Docker
+
+Local development doesn't need containers — `pnpm dev` + stdio MCP is
+simpler. Docker is the production path: a Hetzner box (ADR-005)
+serving HTTP MCP over Tailscale, optional Postgres+pgvector for the
+memory fallback, optional Ollama for local LLM.
+
+```bash
+# Build + run Cortex alone (HTTP MCP on 3100, webhooks on 4040).
+docker compose up -d
+
+# With the pgvector memory fallback bundled in:
+docker compose --profile pgvector up -d
+
+# Full stack: Cortex + pgvector + Ollama:
+docker compose --profile all up -d
+```
+
+The `packages/server/Dockerfile` builds a multi-stage image: install →
+`tsc --build` → pruned prod deps → runtime. Config is mounted at
+`/config/cortex.yaml`; state lives in the `cortex-state` volume.
+Webhooks need a public URL — use Tailscale Funnel, a reverse proxy,
+or ngrok depending on deployment shape. See [ADR-013](docs/DECISIONS.md).
 
 ## Architecture
 

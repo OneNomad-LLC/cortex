@@ -1,11 +1,11 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { connectConfiguredTransport } from "./transport.js";
 import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { buildLLMRouter } from "../registry/providers.js";
@@ -240,16 +240,21 @@ export async function startServer(): Promise<void> {
     }
   });
 
-  const transport = new StdioServerTransport();
-  await mcp.connect(transport);
-  logger.info("mcp.connected", { transport: "stdio" });
-  heartbeat.setMcpConnected(true, "stdio");
+  const transportHandle = await connectConfiguredTransport({ mcp, logger });
+  heartbeat.setMcpConnected(true, transportHandle.kind);
 
   const shutdown = async (): Promise<void> => {
     logger.info("shutdown.begin");
     await scheduler.stop();
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
+    try {
+      await transportHandle.close();
+    } catch (err) {
+      logger.warn("mcp.transport.close_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     await heartbeat.stop();
     for (const provider of Object.values(providers)) {
       try {

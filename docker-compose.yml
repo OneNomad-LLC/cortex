@@ -1,48 +1,81 @@
+# Docker Compose recipe for running Cortex in server-mode.
+#
+# Local developers usually don't need this — `pnpm dev` + stdio MCP in
+# Claude Code is simpler. Compose is the production path: a Hetzner box
+# (ADR-005) serving HTTP MCP over Tailscale, with optional Postgres for
+# the pgvector memory fallback and optional Ollama for local LLM.
+#
+# Quick start:
+#   cp .env.example .env         # fill in secrets
+#   docker compose up -d
+#
+# Profiles let you opt into supplementary services:
+#   docker compose --profile pgvector up     # adds Postgres + pgvector
+#   docker compose --profile ollama up       # adds a local Ollama daemon
+#   docker compose --profile all up          # everything
+#
+# To point Claude Code at a running container over Tailscale, set
+# CORTEX_MCP_TRANSPORT=http and configure the HTTP endpoint in your
+# Claude Code mcpServers config.
+
 services:
-  engram:
-    image: engram:local
-    build:
-      context: ../engram
-    ports:
-      - "3101:3101"
-    environment:
-      - MCP_PORT=3101
-    volumes:
-      - engram-data:/data
-    restart: unless-stopped
-
-  persona:
-    image: persona:local
-    build:
-      context: ../persona
-    ports:
-      - "3102:3102"
-    environment:
-      - MCP_PORT=3102
-    volumes:
-      - persona-data:/data
-    restart: unless-stopped
-
   cortex:
+    image: cortex:local
     build:
       context: .
       dockerfile: packages/server/Dockerfile
-    ports:
-      - "3100:3100"
     environment:
-      - NODE_ENV=development
-      - ENGRAM_MCP_URL=http://engram:3101
-      - PERSONA_MCP_URL=http://persona:3102
-      - CORTEX_MCP_PORT=3100
+      - NODE_ENV=production
+      # stdio by default for interactive use; override to "http" for
+      # containerized deployments that serve Claude Code over the network.
+      - CORTEX_MCP_TRANSPORT=${CORTEX_MCP_TRANSPORT:-http}
+      - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-3100}
+      - CORTEX_CONFIG_PATH=/config/cortex.yaml
+      # Default to the compose-internal Postgres when pgvector profile is
+      # active; overridden by .env when the user points at their own DB.
+      - POSTGRES_URL=${POSTGRES_URL:-postgres://cortex:cortex@pgvector:5432/cortex}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
     env_file:
       - .env
+    ports:
+      - "${CORTEX_MCP_PORT:-3100}:3100"
+      - "${CORTEX_WEBHOOK_PORT:-4040}:4040"
     volumes:
-      - ./config:/app/config:ro
-    depends_on:
-      - engram
-      - persona
+      - ./config:/config:ro
+      - cortex-state:/root/.cortex
+    restart: unless-stopped
+
+  pgvector:
+    image: pgvector/pgvector:pg17
+    profiles: ["pgvector", "all"]
+    environment:
+      - POSTGRES_USER=cortex
+      - POSTGRES_PASSWORD=cortex
+      - POSTGRES_DB=cortex
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+    ports:
+      - "${PGVECTOR_PORT:-5432}:5432"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama", "all"]
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    # GPU passthrough: uncomment on a Linux host with nvidia-container-toolkit.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     restart: unless-stopped
 
 volumes:
-  engram-data:
-  persona-data:
+  cortex-state:
+  pgvector-data:
+  ollama-models:
