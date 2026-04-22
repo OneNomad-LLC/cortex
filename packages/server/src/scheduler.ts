@@ -2,6 +2,7 @@ import type { Logger, SourceAdapter } from "@cortex/core";
 import type { LLMRouter } from "@cortex/llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import { parseCron, nextFireAfter, type CronSchedule } from "./cron.js";
+import type { HeartbeatWriter } from "./heartbeat.js";
 import { runSync } from "./sync.js";
 
 export interface SchedulerOptions {
@@ -15,6 +16,11 @@ export interface SchedulerOptions {
    * maxItemsPerRun) or `since = lastRunAt` (kept in memory only).
    */
   rememberLastRun?: boolean;
+  /**
+   * Optional — when provided, the scheduler reports per-run stats to
+   * the heartbeat writer. `cortex status` reads the resulting file.
+   */
+  heartbeat?: HeartbeatWriter;
 }
 
 export interface Scheduler {
@@ -65,6 +71,7 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
     }
 
     entry.running = true;
+    opts.heartbeat?.markRunBegin(entry.adapter.id);
     const start = Date.now();
     const sinceIso = opts.rememberLastRun && entry.lastRunAt
       ? entry.lastRunAt.toISOString()
@@ -75,6 +82,8 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
       sinceIso,
     });
 
+    let ingested = 0;
+    let errCount = 0;
     try {
       const result = await runSync({
         adapter: entry.adapter,
@@ -85,6 +94,8 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
           ...(sinceIso ? { sinceIso } : {}),
         },
       });
+      ingested = result.ingested;
+      errCount = result.errors;
       entry.lastRunAt = new Date(start);
       opts.logger.info("scheduler.run_done", {
         adapter: entry.adapter.id,
@@ -92,6 +103,7 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
         ...result,
       });
     } catch (err) {
+      errCount = 1;
       opts.logger.error("scheduler.run_failed", {
         adapter: entry.adapter.id,
         durationMs: Date.now() - start,
@@ -99,6 +111,11 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
       });
     } finally {
       entry.running = false;
+      opts.heartbeat?.markRunEnd(entry.adapter.id, {
+        ingested,
+        errors: errCount,
+        durationMs: Date.now() - start,
+      });
       if (started) scheduleNext(entry);
     }
   };
@@ -107,6 +124,7 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
     register(adapter, cronExpr) {
       if (!cronExpr || cronExpr.trim().length === 0) {
         opts.logger.info("scheduler.skip_no_schedule", { adapter: adapter.id });
+        opts.heartbeat?.registerAdapter(adapter.id, undefined);
         return;
       }
       try {
@@ -118,6 +136,7 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
           running: false,
           lastRunAt: undefined,
         });
+        opts.heartbeat?.registerAdapter(adapter.id, cronExpr);
         opts.logger.info("scheduler.registered", {
           adapter: adapter.id,
           schedule: cronExpr,

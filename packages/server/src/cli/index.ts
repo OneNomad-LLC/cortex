@@ -1,6 +1,7 @@
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runInit } from "./init.js";
 import { runSmoke } from "./smoke.js";
+import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
 import { startServer } from "../mcp/server.js";
 
@@ -12,6 +13,7 @@ Usage:
 Commands:
   init                       Interactive setup wizard.
   start                      Boot the Cortex MCP server over stdio.
+  status                     Show daemon heartbeat (uptime, adapter stats).
   smoke                      Run a live LLM probe against every enabled provider.
   sync <adapter> [flags]     Run one adapter's full ingestion cycle once.
                                --since=ISO  only items updated after this date
@@ -51,6 +53,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "smoke":
       return runSmoke();
+
+    case "status":
+      return runStatus();
 
     case "sync":
       return runSyncCli(rest);

@@ -1,4 +1,5 @@
 import type { AnyMcpTool } from "../tool.js";
+import { approveResearch } from "./approve-research.js";
 import { catchMeUp } from "./catch-me-up.js";
 import { catchMeUpOnMeeting } from "./catch-me-up-on-meeting.js";
 import { getProjectContext } from "./get-project-context.js";
@@ -21,6 +22,7 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   myActionItems,
   upcomingBriefs,
   research,
+  approveResearch,
   listUnclassified,
   todaysDigest,
 ];
