@@ -11,6 +11,20 @@ import { BaseAdapter } from "@cortex/adapter-sdk";
 import { adfToMarkdown } from "./adf.js";
 import { JiraClient, type JiraIssue } from "./client.js";
 
+/** Full engagement/sub-brand/project tuple for a single Jira project key. */
+export const projectContextSchema = z.object({
+  /** Engagement slug — maps to the `engagement:*` domain and engagements.yaml. */
+  engagement: z.string().min(1).optional(),
+  /** Sub-brand slug within the engagement (e.g. "jiffy-lube"). */
+  subBrand: z.string().min(1).optional(),
+  /** Cortex project slug — same meaning as projects.yaml; becomes the `project` metadata field. */
+  project: z.string().min(1),
+  /** Dev team slug if the project is owned by a specific team. */
+  team: z.string().min(1).optional(),
+});
+
+export type ProjectContext = z.infer<typeof projectContextSchema>;
+
 export const jiraConfigSchema = z.object({
   workspace: z.string().min(1),
   /** Jira project keys to sync. Empty = fall back to `jql` or everything. */
@@ -22,8 +36,19 @@ export const jiraConfigSchema = z.object({
   jql: z.string().default(""),
   pageSize: z.number().int().min(1).max(100).default(50),
   maxIssuesPerRun: z.number().int().min(0).default(0),
-  /** Map Jira project key → Cortex project slug. */
+  /**
+   * Shorthand classifier: Jira project key -> Cortex project slug. Used when
+   * the only context that matters is the Cortex project. Pairs with the
+   * richer `projectKeyToContext` for full engagement context.
+   */
   projectToCortex: z.record(z.string()).default({}),
+  /**
+   * Rich classifier: Jira project key -> full context tuple
+   * `{engagement, subBrand, project, team}`. When present, fields are
+   * stamped onto every memory emitted from that Jira project. Falls back
+   * to `projectToCortex` when a key isn't in this map.
+   */
+  projectKeyToContext: z.record(projectContextSchema).default({}),
 });
 
 export type JiraConfig = z.infer<typeof jiraConfigSchema>;
@@ -154,6 +179,22 @@ export class JiraAdapter extends BaseAdapter {
     cctx: ClassificationContext,
   ): Promise<ClassifiedItem> {
     const projectKey = item.rawMetadata.projectKey as string | undefined;
+
+    // Rich mapping wins — carries the full engagement/sub-brand/team tuple.
+    const ctx = projectKey ? this.cfg.projectKeyToContext[projectKey] : undefined;
+    if (ctx) {
+      return {
+        ...item,
+        projects: [ctx.project],
+        confidence: 0.98,
+        classificationMethod: "rule",
+        ...(ctx.engagement ? { engagement: ctx.engagement } : {}),
+        ...(ctx.subBrand ? { subBrand: ctx.subBrand } : {}),
+        ...(ctx.team ? { team: ctx.team } : {}),
+      };
+    }
+
+    // Shorthand map — project only, no engagement context.
     const mapped = projectKey ? this.cfg.projectToCortex[projectKey] : undefined;
     if (mapped) {
       return {
@@ -163,6 +204,7 @@ export class JiraAdapter extends BaseAdapter {
         classificationMethod: "rule",
       };
     }
+
     return { ...item, ...(await this.fallbackClassify(item, cctx, "")) };
   }
 

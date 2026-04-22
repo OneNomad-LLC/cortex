@@ -1,5 +1,6 @@
 import type { WizardModule } from "@cortex/core";
 import { confluenceWizard } from "@cortex/adapter-confluence";
+import { jiraWizard } from "@cortex/adapter-jira";
 
 /**
  * Static registry of wizard specs known to the CLI.
@@ -8,12 +9,8 @@ import { confluenceWizard } from "@cortex/adapter-confluence";
  * `WizardModule` spec; we list them here explicitly (same ADR-009 pattern
  * as the adapter + provider registries). Listing here is the single place
  * new modules land when their wizards ship.
- *
- * Sprint A (this file): Confluence only.
- * Sprint B: the remaining 11 adapters + LLM providers + memory backends
- *           + webhooks all register here.
  */
-const WIZARDS: WizardModule[] = [confluenceWizard];
+const WIZARDS: WizardModule[] = [confluenceWizard, jiraWizard];
 
 const BY_ID = new Map<string, WizardModule>();
 for (const w of WIZARDS) BY_ID.set(w.id, w);

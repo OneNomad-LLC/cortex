@@ -162,4 +162,58 @@ describe("config-mutation", () => {
     const cfg = await readModuleConfig({ repoRoot: root }, "confluence");
     expect(cfg).toMatchObject({ workspace: "read-me", spaces: ["A", "B"] });
   });
+
+  it("jira wizard result lands under its own adapter block alongside confluence", async () => {
+    const root = await makeRepo();
+    // Enable confluence first.
+    await applyWizardResult(
+      { repoRoot: root },
+      {
+        moduleId: "confluence",
+        config: { workspace: "acme", spaces: ["ENG"] },
+        secrets: { ATLASSIAN_EMAIL: "you@example.com", ATLASSIAN_API_TOKEN: "t" },
+      },
+    );
+    // Then jira — shares ATLASSIAN_* secrets; the .env merge must not duplicate them.
+    await applyWizardResult(
+      { repoRoot: root },
+      {
+        moduleId: "jira",
+        config: {
+          workspace: "acme",
+          projects: ["ENG", "OPS"],
+          projectKeyToContext: {
+            ENG: { project: "alpha", engagement: "acme-corp" },
+            OPS: { project: "beta" },
+          },
+        },
+        secrets: { ATLASSIAN_EMAIL: "you@example.com", ATLASSIAN_API_TOKEN: "t" },
+        derivedTaxonomy: {
+          projects: [{ slug: "alpha" }, { slug: "beta" }],
+        },
+      },
+    );
+    const local = await readFile(
+      path.join(root, "config", "cortex.local.yaml"),
+      "utf8",
+    );
+    expect(local).toContain("confluence:");
+    expect(local).toContain("jira:");
+    expect(local).toContain("package: \"@cortex/adapter-jira\"");
+    expect(local).toContain("ENG");
+    expect(local).toContain("OPS");
+
+    // .env should have one entry each, not duplicates from the shared creds.
+    const env = await readFile(path.join(root, ".env"), "utf8");
+    expect(env.match(/^ATLASSIAN_EMAIL=/gm)?.length ?? 0).toBe(1);
+    expect(env.match(/^ATLASSIAN_API_TOKEN=/gm)?.length ?? 0).toBe(1);
+
+    // Derived projects should include both alpha and beta, from both wizards.
+    const projects = await readFile(
+      path.join(root, "config", "projects.local.yaml"),
+      "utf8",
+    );
+    expect(projects).toContain("slug: alpha");
+    expect(projects).toContain("slug: beta");
+  });
 });
