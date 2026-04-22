@@ -62,12 +62,15 @@ export async function startServer(): Promise<void> {
   const personaHealth = await persona.healthCheck();
   logger.info("persona.ready", { healthy: personaHealth.healthy });
 
-  const scheduler = createScheduler(logger);
+  const scheduler = createScheduler({
+    engram,
+    llmRouter: router,
+    logger,
+  });
 
   // Adapter registry — pulls enabled adapters from cortex.yaml and runs
-  // their init. For adapters that need live context (engram/persona/llm),
-  // we plug those in here. The scheduler (not yet live) will call
-  // runSync per adapter on its schedule.
+  // their init. Scheduler registers each one with its cron schedule and
+  // starts firing after the whole server is up.
   const adapterRegistry = await buildAdapterRegistry({
     cfg,
     env: process.env,
@@ -102,9 +105,14 @@ export async function startServer(): Promise<void> {
   });
   logger.info("adapters.ready", { count: Object.keys(adapterRegistry.adapters).length });
 
-  // Void-reference the pieces we don't consume from tools yet so TypeScript
-  // doesn't complain and we keep them in the ownership tree for shutdown.
-  void scheduler;
+  // Register every enabled adapter with the scheduler using its own cron
+  // expression from cortex.yaml. Adapters without a schedule (e.g. ad-hoc
+  // Obsidian) just skip — they remain reachable via `cortex sync`.
+  for (const [id, adapter] of Object.entries(adapterRegistry.adapters)) {
+    const entry = cfg.adapters[id];
+    scheduler.register(adapter, entry?.schedule);
+  }
+  await scheduler.start();
 
   const mcp = new Server(
     { name: "cortex", version: "0.0.0" },
