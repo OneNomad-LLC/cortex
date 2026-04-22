@@ -4,7 +4,9 @@ import type {
   Logger,
   SourceAdapter,
 } from "@cortex/core";
+import { createAdapter as createBitbucketAdapter } from "@cortex/adapter-bitbucket";
 import { createAdapter as createConfluenceAdapter } from "@cortex/adapter-confluence";
+import { createAdapter as createGithubAdapter } from "@cortex/adapter-github";
 import { createAdapter as createGmailAdapter } from "@cortex/adapter-gmail";
 import { createAdapter as createGoogleCalendarAdapter } from "@cortex/adapter-google-calendar";
 import { createAdapter as createGoogleDriveAdapter } from "@cortex/adapter-google-drive";
@@ -21,7 +23,9 @@ import type { CortexConfig } from "../config.js";
  * `require()` — keeps the TypeScript check honest.
  */
 const adapterFactories: Record<string, AdapterFactory> = {
+  "@cortex/adapter-bitbucket": createBitbucketAdapter,
   "@cortex/adapter-confluence": createConfluenceAdapter,
+  "@cortex/adapter-github": createGithubAdapter,
   "@cortex/adapter-gmail": createGmailAdapter,
   "@cortex/adapter-google-calendar": createGoogleCalendarAdapter,
   "@cortex/adapter-google-drive": createGoogleDriveAdapter,
@@ -31,8 +35,6 @@ const adapterFactories: Record<string, AdapterFactory> = {
   "@cortex/adapter-notion": createNotionAdapter,
   "@cortex/adapter-obsidian": createObsidianAdapter,
   // Future adapters, each in its own package:
-  // "@cortex/adapter-bitbucket": createBitbucketAdapter,
-  // "@cortex/adapter-github": createGithubAdapter,
   // "@cortex/adapter-slack": createSlackAdapter,
 };
 

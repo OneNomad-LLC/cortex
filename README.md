@@ -16,16 +16,17 @@ and LLM provider is a standalone package — install only what you use.
 
 ## Status
 
-Two MCP tools live (`list_projects`, `get_project_context`). **Nine
+Two MCP tools live (`list_projects`, `get_project_context`). **Eleven
 source adapters** shipped — Confluence, Jira, Linear, Loom, Notion,
-Obsidian, Google Calendar, Google Drive, Gmail. Google adapters share
-`@cortex/google-auth` for OAuth. **Two pipelines** shipped —
-`@cortex/pipeline-doc` (prose → chunked memories) and
-`@cortex/pipeline-meeting` (3-pass extraction: structural → synthesis
-→ brief, prompts as `.md` files). 98 tests. `cortex sync <adapter>`
-runs a full ingestion cycle on demand with the LLM router wired into
-the pipeline context. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for
-what's next.
+Obsidian, Google Calendar, Google Drive, Gmail, Bitbucket, GitHub.
+Google adapters share `@cortex/google-auth` for OAuth. **Three
+pipelines** shipped — `@cortex/pipeline-doc` (prose → chunked
+memories), `@cortex/pipeline-meeting` (3-pass extraction: structural →
+synthesis → brief), and `@cortex/pipeline-code` (per-file memories
+with heuristic semantic chunking across TS/JS/Python/Go/Rust/Java).
+113 tests. `cortex sync <adapter>` runs a full ingestion cycle on
+demand with the LLM router wired into the pipeline context. See
+[`docs/ROADMAP.md`](docs/ROADMAP.md) for what's next.
 
 ## Install
 
@@ -85,8 +86,8 @@ cortex help
 | `@cortex/adapter-google-calendar` | ✅ shipped | Google OAuth | `pipeline-doc` |
 | `@cortex/adapter-google-drive` | ✅ shipped | Google OAuth | `pipeline-doc` |
 | `@cortex/adapter-gmail` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@cortex/adapter-bitbucket` | planned | Atlassian token | `pipeline-code` |
-| `@cortex/adapter-github` | planned | GitHub PAT | `pipeline-code` |
+| `@cortex/adapter-bitbucket` | ✅ shipped | Atlassian token | `pipeline-code` |
+| `@cortex/adapter-github` | ✅ shipped | `GITHUB_TOKEN` | `pipeline-code` |
 | `@cortex/adapter-slack` | planned | Slack token | `pipeline-conversation` |
 
 Enabling an adapter is a three-step flip:
@@ -165,15 +166,18 @@ Cortex MCP server
        │     ├── @cortex/adapter-loom              ✅
        │     ├── @cortex/adapter-notion            ✅
        │     ├── @cortex/adapter-obsidian          ✅
+       │     ├── @cortex/adapter-bitbucket         ✅
+       │     ├── @cortex/adapter-github            ✅
        │     ├── @cortex/adapter-google-calendar   ✅  ┐
        │     ├── @cortex/adapter-google-drive      ✅  ├─ share @cortex/google-auth
        │     ├── @cortex/adapter-gmail             ✅  ┘
-       │     └── (… GitHub / Bitbucket / Slack / …)
+       │     └── (… Slack / …)
        │
        ├── Pipelines             (shape-specific, reusable)
        │     ├── @cortex/pipeline-doc       ✅  (prose → chunked memories)
        │     ├── @cortex/pipeline-meeting   ✅  (3-pass: structural → synthesis → brief)
-       │     └── (future: pipeline-code, pipeline-conversation, pipeline-event)
+       │     ├── @cortex/pipeline-code      ✅  (per-file, language-aware chunking)
+       │     └── (future: pipeline-conversation for Slack/email threads)
        │
        └── Upstream MCP clients
              ├── @onenomad/engram-memory    (spawned as stdio subprocess)

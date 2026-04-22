@@ -123,7 +123,32 @@ adapters:
       labelToProject: {}
       defaultProject: ""
 
+  bitbucket:
+    package: "@cortex/adapter-bitbucket"
+    enabled: false
+    schedule: "0 3 * * *"
+    config:
+      workspace: "yourcompany"
+      repos: []
+      branch: "main"
+      includeGlobs: ["**/*.ts", "**/*.py", "**/*.go", "**/README*"]
+      excludeGlobs: ["**/node_modules/**", "**/dist/**"]
+      maxFilesPerRun: 0
+      repoToProject: {}
+      defaultProject: ""
+
+  github:
+    package: "@cortex/adapter-github"
+    enabled: false
+    schedule: "0 4 * * *"
+    config:
+      repos: []                    # owner/repo identifiers
+      branch: ""                   # empty = default branch per repo
+      includeGlobs: ["**/*.ts", "**/*.py", "**/*.go", "**/README*"]
+      excludeGlobs: ["**/node_modules/**", "**/dist/**"]
+      maxFilesPerRun: 0
+      repoToProject: {}
+      defaultProject: ""
+
   # Future adapters — each lands as its own package.
-  # bitbucket:      { package: "@cortex/adapter-bitbucket",      enabled: false }
-  # github:         { package: "@cortex/adapter-github",         enabled: false }
   # slack:          { package: "@cortex/adapter-slack",          enabled: false }

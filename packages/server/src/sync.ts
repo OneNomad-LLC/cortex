@@ -1,5 +1,6 @@
 import type { Logger, SourceAdapter } from "@cortex/core";
 import type { LLMRouter } from "@cortex/llm-core";
+import { createCodePipeline } from "@cortex/pipeline-code";
 import { createDocPipeline } from "@cortex/pipeline-doc";
 import { createMeetingPipeline } from "@cortex/pipeline-meeting";
 import type { EngramClient } from "./clients/engram.js";
@@ -57,6 +58,7 @@ export async function runSync(args: {
   // Build the pipelines this adapter declared. Add new pipelines here
   // when their packages land.
   const pipelines = adapter.pipelines.map((id) => {
+    if (id === "@cortex/pipeline-code") return createCodePipeline();
     if (id === "@cortex/pipeline-doc") return createDocPipeline();
     if (id === "@cortex/pipeline-meeting") return createMeetingPipeline();
     throw new Error(`Unknown pipeline '${id}'. Register it in sync.ts.`);
