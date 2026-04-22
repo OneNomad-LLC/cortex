@@ -16,6 +16,7 @@ import { createMemoryClient } from "../clients/memory.js";
 import { createPersonaClient } from "../clients/persona.js";
 import { startStreamWorkers } from "../streams.js";
 import { createWebhookReceiver } from "../webhooks.js";
+import { createDashboardApi } from "../api/server.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
 import { ALL_TOOLS } from "./tools/index.js";
@@ -171,6 +172,23 @@ export async function startServer(): Promise<void> {
     await webhookReceiver.start();
   }
 
+  // Dashboard API sidecar — ADR-015. Off by default; the dashboard is a
+  // per-user local app, so most operators flip api.enabled=true only when
+  // they run the dashboard next to cortex start.
+  const dashboardApi = cfg.api.enabled
+    ? createDashboardApi({
+        engram,
+        llmRouter: router,
+        taxonomy,
+        logger: logger.child({ component: "dashboard-api" }),
+        host: cfg.api.host,
+        port: cfg.api.port,
+      })
+    : undefined;
+  if (dashboardApi) {
+    await dashboardApi.start();
+  }
+
   const mcp = new Server(
     { name: "cortex", version: "0.0.0" },
     { capabilities: { tools: {} } },
@@ -248,6 +266,7 @@ export async function startServer(): Promise<void> {
     await scheduler.stop();
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
+    if (dashboardApi) await dashboardApi.stop();
     try {
       await transportHandle.close();
     } catch (err) {

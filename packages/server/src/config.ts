@@ -58,6 +58,23 @@ export const webhooksConfigSchema = z
   })
   .default({});
 
+export const apiConfigSchema = z
+  .object({
+    /**
+     * Off by default — the dashboard API only boots when the operator opts
+     * in. Like webhooks, it's a new surface and should stay dormant until
+     * an operator explicitly wants it.
+     */
+    enabled: z.boolean().default(false),
+    /**
+     * Bind host. Localhost by default because the dashboard is a per-user
+     * local app; exposing the API over a LAN/Tailscale is an opt-in move.
+     */
+    host: z.string().default("127.0.0.1"),
+    port: z.number().int().nonnegative().default(4141),
+  })
+  .default({});
+
 export const cortexConfigSchema = z.object({
   llm: z.object({
     providers: z.record(providerEntrySchema),
@@ -70,10 +87,12 @@ export const cortexConfigSchema = z.object({
   }),
   memory: memoryConfigSchema,
   webhooks: webhooksConfigSchema,
+  api: apiConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
 });
 
 export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
+export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
 export type MemoryConfig = z.infer<typeof memoryConfigSchema>;
 export type MemoryBackendName = z.infer<typeof memoryBackendName>;

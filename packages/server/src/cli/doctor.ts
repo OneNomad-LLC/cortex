@@ -274,7 +274,33 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
     }
   }
 
-  // 9. Live probes (opt-in: `cortex doctor --connect`). The checks above are
+  // 9. Dashboard API posture — warn if enabled without a localhost bind.
+  const api = (cfg?.api ?? {}) as { enabled?: boolean; host?: string; port?: number };
+  if (api.enabled) {
+    const host = api.host ?? "127.0.0.1";
+    const localBinds = ["127.0.0.1", "localhost", "::1"];
+    if (localBinds.includes(host)) {
+      results.push({
+        name: "dashboard api",
+        verdict: "ok",
+        detail: `enabled on ${host}:${api.port ?? 4141}`,
+      });
+    } else {
+      results.push({
+        name: "dashboard api",
+        verdict: "warn",
+        detail: `bound to ${host} — reachable beyond localhost; only safe over Tailscale`,
+      });
+    }
+  } else {
+    results.push({
+      name: "dashboard api",
+      verdict: "skip",
+      detail: "not enabled",
+    });
+  }
+
+  // 10. Live probes (opt-in: `cortex doctor --connect`). The checks above are
   //    mechanical; --connect actually talks to Engram and Postgres.
   if (connect) {
     const memCfg = (cfg?.memory ?? {}) as {

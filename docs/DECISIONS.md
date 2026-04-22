@@ -529,6 +529,91 @@ drift from the CLI version.
   `z.preprocess()` rebuilds the ordered array from insertion order.
   Future adapters that need ordered mappings follow the same pattern.
 
+## ADR-015: Local-per-user dashboard, HTTP sidecar data plane (2026-04-22)
+
+**Status**: Accepted
+
+**Context**: Cortex is a single-user daily driver. The MCP tools work great
+inside Claude Code, but there's a class of information — "what do I owe
+people today?", "what meetings do I have and am I prepped?", "what changed
+across my 12 projects since yesterday?" — where a glanceable dashboard beats
+a prompt round-trip. ADHD-friendly UX: scannable, no typing, low-friction.
+
+Three shape questions decided up-front because they're hard to reverse:
+
+1. **Deployment.** Vercel vs. Tailscale-local vs. bundled with `cortex start`.
+2. **Data plane.** How the dashboard reaches Engram + Cortex domain data.
+3. **Widget system.** Flat components vs. pluggable registry.
+
+**Decision**:
+
+- **Local-per-user.** Each user runs `cortex dashboard` on their own
+  machine, next to `cortex start`. No hosted tenant, no auth, no shared
+  deployment. The dashboard is a thin client over the local MCP server.
+  If federation happens later (ADR-016, pending), the data model changes
+  but the deployment model doesn't.
+
+- **HTTP sidecar on `cortex start`.** An optional HTTP API — off by default,
+  mirroring the webhooks pattern — serves widget-shaped JSON (`GET
+  /api/widgets/<name>`). The dashboard hits `http://localhost:<port>`.
+  Rationale: one Engram subprocess per host, one project taxonomy, one
+  LLM router. Forking a second stdio MCP subprocess just to serve the
+  dashboard would double resource cost and create two sources of truth
+  for things like "today's meetings."
+
+  The sidecar is bound to `127.0.0.1` by default. Tailscale reachability
+  is opt-in via a host override — the same posture as webhooks.
+
+- **Flat React components, one package.** `@cortex/dashboard` is a single
+  Next.js 15 app. Widgets are React components in `src/widgets/`, each
+  with a typed data contract matching the sidecar's JSON response. No
+  plugin registry, no runtime discovery. Adding a widget: write a route
+  handler server-side, write a component client-side, register it in
+  `config/dashboard.yaml`.
+
+  The "extract `@cortex/widget-core` later" option stays open — the
+  signal will be a second consumer (e.g. a team leaderboard fed by the
+  federation layer). Until then, it's premature.
+
+- **Six starter widgets**, chosen for a delivery-focused role with a
+  nod to devs who'll land on Cortex later:
+  1. **Priorities** — top commitments across all projects, ranked by
+     due date + recency
+  2. **Today's meetings** — today's calendar with pre-meeting brief link
+  3. **My action items** — open action items with status + owner + due
+  4. **Recent activity** — newly-ingested memories since last view,
+     grouped by project
+  5. **Recent decisions** — decisions extracted across all projects,
+     newest first
+  6. **Code activity** — PR/commit activity from GitHub/Bitbucket
+     adapters; degrades to empty state when no code adapter enabled
+
+  Widget 6 is the only "dev-shaped" one; widgets 1–5 serve both a PM and
+  a contributor equally well.
+
+- **Layouts in `config/dashboard.yaml`.** YAML describes row/column
+  composition and per-widget props. Role presets (`delivery`,
+  `developer`) ship as defaults operators can fork.
+
+**Consequences**:
+
+- Adding a new widget is two files + one config entry. No registry to
+  keep in sync.
+- Zero auth code. If multi-user federation ever happens, the HTTP
+  sidecar grows a token check; today the localhost bind is the boundary.
+- The HTTP sidecar reuses the exact same Engram client, LLM router, and
+  taxonomy as `cortex start`'s MCP tools — any query a widget runs is
+  writable as an MCP tool and vice versa. No duplicated query logic.
+- Dashboard deploys are `pnpm --filter @cortex/dashboard build` +
+  `cortex dashboard` — no Vercel, no Docker required. Users who want
+  hosted access point a reverse proxy at the local instance themselves.
+- The HTTP port is a new surface. Defaulting to localhost-only mitigates
+  most risk, but the sidecar must not start unless the operator flips
+  `api.enabled` — doctor will warn when it's enabled without auth *and*
+  bound non-locally.
+- If the v1 widget set proves wrong, we replace widgets, not
+  architecture — the sidecar contract and layout YAML absorb the churn.
+
 ---
 
 _Add new ADRs below this line._

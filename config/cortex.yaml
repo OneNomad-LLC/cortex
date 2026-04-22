@@ -27,6 +27,15 @@ webhooks:
   host: "0.0.0.0"
   port: 4040
 
+api:
+  # Dashboard API sidecar (ADR-015). Serves widget-shaped JSON for the
+  # per-user Cortex dashboard. Off by default; bound to localhost by
+  # default. Flip `enabled: true` when you run the dashboard next to
+  # cortex start. Bind beyond 127.0.0.1 only over Tailscale.
+  enabled: false
+  host: "127.0.0.1"
+  port: 4141
+
 memory:
   primary: engram
   # Uncomment to enable the native Postgres fallback. At boot, Cortex health-
