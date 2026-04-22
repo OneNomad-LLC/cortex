@@ -47,6 +47,16 @@ export const memoryConfigSchema = z
   })
   .default({});
 
+export const webhooksConfigSchema = z
+  .object({
+    /** Off by default — webhooks only start when an operator explicitly opts in. */
+    enabled: z.boolean().default(false),
+    /** Bind host. 0.0.0.0 so a reverse proxy / Tailscale Funnel can forward. */
+    host: z.string().default("0.0.0.0"),
+    port: z.number().int().nonnegative().default(4040),
+  })
+  .default({});
+
 export const cortexConfigSchema = z.object({
   llm: z.object({
     providers: z.record(providerEntrySchema),
@@ -58,8 +68,11 @@ export const cortexConfigSchema = z.object({
     fallbackChain: z.array(z.string()).default([]),
   }),
   memory: memoryConfigSchema,
+  webhooks: webhooksConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
 });
+
+export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
 
 export type MemoryConfig = z.infer<typeof memoryConfigSchema>;
 export type MemoryBackendName = z.infer<typeof memoryBackendName>;

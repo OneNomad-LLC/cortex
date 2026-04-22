@@ -411,6 +411,56 @@ MCP. Two gaps:
   grows a Postgres backend — the schema is deliberately close to what a
   LanceDB equivalent would hold.
 
+## ADR-013: Push-based ingestion — stream() + webhook() on SourceAdapter (2026-04-22)
+
+**Status**: Accepted
+
+**Context**: Every adapter polls on a cron schedule. That works, but the
+cadence has real costs:
+- Loom polls every 15 minutes; a meeting that ended 30s ago takes up to
+  15 minutes to show up in `catch_me_up`.
+- Obsidian has no schedule at all — notes only sync when the user runs
+  `cortex sync obsidian` manually, and the filesystem adapter has always
+  had a `supportsRealTime: false` flag begging to be flipped.
+- Several adapters declare `supportsWebhooks: true` but nothing consumes
+  the signal.
+
+**Decision**: Two optional methods on the `SourceAdapter` interface that
+coexist with `fetch()`:
+
+- `stream?(ctx): AsyncIterable<RawSourceItem>` — long-running iterator
+  the server subscribes to at boot. Implementations respect `ctx.signal`
+  so shutdown can unwind cleanly. Pilot: Obsidian via chokidar.
+- `webhook?(ctx): WebhookHandler | WebhookHandler[]` — returns one or
+  more handlers each with a `path`, `verify(req)`, and `parse(req)`. The
+  server mounts a tiny `node:http` receiver when `webhooks.enabled:
+  true` in cortex.yaml. Pilot: GitHub push events with HMAC-SHA256
+  signature verification.
+
+All three entry points (cron `fetch`, long-running `stream`, inbound
+`webhook`) funnel through one shared `processItem()` helper so
+transform → classify → pipelines → ingest behaves identically no matter
+how the item arrived.
+
+**Consequences**:
+- Real-time ingestion becomes opt-in per adapter. Obsidian saves now
+  propagate in under a second rather than not at all.
+- `stream()` runs ALONGSIDE the cron `fetch()`, not in place of it.
+  Dropped fs events (common during editor saves) get picked up by the
+  next scheduled walk.
+- Webhook path responds 204 BEFORE running `processItem()`, so slow
+  pipelines don't widen the provider's retry window (GitHub retries at
+  10s).
+- Each pushed item gets its own `trace_id` (not the stream session's)
+  so operator queries map to a single user action rather than a whole
+  session.
+- Exposing the webhook port publicly is an operator concern — Tailscale
+  Funnel, reverse proxy, or ngrok. The code just binds to 0.0.0.0:PORT.
+- GitHub webhooks require `GITHUB_WEBHOOK_SECRET`. The adapter refuses
+  to mount without it — unsigned GitHub webhooks are trivially
+  spoofable and silently running in that state is worse than failing
+  loud.
+
 ---
 
 _Add new ADRs below this line._

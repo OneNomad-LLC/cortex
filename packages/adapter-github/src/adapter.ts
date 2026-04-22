@@ -6,9 +6,12 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
+  WebhookContext,
+  WebhookHandler,
 } from "@cortex/core";
 import { BaseAdapter, matchesGlobs } from "@cortex/adapter-sdk";
 import { GithubClient, type GithubTreeEntry } from "./client.js";
+import { createGithubWebhook } from "./webhook.js";
 
 export const githubConfigSchema = z.object({
   /** `owner/repo` identifiers. */
@@ -52,7 +55,7 @@ const CAPABILITIES: AdapterCapabilities = {
   supportsWebhooks: true,
   supportsAttachments: false,
   supportsComments: false,
-  supportsRealTime: false,
+  supportsRealTime: true,
 };
 
 interface RawGithubFile {
@@ -61,6 +64,20 @@ interface RawGithubFile {
   branch: string;
   entry: GithubTreeEntry;
   content: string;
+}
+
+/**
+ * Webhook-delivered shape. transform() fetches content lazily from the
+ * GitHub API so the webhook response stays under GitHub's 10s retry
+ * window; the actual blob fetch happens after the 204 is sent.
+ */
+interface RawGithubWebhookFile {
+  owner: string;
+  repo: string;
+  branch: string;
+  path: string;
+  sha: string;
+  _webhook: true;
 }
 
 export class GithubAdapter extends BaseAdapter {
@@ -149,6 +166,10 @@ export class GithubAdapter extends BaseAdapter {
   }
 
   async transform(raw: RawSourceItem): Promise<NormalizedItem> {
+    const maybeWebhook = raw.raw as RawGithubWebhookFile;
+    if (maybeWebhook._webhook === true) {
+      return this.transformWebhook(raw, maybeWebhook);
+    }
     const item = raw.raw as RawGithubFile;
     const now = new Date();
     const fullName = `${item.owner}/${item.repo}`;
@@ -177,6 +198,47 @@ export class GithubAdapter extends BaseAdapter {
     };
   }
 
+  private async transformWebhook(
+    raw: RawSourceItem,
+    item: RawGithubWebhookFile,
+  ): Promise<NormalizedItem> {
+    const fullName = `${item.owner}/${item.repo}`;
+    // Fetch at the commit sha (not the branch) so the content we ingest
+    // matches exactly what was just pushed — the branch might have moved
+    // on by the time this runs.
+    const ref = item.sha || item.branch;
+    const content = await this.client.getFileContent(
+      item.owner,
+      item.repo,
+      item.path,
+      ref,
+    );
+    const now = new Date();
+    return {
+      sourceId: raw.sourceId,
+      sourceType: "github",
+      sourceUrl: this.client.fileUrl(
+        item.owner,
+        item.repo,
+        item.branch,
+        item.path,
+      ),
+      title: `${fullName}/${item.path}`,
+      content,
+      contentType: "code",
+      createdAt: now,
+      updatedAt: now,
+      authors: [],
+      rawMetadata: {
+        repo: fullName,
+        branch: item.branch,
+        filePath: item.path,
+        sha: item.sha,
+        via: "webhook",
+      },
+    };
+  }
+
   async classify(
     item: NormalizedItem,
     cctx: ClassificationContext,
@@ -192,6 +254,27 @@ export class GithubAdapter extends BaseAdapter {
       };
     }
     return { ...item, ...(await this.fallbackClassify(item, cctx, this.cfg.defaultProject)) };
+  }
+
+  /**
+   * GitHub webhook handler. Requires GITHUB_WEBHOOK_SECRET — refuses to
+   * mount otherwise, because unsigned GitHub webhooks are trivially
+   * spoofable. Returns undefined when the secret isn't set so the
+   * receiver just skips this adapter.
+   */
+  override webhook(_ctx: WebhookContext): WebhookHandler | WebhookHandler[] {
+    const secret = this.ctx.secrets.GITHUB_WEBHOOK_SECRET ?? "";
+    if (!secret) {
+      throw new Error(
+        "github webhook: GITHUB_WEBHOOK_SECRET is required to mount the webhook route.",
+      );
+    }
+    return createGithubWebhook({
+      secret,
+      includeGlobs: this.cfg.includeGlobs,
+      excludeGlobs: this.cfg.excludeGlobs,
+      repoToProject: this.cfg.repoToProject,
+    });
   }
 }
 

@@ -143,6 +143,28 @@ export class HeartbeatWriter {
     this.state.adapters[id] = entry;
   }
 
+  /**
+   * Per-item update from a long-running stream worker or webhook receiver.
+   * Each event folds into the shared adapter counters so `cortex status`
+   * shows a unified picture — you can't tell from the report whether a
+   * number came from a cron run, a file save, or an inbound webhook.
+   */
+  markStreamItem(
+    id: string,
+    result: { ingested: number; errors: number },
+  ): void {
+    const entry = this.state.adapters[id] ?? {
+      runs: 0,
+      errors: 0,
+      running: false,
+    };
+    entry.runs += 1;
+    entry.errors += result.errors;
+    entry.lastRunAt = new Date().toISOString();
+    entry.lastRunIngested = result.ingested;
+    this.state.adapters[id] = entry;
+  }
+
   /** Snapshot for in-process inspection (tests). */
   snapshot(): Heartbeat {
     this.state.lastHeartbeatAt = new Date().toISOString();

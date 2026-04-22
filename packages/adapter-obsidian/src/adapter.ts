@@ -8,10 +8,12 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
+  StreamContext,
 } from "@cortex/core";
 import { BaseAdapter, computeSourceId, contentHash } from "@cortex/adapter-sdk";
 import { parseFrontmatter } from "./frontmatter.js";
 import { walkVault } from "./walk.js";
+import { watchVault } from "./watch.js";
 
 const pathRuleSchema = z.object({
   prefix: z.string().min(1),
@@ -41,7 +43,7 @@ const CAPABILITIES: AdapterCapabilities = {
   supportsWebhooks: false,
   supportsAttachments: false,
   supportsComments: false,
-  supportsRealTime: false,
+  supportsRealTime: true,
 };
 
 interface RawObsidianNote {
@@ -79,6 +81,23 @@ export class ObsidianAdapter extends BaseAdapter {
       if (count >= 50) break;
     }
     return { vaultPath: this.cfg.vaultPath, sampledFiles: count };
+  }
+
+  /**
+   * Long-running filesystem watcher. Works alongside `fetch()` — the cron
+   * sync still runs on schedule to pick up anything the watcher missed
+   * (dropped fs events are common during editor saves), and the watcher
+   * handles "just saved" events in near-real-time.
+   */
+  override stream(ctx: StreamContext): AsyncIterable<RawSourceItem> {
+    return watchVault(
+      {
+        vaultPath: this.cfg.vaultPath,
+        ignore: this.cfg.ignore,
+        maxFileBytes: this.cfg.maxFileBytes,
+      },
+      ctx,
+    );
   }
 
   async *fetch(since?: Date): AsyncIterable<RawSourceItem> {

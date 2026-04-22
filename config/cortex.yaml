@@ -19,6 +19,14 @@ llm:
 
   fallbackChain: []
 
+webhooks:
+  # Boot an HTTP receiver for push-based adapters (GitHub, Slack Events,
+  # Linear, ...). Off by default — enable only when you have a way to
+  # expose the port publicly (Tailscale Funnel, reverse proxy, ngrok).
+  enabled: false
+  host: "0.0.0.0"
+  port: 4040
+
 memory:
   primary: engram
   # Uncomment to enable the native Postgres fallback. At boot, Cortex health-

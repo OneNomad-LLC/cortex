@@ -29,9 +29,12 @@ Engram primary, `@cortex/memory-pgvector` as a native
 hybrid-search fallback (Postgres + pgvector + tsvector, fused via RRF).
 **Cron-based scheduler** runs every enabled adapter on its schedule
 inside `cortex start`, reporting per-adapter run stats to a heartbeat
-file readable via `cortex status`. **LLM classifier fallback** wired
+file readable via `cortex status`. **Push-based ingestion** — adapters
+can implement `stream()` (Obsidian file-watcher today) or `webhook()`
+(GitHub push events today) for near-real-time updates alongside the
+cron path. **LLM classifier fallback** wired
 into every adapter. **Memory governance metadata** — `trust`,
-`sensitivity`, `status`, `trace_id` stamped on every ingest. 202 tests.
+`sensitivity`, `status`, `trace_id` stamped on every ingest. 228 tests.
 
 ## Install
 
@@ -136,6 +139,29 @@ Current provider packages:
 Future: `@cortex/provider-anthropic`, `@cortex/provider-openai`,
 `@cortex/provider-google` for direct-provider BYOK.
 
+## Real-time ingestion
+
+Adapters can push new items into memory as they arrive, alongside the
+cron schedule. Two opt-in paths:
+
+- **`stream()`** — long-running iterator the server subscribes to at
+  boot. Obsidian uses this with a chokidar filesystem watcher; new
+  notes land in memory within a second of save.
+- **`webhook()`** — the server spins up an HTTP receiver when
+  `webhooks.enabled: true` in `cortex.yaml` and at least one adapter
+  declares a handler. GitHub push events are the pilot; HMAC-SHA256
+  verified via `GITHUB_WEBHOOK_SECRET`.
+
+```yaml
+webhooks:
+  enabled: true
+  port: 4040
+```
+
+The port binds to `0.0.0.0`; exposing it publicly is an operator
+concern — Tailscale Funnel, a reverse proxy, or ngrok depending on
+deployment shape. See [ADR-013](docs/DECISIONS.md).
+
 ## Memory backend
 
 Engram is the primary memory store. For deployments without Engram —
@@ -237,7 +263,7 @@ strategy, and failure-mode handling.
 ```bash
 pnpm install              # install all workspace deps
 pnpm typecheck            # tsc --build across the monorepo
-pnpm test                 # unit tests (202 and counting)
+pnpm test                 # unit tests (228 and counting)
 pnpm dev                  # run `cortex start` in watch mode
 pnpm smoke                # live provider smoke test
 ```

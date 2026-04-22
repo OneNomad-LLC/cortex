@@ -14,6 +14,8 @@ import { createScheduler } from "../scheduler.js";
 import { HeartbeatWriter } from "../heartbeat.js";
 import { createMemoryClient } from "../clients/memory.js";
 import { createPersonaClient } from "../clients/persona.js";
+import { startStreamWorkers } from "../streams.js";
+import { createWebhookReceiver } from "../webhooks.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
 import { ALL_TOOLS } from "./tools/index.js";
@@ -132,6 +134,43 @@ export async function startServer(): Promise<void> {
   }
   await scheduler.start();
 
+  // Any adapter that implements stream() gets a long-running worker — the
+  // file-watcher path for Obsidian, the events-WS path for Slack, etc.
+  // These run alongside cron, not in place of it, because dropped events
+  // are common and a periodic walk catches what the stream missed.
+  const streamWorkers = startStreamWorkers({
+    adapters: Object.values(adapterRegistry.adapters),
+    engram,
+    llmRouter: router,
+    heartbeat,
+    logger,
+  });
+  if (streamWorkers.length > 0) {
+    logger.info("streams.started", {
+      count: streamWorkers.length,
+      adapters: streamWorkers.map((w) => w.adapterId),
+    });
+  }
+
+  // Webhook receiver — only boots if enabled in cortex.yaml AND at least
+  // one adapter implements webhook(). Providers deliver to the configured
+  // port; operators expose it publicly via Tailscale Funnel, a reverse
+  // proxy, or ngrok depending on deployment shape.
+  const webhookReceiver = cfg.webhooks.enabled
+    ? createWebhookReceiver({
+        adapters: Object.values(adapterRegistry.adapters),
+        engram,
+        llmRouter: router,
+        heartbeat,
+        logger,
+        host: cfg.webhooks.host,
+        port: cfg.webhooks.port,
+      })
+    : undefined;
+  if (webhookReceiver) {
+    await webhookReceiver.start();
+  }
+
   const mcp = new Server(
     { name: "cortex", version: "0.0.0" },
     { capabilities: { tools: {} } },
@@ -209,6 +248,8 @@ export async function startServer(): Promise<void> {
   const shutdown = async (): Promise<void> => {
     logger.info("shutdown.begin");
     await scheduler.stop();
+    await Promise.all(streamWorkers.map((w) => w.stop()));
+    if (webhookReceiver) await webhookReceiver.stop();
     await heartbeat.stop();
     for (const provider of Object.values(providers)) {
       try {

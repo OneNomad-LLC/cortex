@@ -8,6 +8,9 @@ import type {
   NormalizedItem,
   RawSourceItem,
   SourceAdapter,
+  StreamContext,
+  WebhookContext,
+  WebhookHandler,
 } from "@cortex/core";
 import { LLMClassifier } from "./classifier-llm.js";
 
@@ -75,6 +78,20 @@ export abstract class BaseAdapter implements SourceAdapter {
     item: NormalizedItem,
     cctx: ClassificationContext,
   ): Promise<ClassifiedItem>;
+
+  /**
+   * Optional. Subclasses override when they support real-time streaming
+   * (Obsidian file-watcher, Slack events WebSocket, etc.). Declared here
+   * so concrete adapters can use the `override` keyword under our strict
+   * TS settings.
+   */
+  stream?(ctx: StreamContext): AsyncIterable<RawSourceItem>;
+
+  /**
+   * Optional. Subclasses override when the source supports webhook
+   * delivery (GitHub, Slack Events HTTP, Linear, etc.).
+   */
+  webhook?(ctx: WebhookContext): WebhookHandler | WebhookHandler[];
 
   protected markSuccess(): void {
     this.lastSuccessAt = Date.now();
