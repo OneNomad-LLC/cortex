@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { LoadedTaxonomy } from "../taxonomy.js";
 import type { Logger } from "@cortex/core";
+import type { LLMRouter } from "@cortex/llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { PersonaClient } from "../clients/persona.js";
 
@@ -13,6 +14,9 @@ export interface ToolContext {
   logger: Logger;
   engram: EngramClient;
   persona: PersonaClient;
+  /** Optional — only present when an LLM is configured. Tools should
+   *  handle its absence gracefully (fall back to non-LLM output). */
+  llmRouter?: LLMRouter;
 }
 
 /**

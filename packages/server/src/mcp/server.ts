@@ -119,7 +119,13 @@ export async function startServer(): Promise<void> {
     { capabilities: { tools: {} } },
   );
 
-  const toolContext: ToolContext = { taxonomy, logger, engram, persona };
+  const toolContext: ToolContext = {
+    taxonomy,
+    logger,
+    engram,
+    persona,
+    llmRouter: router,
+  };
   const toolsByName = new Map<string, AnyMcpTool>();
   for (const tool of ALL_TOOLS) toolsByName.set(tool.name, tool);
 

@@ -4,19 +4,15 @@ Canonical build order and current state. Update after every meaningful session.
 
 ## Current Phase
 
-**Adapter + pipeline + scheduler surface complete.** Twelve source
-adapters: Confluence, Jira, Linear, Loom, Notion, Obsidian, Google
-Calendar, Google Drive, Gmail, Bitbucket, GitHub, Slack. Four
-pipelines: `@cortex/pipeline-doc`, `@cortex/pipeline-meeting`,
-`@cortex/pipeline-code`, `@cortex/pipeline-conversation`. Google
-adapters share `@cortex/google-auth`. The scheduler runs enabled
-adapters on their cron schedule inside `cortex start` — no external
-dep, built-in cron parser handling the subset used in configs.
-140 tests.
+**Phase 6-8 tooling live.** Six MCP tools total: `list_projects`,
+`get_project_context`, `catch_me_up`, `catch_me_up_on_meeting`,
+`my_action_items`, `upcoming_briefs`. LLM classifier fallback wired
+into every adapter. Adapters run on cron inside `cortex start`. 155
+tests.
 
-Next up: LLM-based classifier fallback for unclassified items,
-pre-meeting briefs (Phase 6), daily digest (Phase 7), action item
-tracking UX (Phase 8), research feature (ADR-011 draft).
+Still outstanding: daily digest (Phase 7 UX, not yet — briefs cover
+most of it), research feature (ADR-011 still unwritten), and the
+Engram upstream `reference` cognitive layer (ADR-002 proposal).
 
 ## Phase 0: Setup (manual, pre-development)
 
