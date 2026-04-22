@@ -1,4 +1,5 @@
 import { autoLoadDotEnv } from "./dotenv.js";
+import { runGoogleLogin } from "./google-login.js";
 import { runInit } from "./init.js";
 import {
   runAdd,
@@ -30,6 +31,8 @@ Commands:
   add <module>               Enable a module via guided wizard.
   configure <module>         Re-run a module's wizard (current values as defaults).
   disable <module>           Turn off an already-configured module.
+
+  google-login               Run the Google OAuth flow (for gmail/calendar/drive).
 
   help                       Show this message.
 
@@ -83,6 +86,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "disable":
       return runDisable(rest);
+
+    case "google-login":
+      return runGoogleLogin(rest);
 
     case "start":
       await startServer();

@@ -709,6 +709,9 @@ importers:
       '@cortex/core':
         specifier: workspace:*
         version: link:../core
+      '@cortex/google-auth':
+        specifier: workspace:*
+        version: link:../google-auth
       '@cortex/llm-core':
         specifier: workspace:*
         version: link:../llm-core

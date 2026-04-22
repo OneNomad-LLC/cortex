@@ -1,3 +1,4 @@
+import { defaultTokenPath, readGoogleToken } from "@cortex/google-auth";
 import { findRepoRoot, loadDotEnv } from "./dotenv.js";
 import { runWizard } from "./wizard-runner.js";
 import { findWizard, listWizards, wizardsByCategory } from "./wizard-registry.js";
@@ -6,6 +7,8 @@ import {
   disableModule,
   readModuleConfig,
 } from "./config-mutation.js";
+
+const GOOGLE_MODULES = new Set(["gmail", "google-calendar", "google-drive"]);
 
 /**
  * `cortex add <module>` — runs a single module's wizard and merges the
@@ -30,6 +33,11 @@ export async function runAdd(args: readonly string[]): Promise<number> {
   }
   const repoRoot = findRepoRoot(process.cwd());
   loadDotEnv(repoRoot);
+
+  if (GOOGLE_MODULES.has(moduleId)) {
+    const ok = await ensureGoogleToken(moduleId);
+    if (!ok) return 2;
+  }
 
   const result = await runWizard(wizard);
   const { filesWritten } = await applyWizardResult({ repoRoot }, result);
@@ -125,3 +133,37 @@ function formatWizardList(): string {
       .join("\n")
   );
 }
+
+/**
+ * Gmail / Calendar / Drive all need the shared Google refresh token. Rather
+ * than silently fail at boot, check up front and point the user at the
+ * login subcommand if it's missing or lacks the right scope.
+ */
+async function ensureGoogleToken(moduleId: string): Promise<boolean> {
+  const tokenPath = defaultTokenPath();
+  try {
+    const token = await readGoogleToken(tokenPath);
+    const required = SCOPES_FOR_MODULE[moduleId];
+    if (required && !required.every((s) => token.scopes.includes(s))) {
+      process.stderr.write(
+        `cortex add ${moduleId}: the Google token at ${tokenPath} is missing\n` +
+          `required scope(s): ${required.filter((s) => !token.scopes.includes(s)).join(", ")}\n` +
+          `Re-run \`cortex google-login\` and include "${moduleId}" in the service picker.\n`,
+      );
+      return false;
+    }
+    return true;
+  } catch {
+    process.stderr.write(
+      `cortex add ${moduleId}: no Google token at ${tokenPath}.\n` +
+        `Run \`cortex google-login\` first, then re-run this command.\n`,
+    );
+    return false;
+  }
+}
+
+const SCOPES_FOR_MODULE: Record<string, readonly string[]> = {
+  gmail: ["https://www.googleapis.com/auth/gmail.readonly"],
+  "google-calendar": ["https://www.googleapis.com/auth/calendar.readonly"],
+  "google-drive": ["https://www.googleapis.com/auth/drive.readonly"],
+};

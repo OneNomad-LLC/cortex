@@ -35,6 +35,7 @@
   "dependencies": {
     "@cortex/core": "workspace:*",
     "@cortex/adapter-sdk": "workspace:*",
+    "@cortex/google-auth": "workspace:*",
     "@cortex/llm-core": "workspace:*",
     "@cortex/llm-sdk": "workspace:*",
     "@cortex/memory-pgvector": "workspace:*",

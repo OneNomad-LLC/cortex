@@ -2,6 +2,9 @@ import type { WizardModule } from "@cortex/core";
 import { bitbucketWizard } from "@cortex/adapter-bitbucket";
 import { confluenceWizard } from "@cortex/adapter-confluence";
 import { githubWizard } from "@cortex/adapter-github";
+import { gmailWizard } from "@cortex/adapter-gmail";
+import { googleCalendarWizard } from "@cortex/adapter-google-calendar";
+import { googleDriveWizard } from "@cortex/adapter-google-drive";
 import { jiraWizard } from "@cortex/adapter-jira";
 import { linearWizard } from "@cortex/adapter-linear";
 import { loomWizard } from "@cortex/adapter-loom";
@@ -21,9 +24,10 @@ import { webhooksWizard } from "./webhooks-wizard.js";
  * as the adapter + provider registries). Listing here is the single place
  * new modules land when their wizards ship.
  *
- * Google stack (gmail, google-calendar, google-drive) is deferred —
- * their wizards need an OAuth device-code flow rather than plain
- * text/password prompts. Tracked for a Google-auth wizard sprint.
+ * Google adapters (gmail, google-calendar, google-drive) rely on a
+ * separate `cortex google-login` subcommand for the OAuth handshake —
+ * the wizard flow here only collects adapter-specific config and
+ * assumes the shared refresh token is already on disk.
  */
 const WIZARDS: WizardModule[] = [
   // adapters
@@ -36,6 +40,9 @@ const WIZARDS: WizardModule[] = [
   notionWizard,
   obsidianWizard,
   slackWizard,
+  gmailWizard,
+  googleCalendarWizard,
+  googleDriveWizard,
   // llm providers
   ollamaWizard,
   openrouterWizard,

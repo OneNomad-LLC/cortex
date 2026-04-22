@@ -4,12 +4,13 @@ import { listWizards, findWizard, wizardsByCategory } from "../src/cli/wizard-re
 describe("wizard-registry", () => {
   it("exposes a wizard for every module that supports guided setup", () => {
     const ids = listWizards().map((w) => w.id).sort();
-    // Google stack is deferred (OAuth flow). When its wizards land, update
-    // this assertion to include them.
     expect(ids).toEqual([
       "bitbucket",
       "confluence",
       "github",
+      "gmail",
+      "google-calendar",
+      "google-drive",
       "jira",
       "linear",
       "loom",
