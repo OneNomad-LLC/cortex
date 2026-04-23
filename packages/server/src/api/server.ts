@@ -6,6 +6,9 @@ import {
 } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { Logger } from "@cortex/core";
+import { applyWizardResult } from "../cli/config-mutation.js";
+import { resolveConfigPath } from "../cli/config-path.js";
+import { findWizard, listWizards } from "../cli/wizard-registry.js";
 import {
   createWorkspace,
   findWorkspace,
@@ -16,6 +19,7 @@ import {
   validateSlug,
 } from "../cli/workspace/manager.js";
 import { readState } from "../cli/workspace/state.js";
+import { loadCortexConfig } from "../config.js";
 import {
   type DashboardLayout,
   loadDashboardLayout,
@@ -156,6 +160,16 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (pathname === "/api/workspaces" || pathname.startsWith("/api/workspaces/")) {
       await handleWorkspaces(req, res, logger);
+      return;
+    }
+
+    if (pathname === "/api/setup/state") {
+      await handleSetupState(res, logger);
+      return;
+    }
+
+    if (pathname === "/api/wizards" || pathname.startsWith("/api/wizards/")) {
+      await handleWizards(req, res, logger);
       return;
     }
 
@@ -375,4 +389,173 @@ function setCors(res: ServerResponse, origin: string | undefined): void {
   );
   res.setHeader("access-control-allow-headers", "content-type");
   res.setHeader("vary", "origin");
+}
+
+/**
+ * GET /api/setup/state — what the dashboard needs to decide whether to
+ * show the first-run setup flow vs. the normal widget grid.
+ *
+ * "Configured" means: a workspace is active AND that workspace's
+ * cortex.yaml has at least one enabled LLM provider. Adapters are
+ * checked separately so the UI can prompt the user to enable one
+ * without blocking the basic flow.
+ */
+async function handleSetupState(
+  res: ServerResponse,
+  logger: Logger,
+): Promise<void> {
+  try {
+    const workspace = await getActiveWorkspace().catch(() => undefined);
+    let hasLlmProvider = false;
+    let enabledAdapters: string[] = [];
+    if (workspace) {
+      try {
+        const cfg = await loadCortexConfig(
+          resolveConfigPath(),
+        );
+        const providers = cfg.llm?.providers ?? {};
+        hasLlmProvider = Object.values(providers).some(
+          (p) => (p as { enabled?: boolean }).enabled === true,
+        );
+        enabledAdapters = Object.entries(cfg.adapters ?? {})
+          .filter(([, entry]) => (entry as { enabled?: boolean }).enabled === true)
+          .map(([id]) => id);
+      } catch {
+        // Config unreadable — treat as unconfigured.
+      }
+    }
+    sendJson(res, 200, {
+      workspace: workspace ? workspace.slug : null,
+      workspacePath: workspace ? workspace.path : null,
+      hasLlmProvider,
+      enabledAdapters,
+      needsSetup: !workspace || !hasLlmProvider,
+    });
+  } catch (err) {
+    logger.warn("api.setup_state.failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    sendJson(res, 500, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * GET  /api/wizards          — list every WizardModule spec
+ * GET  /api/wizards/:id      — fetch one spec (for form rendering)
+ * POST /api/wizards/:id      — apply a completed result
+ *
+ * The dashboard's setup page hits these to render forms from the same
+ * WizardModule specs the CLI uses (ADR-014). Submit writes to the
+ * active workspace's config via the shared config-mutation service.
+ */
+async function handleWizards(
+  req: IncomingMessage,
+  res: ServerResponse,
+  logger: Logger,
+): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://127.0.0.1");
+  const pathname = url.pathname;
+
+  try {
+    if (req.method === "GET" && pathname === "/api/wizards") {
+      const wizards = listWizards().map((w) => ({
+        id: w.id,
+        name: w.name,
+        category: w.category,
+        description: w.description,
+      }));
+      sendJson(res, 200, { wizards });
+      return;
+    }
+
+    if (req.method === "GET" && pathname.startsWith("/api/wizards/")) {
+      const id = decodeURIComponent(pathname.slice("/api/wizards/".length));
+      const wizard = findWizard(id);
+      if (!wizard) {
+        sendJson(res, 404, { error: `wizard '${id}' not found` });
+        return;
+      }
+      // The spec's `configSchema` is a Zod type — not JSON-serializable.
+      // The dashboard doesn't need the schema itself to render a form;
+      // the `steps` list carries all the shape info. Strip it out.
+      sendJson(res, 200, {
+        id: wizard.id,
+        name: wizard.name,
+        category: wizard.category,
+        description: wizard.description,
+        steps: wizard.steps.map((s) => ({ ...s, pattern: undefined })),
+        secrets: wizard.secrets ?? [],
+      });
+      return;
+    }
+
+    if (req.method === "POST" && pathname.startsWith("/api/wizards/")) {
+      const id = decodeURIComponent(pathname.slice("/api/wizards/".length));
+      const wizard = findWizard(id);
+      if (!wizard) {
+        sendJson(res, 404, { error: `wizard '${id}' not found` });
+        return;
+      }
+      const active = await getActiveWorkspace();
+      if (!active) {
+        sendJson(res, 400, {
+          error:
+            "no active workspace — create one via POST /api/workspaces before applying wizard results",
+        });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as {
+        config?: Record<string, unknown>;
+        secrets?: Record<string, string>;
+      };
+
+      const configInput = body.config ?? {};
+      const parsed = wizard.configSchema.safeParse(configInput);
+      if (!parsed.success) {
+        sendJson(res, 400, {
+          error: "config validation failed",
+          issues: parsed.error.issues,
+        });
+        return;
+      }
+
+      const derivedTaxonomy = wizard.derivedTaxonomy?.(
+        configInput as Record<string, unknown>,
+      );
+
+      const result = {
+        moduleId: wizard.id,
+        category: wizard.category,
+        config: parsed.data,
+        secrets: body.secrets ?? {},
+        ...(derivedTaxonomy ? { derivedTaxonomy } : {}),
+      };
+      const applied = await applyWizardResult(
+        { repoRoot: active.path },
+        result,
+      );
+      sendJson(res, 200, {
+        applied: true,
+        filesWritten: applied.filesWritten,
+        restartRequired: true,
+        warning:
+          "Config written. Restart `cortex start` (or the sidecar) so the new settings take effect.",
+      });
+      return;
+    }
+
+    sendJson(res, 404, { error: "not found" });
+  } catch (err) {
+    logger.warn("api.wizards.failed", {
+      method: req.method,
+      path: pathname,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    sendJson(res, 500, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import {
   checkbox,
@@ -7,6 +8,12 @@ import {
   password,
   select,
 } from "@inquirer/prompts";
+import {
+  openBrowser,
+  sessionLogDir,
+  spawnDetached,
+  waitForHttp,
+} from "./detach.js";
 import { findRepoRoot, loadDotEnv } from "./dotenv.js";
 import {
   detectDeps,
@@ -34,7 +41,7 @@ export interface InitArgs {
   args: readonly string[];
 }
 
-export async function runInit(_: InitArgs): Promise<number> {
+export async function runInit(args: InitArgs): Promise<number> {
   if (!process.stdin.isTTY) {
     process.stderr.write(
       "cortex init: interactive wizard requires a TTY. " +
@@ -44,8 +51,15 @@ export async function runInit(_: InitArgs): Promise<number> {
   }
 
   const repoRoot = findRepoRoot(process.cwd());
-
   header("Cortex setup");
+
+  // -1. Pick setup surface — terminal or browser. Users with a
+  //     preference pass `--cli` / `--web` so they don't see the prompt.
+  const mode = await pickSetupMode(args.args);
+
+  if (mode === "web") {
+    return runWebSetup(repoRoot);
+  }
 
   // 0. Workspace selection — every install gets at least one workspace
   //    so config + .env + memory state are isolated from any other
@@ -533,6 +547,162 @@ async function stepAdapters(repoRoot: string): Promise<void> {
   // registry is empty. (kept so the import stays in case Sprint B adds
   // a step that needs it.)
   void listWizards;
+}
+
+/**
+ * Pick setup mode (terminal prompts vs dashboard). Honors --web /
+ * --cli flags, otherwise asks once and remembers inside this
+ * invocation.
+ */
+async function pickSetupMode(args: readonly string[]): Promise<"cli" | "web"> {
+  if (args.includes("--cli")) return "cli";
+  if (args.includes("--web") || args.includes("--dashboard")) return "web";
+  const mode = await select<"web" | "cli">({
+    message: "How would you like to configure Cortex?",
+    choices: [
+      {
+        value: "web",
+        name: "Web dashboard (recommended)",
+        description:
+          "Spawns the dashboard detached and opens your browser. Keeps running after this terminal closes.",
+      },
+      {
+        value: "cli",
+        name: "Terminal wizard",
+        description:
+          "Step-by-step prompts in this shell. Best for SSH / headless installs.",
+      },
+    ],
+    default: "web",
+  });
+  return mode;
+}
+
+/**
+ * The web setup path. Does the bare minimum in terminal (dep check +
+ * workspace name) so the dashboard has somewhere to write, then
+ * spawns sidecar + dashboard as detached children and opens the
+ * browser to the setup page. Parent exits; children survive the
+ * terminal closing.
+ */
+async function runWebSetup(repoRoot: string): Promise<number> {
+  // 1. Dependency check stays in terminal — the web UI can't run
+  //    `npm install -g` for the user.
+  await stepDependencies();
+
+  // 2. Workspace — one-question prompt. Everything else moves to web.
+  const writeRoot = await stepWorkspace(repoRoot);
+
+  // 3. Write a minimum viable cortex.yaml if the workspace doesn't
+  //    already have one. The sidecar needs SOMETHING to parse, and
+  //    the web setup page will fill in providers + adapters.
+  await ensureBootstrapConfig(writeRoot);
+
+  // 4. Spawn sidecar + dashboard detached.
+  section("Launching dashboard");
+  const sessionDir = sessionLogDir();
+  const sidecarPort = 4141;
+  const dashboardPort = 3030;
+
+  const bin = process.argv[1] ?? "cortex";
+  const sidecar = await spawnDetached({
+    command: process.execPath,
+    args: [bin, "start"],
+    sessionDir,
+    label: "sidecar",
+  });
+  ok(`sidecar started (pid ${sidecar.pid})`);
+
+  // Wait for the sidecar to respond before launching the dashboard —
+  // saves a blank-page flash if the dashboard boots first.
+  const sidecarUrl = `http://127.0.0.1:${sidecarPort}/health`;
+  const sidecarReady = await waitForHttp(sidecarUrl, { timeoutMs: 15_000 });
+  if (!sidecarReady) {
+    warn(
+      `Sidecar didn't respond at ${sidecarUrl} within 15s. Check logs at ` +
+        `${sidecar.stderrLog}.`,
+    );
+  } else {
+    ok("sidecar health check passed");
+  }
+
+  const dashboard = await spawnDetached({
+    command: process.execPath,
+    args: [bin, "dashboard", "--port", String(dashboardPort)],
+    sessionDir,
+    label: "dashboard",
+  });
+  ok(`dashboard started (pid ${dashboard.pid})`);
+
+  const dashboardUrl = `http://localhost:${dashboardPort}`;
+  const dashReady = await waitForHttp(dashboardUrl, { timeoutMs: 30_000 });
+  if (!dashReady) {
+    warn(
+      `Dashboard didn't respond at ${dashboardUrl} within 30s. ` +
+        `Tail ${dashboard.stdoutLog} for progress — Next.js takes a moment on first boot.`,
+    );
+  } else {
+    ok(`dashboard listening at ${dashboardUrl}`);
+  }
+
+  // 5. Open the browser.
+  const opened = await openBrowser(`${dashboardUrl}/setup`);
+  if (opened) ok("opened browser");
+  else line(`  (couldn't auto-open — visit ${dashboardUrl}/setup manually)`);
+
+  section("Running in the background");
+  line(`  sidecar    pid ${sidecar.pid}`);
+  line(`              logs ${sidecar.stdoutLog}`);
+  line(`  dashboard  pid ${dashboard.pid}`);
+  line(`              logs ${dashboard.stdoutLog}`);
+  line("");
+  line(
+    "  Both survive this terminal. To stop them:",
+  );
+  if (process.platform === "win32") {
+    line(`      taskkill /PID ${sidecar.pid} /F`);
+    line(`      taskkill /PID ${dashboard.pid} /F`);
+  } else {
+    line(`      kill ${sidecar.pid} ${dashboard.pid}`);
+  }
+  line("");
+  line(`  Finish setup at ${dashboardUrl}/setup, then your dashboard is live at ${dashboardUrl}.`);
+  line("");
+  return 0;
+}
+
+/**
+ * Write a bare-minimum cortex.yaml so the sidecar can boot in setup
+ * mode (api.enabled: true, no adapters, no providers). The web setup
+ * page is responsible for filling in everything real; this just
+ * gives the loader something valid to parse.
+ */
+async function ensureBootstrapConfig(writeRoot: string): Promise<void> {
+  const cfgPath = path.join(writeRoot, "config", "cortex.yaml");
+  if (existsSync(cfgPath)) return;
+  const envPath = path.join(writeRoot, ".env");
+  const stub = [
+    "# Bootstrap config written by `cortex init --web`. The web",
+    "# setup page fills in providers, secrets, and adapters.",
+    "",
+    "llm:",
+    "  providers: {}",
+    "  tasks:",
+    "    default: { provider: ollama, model: qwen3:14b }",
+    "",
+    "api:",
+    "  enabled: true",
+    "  host: \"127.0.0.1\"",
+    "  port: 4141",
+    "",
+    "adapters: {}",
+    "",
+  ].join("\n");
+  await mkdir(path.dirname(cfgPath), { recursive: true });
+  await writeFile(cfgPath, stub, "utf8");
+  if (!existsSync(envPath)) {
+    await writeFile(envPath, "# Secrets written by the setup wizard land here.\n", "utf8");
+  }
 }
 
 // Lightweight formatters so we don't pull in chalk.
