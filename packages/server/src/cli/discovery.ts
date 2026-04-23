@@ -194,17 +194,28 @@ export async function discoverForWizard(args: {
     return { candidates: [], status: "no-discovery" };
   }
 
-  // Parse the caller's config through the adapter's schema so
-  // defaults fill in. Don't hard-fail — some adapters' schemas
-  // require fields that discovery doesn't actually need.
+  // Prefer the wizard's configSchema when available — some wizards
+  // wrap the adapter's schema with a preprocess layer that coerces
+  // stringly-typed form inputs (numeric strings, repeat-per maps)
+  // into the shapes the adapter expects. The raw adapter schema
+  // rejects those with "Expected number, received string".
+  const { findWizard } = await import("./wizard-registry.js");
+  const wizard = findWizard(args.wizardId);
+  const schema = wizard?.configSchema ?? adapter.configSchema;
+
   let parsedConfig: Record<string, unknown>;
   try {
-    parsedConfig = adapter.configSchema.parse(args.config) as Record<
-      string,
-      unknown
-    >;
+    parsedConfig = schema.parse(args.config) as Record<string, unknown>;
   } catch {
-    parsedConfig = { ...args.config };
+    // Second chance: strip obvious empty-string values and try again.
+    const cleaned = Object.fromEntries(
+      Object.entries(args.config).filter(([, v]) => v !== ""),
+    );
+    try {
+      parsedConfig = schema.parse(cleaned) as Record<string, unknown>;
+    } catch {
+      parsedConfig = { ...args.config };
+    }
   }
 
   const taxonomy = await loadTaxonomy({
