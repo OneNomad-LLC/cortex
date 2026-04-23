@@ -44,6 +44,15 @@ interface SearchResponse {
   total: number;
 }
 
+export interface JiraProject {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  projectTypeKey?: string;
+  lead?: { accountId?: string; displayName?: string };
+}
+
 /**
  * Thin Jira Cloud REST v3 client. Just the endpoints we need:
  *   - /search with JQL for issue listing
@@ -124,6 +133,35 @@ export class JiraClient {
   /** Build a browser URL for an issue. */
   issueUrl(issue: JiraIssue): string {
     return `https://${this.opts.workspace}.atlassian.net/browse/${issue.key}`;
+  }
+
+  /** Iterate every Jira project visible to the authed user. */
+  async *iterateProjects(): AsyncIterable<JiraProject> {
+    interface ProjectSearchResponse {
+      values: JiraProject[];
+      isLast?: boolean;
+      nextPage?: string;
+      startAt?: number;
+      maxResults?: number;
+      total?: number;
+    }
+    let startAt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const params = new URLSearchParams({
+        startAt: String(startAt),
+        maxResults: String(this.pageSize),
+      });
+      const data = await this.get<ProjectSearchResponse>(
+        `/project/search?${params.toString()}`,
+      );
+      for (const p of data.values ?? []) yield p;
+      if (data.isLast === true || !data.values || data.values.length === 0) {
+        return;
+      }
+      startAt += data.values.length;
+      if (data.total !== undefined && startAt >= data.total) return;
+    }
   }
 
   private async get<T>(pathOrUrl: string): Promise<T> {

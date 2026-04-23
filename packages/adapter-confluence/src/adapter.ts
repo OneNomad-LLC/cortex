@@ -7,6 +7,7 @@ import type {
   ClassifiedItem,
   HealthStatus,
   NormalizedItem,
+  ProjectCandidate,
   RawSourceItem,
 } from "@cortex/core";
 import { BaseAdapter } from "@cortex/adapter-sdk";
@@ -200,6 +201,36 @@ export class ConfluenceAdapter extends BaseAdapter {
 
     return { ...item, ...(await this.fallbackClassify(item, cctx, "")) };
   }
+
+  /**
+   * Surface every Confluence space the authed user can read as a
+   * project candidate. The wizard's post-install hook writes each
+   * pick into projects.yaml with `confluence_space: <key>` so the
+   * Confluence adapter can route future syncs by space key.
+   */
+  async discoverProjects(): Promise<ProjectCandidate[]> {
+    const candidates: ProjectCandidate[] = [];
+    for await (const space of this.client.iterateAllSpaces()) {
+      // Skip personal-user spaces — they aren't shared projects.
+      if (space.type === "personal") continue;
+      candidates.push({
+        slug: slugify(space.key),
+        name: space.name || space.key,
+        sourceHints: { confluence_space: space.key },
+      });
+    }
+    return candidates;
+  }
+}
+
+function slugify(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "space";
 }
 
 export const createAdapter: AdapterFactory = () => new ConfluenceAdapter();

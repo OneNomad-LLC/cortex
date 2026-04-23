@@ -5,6 +5,7 @@ import type {
   ClassificationContext,
   ClassifiedItem,
   NormalizedItem,
+  ProjectCandidate,
   RawSourceItem,
 } from "@cortex/core";
 import { BaseAdapter } from "@cortex/adapter-sdk";
@@ -220,6 +221,34 @@ export class JiraAdapter extends BaseAdapter {
     const body = parts.length > 0 ? parts.join(" AND ") : "ORDER BY updated DESC";
     return parts.length > 0 ? `${body} ORDER BY updated DESC` : body;
   }
+
+  /**
+   * Surface every Jira project the authed user can see. The wizard's
+   * post-install hook stamps `{ jira_project_key: <KEY> }` into the
+   * resulting projects.yaml entry.
+   */
+  async discoverProjects(): Promise<ProjectCandidate[]> {
+    const candidates: ProjectCandidate[] = [];
+    for await (const project of this.client.iterateProjects()) {
+      candidates.push({
+        slug: slugify(project.key),
+        name: project.name || project.key,
+        ...(project.description ? { description: project.description } : {}),
+        sourceHints: { jira_project_key: project.key },
+      });
+    }
+    return candidates;
+  }
+}
+
+function slugify(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "project";
 }
 
 function escapeJql(s: string): string {

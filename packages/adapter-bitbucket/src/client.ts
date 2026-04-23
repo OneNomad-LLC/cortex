@@ -15,6 +15,13 @@ export interface BitbucketTreeEntry {
   commit?: { hash: string };
 }
 
+export interface BitbucketRepo {
+  slug: string;
+  name: string;
+  description?: string;
+  links?: { html?: { href?: string } };
+}
+
 interface SrcListResponse {
   values: BitbucketTreeEntry[];
   next?: string;
@@ -109,6 +116,24 @@ export class BitbucketClient {
 
   fileUrl(repo: string, ref: string, path: string): string {
     return `https://bitbucket.org/${encodeURIComponent(this.opts.workspace)}/${encodeURIComponent(repo)}/src/${encodeURIComponent(ref)}/${encodeURI(path)}`;
+  }
+
+  /**
+   * List every repo in the configured workspace. Used by the wizard's
+   * post-install hook to surface project candidates.
+   */
+  async *listRepos(): AsyncIterable<BitbucketRepo> {
+    interface RepoListResponse {
+      values: BitbucketRepo[];
+      next?: string;
+    }
+    let url: string | undefined =
+      `${this.baseUrl}/repositories/${encodeURIComponent(this.opts.workspace)}?pagelen=${this.pageSize}&fields=values.slug,values.name,values.description,values.links.html.href,next`;
+    while (url) {
+      const data: RepoListResponse = await this.getJson<RepoListResponse>(url);
+      for (const repo of data.values ?? []) yield repo;
+      url = data.next;
+    }
   }
 
   private async getJson<T>(url: string): Promise<T> {

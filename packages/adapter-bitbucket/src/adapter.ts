@@ -5,6 +5,7 @@ import type {
   ClassificationContext,
   ClassifiedItem,
   NormalizedItem,
+  ProjectCandidate,
   RawSourceItem,
 } from "@cortex/core";
 import { BaseAdapter, matchesGlobs } from "@cortex/adapter-sdk";
@@ -81,11 +82,10 @@ export class BitbucketAdapter extends BaseAdapter {
         "bitbucket adapter: ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN must be set",
       );
     }
-    if (this.cfg.repos.length === 0) {
-      throw new Error(
-        "bitbucket adapter: `repos` must be non-empty (don't scan an entire workspace by default)",
-      );
-    }
+    // Empty `repos` is legal — `discoverProjects` works without it and
+    // fetch() handles the no-repos case with a warning rather than a
+    // hard throw. That lets operators authenticate once, discover their
+    // repos via the post-install hook, and pick which to sync.
     this.client = new BitbucketClient({
       workspace: this.cfg.workspace,
       email,
@@ -183,6 +183,34 @@ export class BitbucketAdapter extends BaseAdapter {
     }
     return { ...item, ...(await this.fallbackClassify(item, cctx, this.cfg.defaultProject)) };
   }
+
+  /**
+   * Surface every repo in the workspace as a project candidate. The
+   * wizard's post-install hook calls this after the user authenticates,
+   * so projects.yaml can be populated without hand-typing repo slugs.
+   */
+  async discoverProjects(): Promise<ProjectCandidate[]> {
+    const candidates: ProjectCandidate[] = [];
+    for await (const repo of this.client.listRepos()) {
+      candidates.push({
+        slug: slugify(repo.slug),
+        name: repo.name || repo.slug,
+        ...(repo.description ? { description: repo.description } : {}),
+        sourceHints: { bitbucket_repos: [repo.slug] },
+      });
+    }
+    return candidates;
+  }
+}
+
+function slugify(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "repo";
 }
 
 export const createAdapter: AdapterFactory = () => new BitbucketAdapter();

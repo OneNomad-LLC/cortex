@@ -13,6 +13,8 @@ export const projectSourcesSchema = z
   .object({
     /** Confluence space key (e.g. "ALPHA"). */
     confluence_space: z.string().optional(),
+    /** Jira project key (e.g. "ALPHA"). */
+    jira_project_key: z.string().optional(),
     /** Bitbucket repo slugs that belong to this project. */
     bitbucket_repos: z.array(z.string()).optional(),
     /** GitHub repo slugs ("owner/repo") that belong to this project. */

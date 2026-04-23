@@ -85,6 +85,20 @@ export class ConfluenceClient {
     return data.results;
   }
 
+  /** Iterate every space the authed user can read. Used for discovery. */
+  async *iterateAllSpaces(): AsyncIterable<ConfluenceSpace> {
+    const params = new URLSearchParams();
+    params.set("limit", String(this.pageSize));
+    let url: string | undefined = `/spaces?${params.toString()}`;
+    while (url) {
+      const data: PaginatedResponse<ConfluenceSpace> = await this.get<
+        PaginatedResponse<ConfluenceSpace>
+      >(url);
+      for (const space of data.results) yield space;
+      url = data._links?.next;
+    }
+  }
+
   /**
    * Yield pages in a space, newest first. Caller decides when to stop based
    * on `updatedAt` vs a cursor. v2 sorts descending by `-modified-date`.
