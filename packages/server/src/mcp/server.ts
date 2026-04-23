@@ -6,6 +6,7 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { connectConfiguredTransport } from "./transport.js";
+import { resolveConfigPath } from "../cli/config-path.js";
 import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { buildLLMRouter } from "../registry/providers.js";
@@ -29,9 +30,7 @@ import type { AnyMcpTool, ToolContext } from "./tool.js";
  */
 export async function startServer(): Promise<void> {
   const logger = createLogger({ component: "cortex-server" });
-  const configPath =
-    process.env.CORTEX_CONFIG_PATH ??
-    path.resolve(process.cwd(), "config/cortex.yaml");
+  const configPath = resolveConfigPath();
 
   logger.info("startup.begin", { configPath });
   const cfg = await loadCortexConfig(configPath);

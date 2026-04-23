@@ -12,6 +12,7 @@ import {
   type CortexConfig,
 } from "../config.js";
 import { createEngramClient } from "../clients/engram.js";
+import { resolveConfigPath } from "./config-path.js";
 
 /**
  * `cortex doctor` — pre-flight diagnostic. Runs mechanical checks without
@@ -63,9 +64,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
   const connect = args.includes("--connect");
   const results: CheckResult[] = [];
 
-  const cfgPath =
-    process.env.CORTEX_CONFIG_PATH ??
-    path.resolve(process.cwd(), "config/cortex.yaml");
+  const cfgPath = resolveConfigPath();
 
   // 1. Config file readable
   const resolvedCfg = await resolveLocalFirst(cfgPath);

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCortexConfig } from "../config.js";
+import { resolveConfigPath } from "./config-path.js";
 
 const DEFAULT_PORT = 3030;
 
@@ -96,9 +97,7 @@ function resolveDashboardDir(): string | undefined {
 }
 
 async function deriveApiUrl(): Promise<string> {
-  const configPath =
-    process.env.CORTEX_CONFIG_PATH ??
-    path.resolve(process.cwd(), "config/cortex.yaml");
+  const configPath = resolveConfigPath();
   try {
     const cfg = await loadCortexConfig(configPath);
     const host =

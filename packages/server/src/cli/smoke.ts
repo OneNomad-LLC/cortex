@@ -1,13 +1,11 @@
-import path from "node:path";
 import { loadCortexConfig, type CortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { buildLLMRouter } from "../registry/providers.js";
+import { resolveConfigPath } from "./config-path.js";
 
 export async function runSmoke(): Promise<number> {
   const logger = createLogger({ component: "smoke" });
-  const cfgPath =
-    process.env.CORTEX_CONFIG_PATH ??
-    path.resolve(process.cwd(), "config/cortex.yaml");
+  const cfgPath = resolveConfigPath();
 
   const cfg = await loadCortexConfig(cfgPath);
   const { providers } = await buildLLMRouter({

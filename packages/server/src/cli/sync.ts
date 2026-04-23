@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { AdapterContext } from "@cortex/core";
 import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
@@ -6,6 +5,7 @@ import { buildAdapterRegistry } from "../registry/adapters.js";
 import { buildLLMRouter } from "../registry/providers.js";
 import { createMemoryClient } from "../clients/memory.js";
 import { runSync } from "../sync.js";
+import { resolveConfigPath } from "./config-path.js";
 
 export interface SyncCliOptions {
   adapterId: string;
@@ -48,9 +48,7 @@ export async function runSyncCli(argv: readonly string[]): Promise<number> {
   }
 
   const logger = createLogger({ component: "sync" });
-  const configPath =
-    process.env.CORTEX_CONFIG_PATH ??
-    path.resolve(process.cwd(), "config/cortex.yaml");
+  const configPath = resolveConfigPath();
 
   const cfg = await loadCortexConfig(configPath);
   const entry = cfg.adapters[parsed.adapterId];

@@ -86,7 +86,11 @@ function buildEnv(input: WriteConfigInput): string {
     "# Runtime",
     "NODE_ENV=development",
     "LOG_LEVEL=info",
-    "CORTEX_CONFIG_PATH=./config/cortex.yaml",
+    // No CORTEX_CONFIG_PATH default — the CLI walks up from cwd to find
+    // config/cortex.yaml, then falls back to ~/.cortex/config/cortex.yaml.
+    // Uncomment and set an absolute path below only if you want to pin
+    // a specific file (e.g. testing with a non-standard location).
+    "# CORTEX_CONFIG_PATH=/absolute/path/to/cortex.yaml",
     "CORTEX_MCP_PORT=3100",
     "",
   );
