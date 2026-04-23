@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GitHubAuthButton } from "./github-auth-button";
 
 /**
  * Dashboard twin of the CLI wizard runner. Takes a WizardModule id,
@@ -199,7 +200,20 @@ export function WizardForm({
         />
       ))}
 
-      {spec.secrets.length > 0 && (
+      {spec.id === "github" && (
+        <fieldset className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
+          <legend className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+            GitHub authorization
+          </legend>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400">
+            Click below to authorize Cortex via GitHub&apos;s device flow.
+            No token paste needed.
+          </p>
+          <GitHubAuthButton />
+        </fieldset>
+      )}
+
+      {spec.id !== "github" && spec.secrets.length > 0 && (
         <fieldset className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
           <legend className="text-xs font-medium uppercase tracking-wide text-neutral-500">
             Secrets
