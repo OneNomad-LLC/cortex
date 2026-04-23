@@ -6,7 +6,16 @@ import {
 } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { Logger } from "@cortex/core";
-import { getActiveWorkspace } from "../cli/workspace/manager.js";
+import {
+  createWorkspace,
+  findWorkspace,
+  getActiveWorkspace,
+  listWorkspaces,
+  removeWorkspace,
+  switchWorkspace,
+  validateSlug,
+} from "../cli/workspace/manager.js";
+import { readState } from "../cli/workspace/state.js";
 import {
   type DashboardLayout,
   loadDashboardLayout,
@@ -145,6 +154,11 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    if (pathname === "/api/workspaces" || pathname.startsWith("/api/workspaces/")) {
+      await handleWorkspaces(req, res, logger);
+      return;
+    }
+
     sendJson(res, 404, { error: "not found" });
   };
 
@@ -206,6 +220,10 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "/api/layout",
         "/api/widgets",
         ...ALL_WIDGETS.map((w) => `/api/widgets/${w.name}`),
+        "GET /api/workspaces",
+        "POST /api/workspaces",
+        "POST /api/workspaces/switch",
+        "DELETE /api/workspaces/:slug",
       ];
     },
   };
@@ -214,6 +232,131 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (raw.length === 0) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("body is not valid JSON");
+  }
+}
+
+async function handleWorkspaces(
+  req: IncomingMessage,
+  res: ServerResponse,
+  logger: Logger,
+): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://127.0.0.1");
+  const path = url.pathname;
+
+  try {
+    // GET /api/workspaces — list
+    if (req.method === "GET" && path === "/api/workspaces") {
+      const [workspaces, state] = await Promise.all([
+        listWorkspaces(),
+        readState(),
+      ]);
+      sendJson(res, 200, {
+        active: state.activeWorkspace ?? null,
+        workspaces: workspaces.map((w) => ({
+          slug: w.slug,
+          path: w.path,
+          active: state.activeWorkspace === w.slug,
+        })),
+      });
+      return;
+    }
+
+    // POST /api/workspaces/switch — flip pointer
+    if (req.method === "POST" && path === "/api/workspaces/switch") {
+      const body = (await readJsonBody(req)) as { slug?: string };
+      if (!body.slug) {
+        sendJson(res, 400, { error: "body.slug required" });
+        return;
+      }
+      const ws = await switchWorkspace(body.slug);
+      sendJson(res, 200, {
+        slug: ws.slug,
+        path: ws.path,
+        warning:
+          "State updated. Restart `cortex start` so the running daemon loads this workspace's memory and config.",
+      });
+      return;
+    }
+
+    // POST /api/workspaces — create
+    if (req.method === "POST" && path === "/api/workspaces") {
+      const body = (await readJsonBody(req)) as {
+        slug?: string;
+        fromPath?: string;
+        activate?: boolean;
+      };
+      if (!body.slug) {
+        sendJson(res, 400, { error: "body.slug required" });
+        return;
+      }
+      const validated = validateSlug(body.slug);
+      if (!validated.ok) {
+        sendJson(res, 400, { error: validated.reason });
+        return;
+      }
+      const ws = await createWorkspace({
+        slug: body.slug,
+        ...(body.fromPath ? { fromPath: body.fromPath } : {}),
+      });
+      const state = await readState();
+      let activated = false;
+      if (!state.activeWorkspace || body.activate) {
+        await switchWorkspace(ws.slug);
+        activated = true;
+      }
+      sendJson(res, 201, {
+        slug: ws.slug,
+        path: ws.path,
+        activated,
+      });
+      return;
+    }
+
+    // DELETE /api/workspaces/:slug?confirm=true — destructive
+    if (req.method === "DELETE" && path.startsWith("/api/workspaces/")) {
+      const slug = decodeURIComponent(path.slice("/api/workspaces/".length));
+      const confirm = url.searchParams.get("confirm") === "true";
+      if (!confirm) {
+        sendJson(res, 400, {
+          error:
+            "destructive — pass ?confirm=true to delete the workspace directory",
+        });
+        return;
+      }
+      const existing = await findWorkspace(slug);
+      if (!existing) {
+        sendJson(res, 404, { error: `workspace '${slug}' not found` });
+        return;
+      }
+      await removeWorkspace(slug);
+      sendJson(res, 200, { slug, removed: true });
+      return;
+    }
+
+    sendJson(res, 404, { error: "not found" });
+  } catch (err) {
+    logger.warn("api.workspaces.failed", {
+      method: req.method,
+      path,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    sendJson(res, 500, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 function setCors(res: ServerResponse, origin: string | undefined): void {
@@ -226,7 +369,10 @@ function setCors(res: ServerResponse, origin: string | undefined): void {
       ? origin
       : "*";
   res.setHeader("access-control-allow-origin", allow);
-  res.setHeader("access-control-allow-methods", "GET, OPTIONS");
+  res.setHeader(
+    "access-control-allow-methods",
+    "GET, POST, DELETE, OPTIONS",
+  );
   res.setHeader("access-control-allow-headers", "content-type");
   res.setHeader("vary", "origin");
 }

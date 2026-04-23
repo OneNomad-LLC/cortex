@@ -3,6 +3,7 @@ import {
   type ResolvedLayout,
   renderWidget,
 } from "@/widgets/registry";
+import { WorkspaceSwitcher } from "@/widgets/workspace-switcher";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,9 @@ export default async function Home(): Promise<React.JSX.Element> {
         </div>
         {layout && (
           <div className="flex items-baseline gap-3 text-xs text-neutral-500">
-            {layout.workspace && (
-              <span className="rounded bg-blue-500/15 px-2 py-0.5 font-medium text-blue-700 dark:text-blue-300">
-                {layout.workspace}
-              </span>
-            )}
+            <WorkspaceSwitcher
+              {...(layout.workspace ? { initialSlug: layout.workspace } : {})}
+            />
             <span>
               role: <span className="font-medium">{layout.role}</span>
             </span>
