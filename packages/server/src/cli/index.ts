@@ -1,3 +1,4 @@
+import { runDashboard } from "./dashboard.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
 import { runGoogleLogin } from "./google-login.js";
@@ -25,6 +26,8 @@ Commands:
   doctor [--connect]         Pre-flight checks: config, secrets, tokens, taxonomy.
                                --connect also probes Engram + Postgres live.
   smoke                      Run a live LLM probe against every enabled provider.
+  dashboard [--port N]       Launch the local web dashboard (Next.js). Pairs
+                               with \`cortex start --api\`.
   sync <adapter> [flags]     Run one adapter's full ingestion cycle once.
                                --since=ISO  only items updated after this date
                                --limit=N    cap items processed
@@ -74,6 +77,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "smoke":
       return runSmoke();
+
+    case "dashboard":
+      return runDashboard(rest);
 
     case "status":
       return runStatus();

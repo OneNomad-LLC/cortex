@@ -195,6 +195,20 @@ describe("dashboard API", () => {
     expect(body.done![0]!.content).toContain("onboarding");
   });
 
+  it("serves /api/layout with the default delivery preset", async () => {
+    const res = await fetch(`${baseUrl}/api/layout`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      role: string;
+      widgets: Array<{ name: string }>;
+    };
+    expect(body.role).toBe("delivery");
+    const names = body.widgets.map((w) => w.name);
+    expect(names).toContain("priorities");
+    expect(names).toContain("my-action-items");
+    expect(names).toContain("recent-decisions");
+  });
+
   it("serves /api/widgets/recent-decisions newest-first", async () => {
     const res = await fetch(
       `${baseUrl}/api/widgets/recent-decisions?days=30`,

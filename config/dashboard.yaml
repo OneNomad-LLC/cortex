@@ -1,0 +1,34 @@
+# Dashboard layout. Override in dashboard.local.yaml — this file is a
+# committed template. See ADR-015 for the dashboard contract.
+#
+# Roles: delivery, developer, custom
+#
+# - delivery: priorities, my-action-items, recent-decisions,
+#   today-meetings, recent-activity
+# - developer: my-action-items, code-activity, recent-decisions,
+#   priorities
+# - custom: the `widgets` list wins outright — no preset applied.
+#
+# For named roles, entries in `widgets` override/extend the preset:
+#   - matching `name` merges props on top of the preset's props
+#   - new `name`s are appended to the end
+#
+# Widgets not yet shipped (today-meetings, recent-activity,
+# code-activity) render a placeholder until their handlers land.
+
+role: delivery
+
+widgets: []
+  # Example: widen the priorities window without losing the rest of the
+  # delivery preset —
+  #
+  # - name: priorities
+  #   props:
+  #     limit: 40
+  #     days: 21
+  #
+  # Example: pin your owner slug so my-action-items always filters to you —
+  #
+  # - name: my-action-items
+  #   props:
+  #     owner: matt

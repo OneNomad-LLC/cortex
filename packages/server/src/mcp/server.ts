@@ -183,6 +183,7 @@ export async function startServer(): Promise<void> {
         logger: logger.child({ component: "dashboard-api" }),
         host: cfg.api.host,
         port: cfg.api.port,
+        layoutPath: path.join(repoRoot, "config", "dashboard.yaml"),
       })
     : undefined;
   if (dashboardApi) {

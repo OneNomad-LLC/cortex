@@ -52,3 +52,16 @@ export const fetchWidgetClient: WidgetFetcher = async <T>(
   }
   return (await res.json()) as T;
 };
+
+/**
+ * Fetches the resolved dashboard layout from the sidecar. Server-side
+ * only; mirrors `fetchWidgetServer`'s shape.
+ */
+export async function fetchLayoutServer<T>(): Promise<T> {
+  const url = `${SERVER_BASE}/api/layout`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`layout: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T;
+}

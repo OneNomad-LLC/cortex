@@ -6,6 +6,11 @@ import {
 } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { Logger } from "@cortex/core";
+import {
+  type DashboardLayout,
+  loadDashboardLayout,
+  resolveLayout,
+} from "./layout.js";
 import { ALL_WIDGETS, WIDGETS_BY_NAME } from "./widgets/index.js";
 import type { Widget, WidgetContext } from "./types.js";
 
@@ -13,6 +18,12 @@ export interface DashboardApiOptions extends WidgetContext {
   host?: string;
   port: number;
   logger: Logger;
+  /**
+   * Path to the `dashboard.yaml` template. Re-read on every `/api/layout`
+   * request so users can edit and refresh without bouncing the server.
+   * If omitted, `/api/layout` returns the built-in delivery preset.
+   */
+  layoutPath?: string;
 }
 
 export interface DashboardApi {
@@ -63,6 +74,24 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (req.method === "GET" && pathname === "/health") {
       sendJson(res, 200, { ok: true, version: 1, widgets: ALL_WIDGETS.length });
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/layout") {
+      try {
+        const raw: DashboardLayout = opts.layoutPath
+          ? await loadDashboardLayout(opts.layoutPath)
+          : { role: "delivery", widgets: [] };
+        const resolved = resolveLayout(raw);
+        sendJson(res, 200, resolved);
+      } catch (err) {
+        logger.warn("api.layout.failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 
@@ -165,6 +194,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     routes(): ReadonlyArray<string> {
       return [
         "/health",
+        "/api/layout",
         "/api/widgets",
         ...ALL_WIDGETS.map((w) => `/api/widgets/${w.name}`),
       ];
