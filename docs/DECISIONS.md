@@ -614,6 +614,118 @@ Three shape questions decided up-front because they're hard to reverse:
 - If the v1 widget set proves wrong, we replace widgets, not
   architecture — the sidecar contract and layout YAML absorb the churn.
 
+## ADR-016: Federated memory with `@cortex/memory-remote` (2026-04-22)
+
+**Status**: Accepted
+
+**Context**: Cortex runs Engram as a local stdio subprocess — personal
+memory, single-user, private. That's the right default for an ADHD
+daily driver. But two scenarios break the single-Engram model:
+
+1. **Team knowledge.** Shared decisions, meeting outcomes, and project
+   docs are useful across a team. "Was that decision we made on alpha
+   last quarter in my notes or was it in Jake's?" is a question you
+   want to answer without pinging Jake.
+2. **Multi-machine continuity.** Matt works across a laptop and a
+   desktop. Personal memory that only lives on one host is a regression
+   from the Obsidian-sync world where notes travel.
+
+Options considered:
+
+- **A. Single backend.** Pick one — personal local OR team remote.
+  Simplest, but forces a false choice.
+- **B. Workspace switch.** User toggles between "personal" and "team"
+  contexts. Loses cross-workspace search, which is the ADHD-relevant
+  use case ("remind me of that thing — was it in a meeting or in my
+  notes?").
+- **C. Hybrid cache.** Team Engram as source of truth, local as
+  warm cache. Cache coherence problems in a multi-writer world make
+  this complex enough to punt.
+- **D. Federated fan-out.** Cortex holds multiple Engram clients;
+  search fans out in parallel and merges results. Writes route by
+  explicit target. Chosen.
+
+**Decision**:
+
+- **`@cortex/memory-remote`** is a new package that implements the same
+  `EngramClient` interface as the local stdio client, but over HTTP.
+  It talks to Engram's existing HTTP MCP transport (already supported
+  upstream) or a thin JSON shim in front of it — whichever turns out
+  cleaner on implementation.
+
+- **Multiple backends per Cortex instance.** `cortex.yaml` grows a
+  `memory.remotes[]` list. Each entry has a slug, a URL, optional
+  auth, and a list of `domain` tags it owns (e.g. `team-alpha` or
+  `drivenbrands`). The existing `memory.engram` + `memory.pgvector`
+  stays as the personal backend.
+
+- **Read = parallel fan-out.** `search()` dispatches the query to
+  every enabled backend concurrently. Results are merged and ranked
+  by the highest score per `source_id`. Each result carries a
+  `_backend` slug so the UI can show provenance and doctor can
+  attribute failures.
+
+  Partial results are fine: if the team backend times out at 500ms,
+  the user still gets local hits. The widget/tool layer doesn't have
+  to care — the merged client handles it.
+
+- **Write = explicit routing.** `ingest()` takes an optional
+  `backend` slug. When omitted, writes go to the default backend
+  (personal local). Adapters that belong to shared sources (team
+  Confluence spaces, shared Bitbucket repos) get a `backend:` option
+  in their `cortex.yaml` entry that sets the target. No dual-writes,
+  no silent fan-out on writes.
+
+- **Auth is pluggable, not baked in.** The remote client accepts an
+  `authorization` builder function that returns a bearer. Simple
+  shared-secret for v1 (`CORTEX_REMOTE_<slug>_TOKEN` env var); OAuth
+  or mTLS are later additions that don't change the memory contract.
+
+- **Domain metadata is load-bearing.** The `domain` field in memory
+  metadata (already in the contract: `"work"` for everything today)
+  evolves to be the routing key. Personal memories get
+  `domain: "personal"` or stay `domain: "work"` for backwards
+  compat; shared memories get `domain: "team:<slug>"`. Search filters
+  naturally respect domain, so "only personal" and "only team" views
+  are the same query with one more filter.
+
+- **Doctor grows per-backend probes.** `cortex doctor --connect`
+  already live-probes the primary Engram. With ADR-016, it walks
+  every configured remote in the same way and reports per-slug
+  health. Unreachable remotes are warnings, not failures, since
+  fan-out still works without them.
+
+**Consequences**:
+
+- The dashboard gains provenance. A decision pulled from
+  `team-alpha` can show a small badge; a personal note from local
+  Engram shows its own. Users know which source they're trusting.
+- One-way federation is possible by default: personal → team by
+  configuring only a team write for specific adapters, team → personal
+  by leaving personal writes alone. No explicit sync job needed.
+- `engram-remote` adopters who don't want local Engram can run
+  Cortex with zero local subprocess — remotes only. Doctor's
+  current hard dependency on an Engram subprocess becomes a soft one.
+- Permissioning is Engram's problem, not Cortex's. If a team instance
+  wants per-user ACLs, that's an Engram feature Cortex consumes via
+  the auth builder.
+- Writes never silently propagate to a shared backend. Operators who
+  set `backend:` on an adapter have opted in. This is the main
+  insurance policy against accidental data sharing.
+- Cache coherence is a non-problem because we chose fan-out over
+  cache. The cost is one network round-trip per query per remote,
+  paid in parallel.
+- A future `@cortex/memory-pgvector-remote` or any other backend is
+  the same shape: implement `EngramClient`, register in `memory.remotes`.
+
+**Open for v1 impl**:
+- Score merging function (simple max-by-source_id or weighted?).
+  Start with max; revisit if ranking feels off.
+- Timeout budget per fan-out. 500ms default, per-backend override in
+  config.
+- Whether the memory contract gains a `source_backend` required field
+  or whether `_backend` stays a runtime-only annotation.
+
 ---
 
 _Add new ADRs below this line._
