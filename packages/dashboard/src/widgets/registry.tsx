@@ -6,6 +6,7 @@ import { RecentActivityWidget } from "./recent-activity";
 import { RecentDecisionsWidget } from "./recent-decisions";
 import { TodayMeetingsWidget } from "./today-meetings";
 import { UpcomingBriefsWidget } from "./upcoming-briefs";
+import { WhoKnowsWidget } from "./who-knows";
 
 /**
  * Layout entry as served by GET /api/layout. Matches the zod schema in
@@ -38,6 +39,7 @@ export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
   "today-meetings": TodayMeetingsWidget as WidgetComponent,
   "upcoming-briefs": UpcomingBriefsWidget as WidgetComponent,
   "code-activity": CodeActivityWidget as WidgetComponent,
+  "who-knows": WhoKnowsWidget as WidgetComponent,
 };
 
 export function renderWidget(entry: LayoutWidget): React.ReactNode {

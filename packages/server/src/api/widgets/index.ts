@@ -6,6 +6,7 @@ import { recentActivityWidget } from "./recent-activity.js";
 import { recentDecisionsWidget } from "./recent-decisions.js";
 import { todayMeetingsWidget } from "./today-meetings.js";
 import { upcomingBriefsWidget } from "./upcoming-briefs.js";
+import { whoKnowsWidget } from "./who-knows.js";
 
 /**
  * Widget registry. Add a new widget by importing it here and adding it to
@@ -19,6 +20,7 @@ export const ALL_WIDGETS: readonly Widget[] = [
   todayMeetingsWidget,
   upcomingBriefsWidget,
   codeActivityWidget,
+  whoKnowsWidget,
 ];
 
 export const WIDGETS_BY_NAME: ReadonlyMap<string, Widget> = new Map(
