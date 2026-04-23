@@ -23,6 +23,18 @@ export interface GithubTreeEntry {
   url: string;
 }
 
+export interface GithubRepoSummary {
+  full_name: string; // owner/repo
+  name: string;
+  description?: string | null;
+  private: boolean;
+  archived: boolean;
+  html_url: string;
+  default_branch: string;
+  pushed_at?: string;
+  owner: { login: string };
+}
+
 interface TreeResponse {
   sha: string;
   url: string;
@@ -114,6 +126,27 @@ export class GithubClient {
 
   fileUrl(owner: string, repo: string, branch: string, path: string): string {
     return `https://github.com/${owner}/${repo}/blob/${encodeURIComponent(branch)}/${encodeURI(path)}`;
+  }
+
+  /**
+   * List every repo the token can read. For a user token this is
+   * `/user/repos` (includes collaborator + org repos the user is a
+   * member of). `affiliation=owner,collaborator,organization_member`
+   * is the default, so we just page through it.
+   */
+  async *listRepos(): AsyncIterable<GithubRepoSummary> {
+    const perPage = 100;
+    let page = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const items = await this.get<GithubRepoSummary[]>(
+        `/user/repos?per_page=${perPage}&page=${page}&sort=pushed`,
+      );
+      for (const r of items) yield r;
+      if (items.length < perPage) return;
+      page += 1;
+      if (page > 50) return; // Safety cap — 5000 repos is plenty.
+    }
   }
 
   private async get<T>(pathOrUrl: string): Promise<T> {

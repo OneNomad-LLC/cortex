@@ -55,6 +55,19 @@ export interface WizardSubmitResult {
   warning?: string;
 }
 
+interface DiscoveryCandidate {
+  slug: string;
+  name: string;
+  description?: string;
+  sourceHints?: Record<string, unknown>;
+}
+
+interface DiscoveryResult {
+  candidates: DiscoveryCandidate[];
+  status: "ok" | "no-discovery" | "failed";
+  error?: string;
+}
+
 export function WizardForm({
   wizardId,
   onSuccess,
@@ -69,6 +82,63 @@ export function WizardForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<WizardSubmitResult | undefined>();
+  // GitHub-specific: gate the form on device-flow auth and replace
+  // the `repos` text field with a multi-select populated by
+  // `discoverProjects`.
+  const [githubAuthed, setGithubAuthed] = useState(false);
+  const [discovery, setDiscovery] = useState<DiscoveryResult | undefined>();
+  const [discovering, setDiscovering] = useState(false);
+
+  const needsGithubAuth = spec?.id === "github" && !githubAuthed;
+
+  useEffect(() => {
+    if (spec?.id !== "github") return;
+    void (async () => {
+      try {
+        const r = await fetch("/api/cortex/auth/github/status", {
+          cache: "no-store",
+        });
+        const body = (await r.json()) as { authenticated: boolean };
+        setGithubAuthed(body.authenticated === true);
+      } catch {
+        setGithubAuthed(false);
+      }
+    })();
+  }, [spec?.id]);
+
+  // Once GitHub auth is in place, fetch available repos so the
+  // multi-select is pre-populated. We only run it once per auth
+  // transition — manual refresh via the button re-triggers.
+  useEffect(() => {
+    if (spec?.id !== "github" || !githubAuthed || discovery) return;
+    void fetchDiscovery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec?.id, githubAuthed]);
+
+  async function fetchDiscovery(): Promise<void> {
+    if (!spec) return;
+    setDiscovering(true);
+    try {
+      const res = await fetch(
+        `/api/cortex/wizards/${spec.id}/discover`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ config: values, secrets }),
+        },
+      );
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      setDiscovery((await res.json()) as DiscoveryResult);
+    } catch (e) {
+      setDiscovery({
+        candidates: [],
+        status: "failed",
+        error: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setDiscovering(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +241,34 @@ export function WizardForm({
     );
   }
 
+  // GitHub-specific gate: show ONLY the connect step until the user
+  // authorizes. After auth, fall through to the full form with a
+  // multi-select repo picker.
+  if (needsGithubAuth) {
+    return (
+      <div className="space-y-4">
+        <header>
+          <h3 className="text-base font-semibold">{spec.name}</h3>
+          {spec.description && (
+            <p className="mt-0.5 text-sm text-neutral-500">{spec.description}</p>
+          )}
+        </header>
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
+          <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-200">
+            Authorize Cortex via GitHub&apos;s device flow. We&apos;ll
+            list your repos once you approve.
+          </p>
+          <GitHubAuthButton
+            onAuthorized={() => {
+              setGithubAuthed(true);
+              void fetchDiscovery();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form
       className="space-y-4"
@@ -186,32 +284,42 @@ export function WizardForm({
         )}
       </header>
 
-      {spec.steps.map((step) => (
-        <FieldForStep
-          key={step.key}
-          step={step}
-          value={values[step.key]}
-          onChange={(v) =>
-            setValues((prev) => ({
-              ...prev,
-              [step.key]: v,
-            }))
-          }
-        />
-      ))}
-
       {spec.id === "github" && (
-        <fieldset className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
-          <legend className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            GitHub authorization
-          </legend>
-          <p className="text-xs text-neutral-600 dark:text-neutral-400">
-            Click below to authorize Cortex via GitHub&apos;s device flow.
-            No token paste needed.
-          </p>
-          <GitHubAuthButton />
-        </fieldset>
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <GitHubAuthButton size="compact" />
+        </div>
       )}
+
+      {spec.steps.map((step) => {
+        // GitHub: swap the `repos` list field for a discovery-backed
+        // multi-select so the user picks from an actual list of their
+        // repos instead of typing owner/repo by hand.
+        if (spec.id === "github" && step.key === "repos" && step.type === "list") {
+          return (
+            <GithubReposPicker
+              key={step.key}
+              step={step}
+              value={values[step.key]}
+              onChange={(v) =>
+                setValues((prev) => ({ ...prev, [step.key]: v }))
+              }
+              discovery={discovery}
+              discovering={discovering}
+              onRefresh={() => void fetchDiscovery()}
+            />
+          );
+        }
+        return (
+          <FieldForStep
+            key={step.key}
+            step={step}
+            value={values[step.key]}
+            onChange={(v) =>
+              setValues((prev) => ({ ...prev, [step.key]: v }))
+            }
+          />
+        );
+      })}
 
       {spec.id !== "github" && spec.secrets.length > 0 && (
         <fieldset className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -391,6 +499,158 @@ function SecretField({
       />
       <p className="mt-1 text-[11px] text-neutral-500">
         env var: <code className="font-mono">{secret.envVar}</code>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Multi-select dropdown for GitHub repos. Populated by
+ * `discoverProjects` → `sourceHints.github_repos[0]`. Users can:
+ *   - Select individual repos (checkboxes)
+ *   - "Select all"
+ *   - Refresh the list if they created repos since opening
+ *   - Fall back to typing when discovery fails
+ *
+ * Value stays as a comma-separated string internally (same shape as
+ * other list-type fields) so submit-time array splitting still works
+ * without a branch.
+ */
+function GithubReposPicker({
+  step,
+  value,
+  onChange,
+  discovery,
+  discovering,
+  onRefresh,
+}: {
+  step: WizardStep;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  discovery: DiscoveryResult | undefined;
+  discovering: boolean;
+  onRefresh: () => void;
+}): React.JSX.Element {
+  const current = typeof value === "string"
+    ? value
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : Array.isArray(value)
+      ? (value as string[])
+      : [];
+  const selected = new Set(current);
+
+  function toggle(fullName: string): void {
+    const next = new Set(selected);
+    if (next.has(fullName)) next.delete(fullName);
+    else next.add(fullName);
+    onChange(Array.from(next).join(", "));
+  }
+
+  function selectAll(): void {
+    if (!discovery) return;
+    const all = discovery.candidates
+      .map((c) => {
+        const hints = c.sourceHints as
+          | { github_repos?: string[] }
+          | undefined;
+        return hints?.github_repos?.[0];
+      })
+      .filter((v): v is string => typeof v === "string");
+    onChange(all.join(", "));
+  }
+
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between">
+        <label className="text-sm font-medium">
+          {step.prompt}
+          {step.required && <span className="ml-1 text-red-600">*</span>}
+        </label>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="text-xs text-neutral-500 underline hover:text-neutral-900 dark:hover:text-neutral-100"
+        >
+          {discovering ? "refreshing…" : "refresh"}
+        </button>
+      </div>
+
+      {discovering && !discovery && (
+        <p className="text-sm text-neutral-500">Listing your repos…</p>
+      )}
+
+      {discovery?.status === "failed" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Couldn&apos;t discover repos: {discovery.error ?? "unknown error"}.
+          Enter them manually below.
+        </div>
+      )}
+
+      {discovery?.status === "ok" && discovery.candidates.length > 0 && (
+        <div className="rounded-md border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="mb-2 flex items-center justify-between gap-2 text-xs text-neutral-500">
+            <span>
+              {selected.size} selected · {discovery.candidates.length} found
+            </span>
+            <button
+              type="button"
+              onClick={selectAll}
+              className="underline hover:text-neutral-900 dark:hover:text-neutral-100"
+            >
+              select all
+            </button>
+          </div>
+          <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+            {discovery.candidates.map((c) => {
+              const hints = c.sourceHints as
+                | { github_repos?: string[] }
+                | undefined;
+              const fullName = hints?.github_repos?.[0] ?? c.slug;
+              const checked = selected.has(fullName);
+              return (
+                <label
+                  key={fullName}
+                  className="flex cursor-pointer items-start gap-2 rounded px-2 py-1 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(fullName)}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-xs">{fullName}</div>
+                    {c.description && (
+                      <div className="truncate text-[11px] text-neutral-500">
+                        {c.description}
+                      </div>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {discovery?.status === "ok" && discovery.candidates.length === 0 && (
+        <p className="text-xs text-neutral-500">
+          No repos found. You can still type them manually below.
+        </p>
+      )}
+
+      <input
+        type="text"
+        value={typeof value === "string" ? value : current.join(", ")}
+        placeholder={step.placeholder ?? "owner/repo, comma-separated"}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-2 w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs dark:border-neutral-800 dark:bg-neutral-900"
+      />
+      <p className="mt-1 text-[11px] text-neutral-500">
+        Raw list is editable if you prefer — any changes override the
+        checklist selection.
       </p>
     </div>
   );

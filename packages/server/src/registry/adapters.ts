@@ -38,6 +38,18 @@ const adapterFactories: Record<string, AdapterFactory> = {
   "@cortex/adapter-slack": createSlackAdapter,
 };
 
+/**
+ * Look up an adapter factory by the short id used in wizard specs
+ * (e.g. `github` → `@cortex/adapter-github`). The wizard registry
+ * and the adapter registry use different keying (wizard id vs.
+ * package name), so we map at the boundary.
+ */
+export function factoryByWizardId(
+  wizardId: string,
+): AdapterFactory | undefined {
+  return adapterFactories[`@cortex/adapter-${wizardId}`];
+}
+
 export interface AdapterRegistry {
   adapters: Record<string, SourceAdapter>;
   shutdown(): Promise<void>;

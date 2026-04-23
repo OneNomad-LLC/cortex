@@ -8,6 +8,7 @@ import type {
   SourceAdapter,
 } from "@cortex/core";
 import { loadCortexConfig, type CortexConfig } from "../config.js";
+import { factoryByWizardId } from "../registry/adapters.js";
 import { loadTaxonomy } from "../taxonomy.js";
 
 /**
@@ -153,5 +154,93 @@ export async function loadCurrentConfig(
     return await loadCortexConfig(configPath);
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Pre-install discovery: run `discoverProjects` on an adapter BEFORE
+ * it's been merged into cortex.yaml. Used by the dashboard setup flow
+ * so the user connects auth, then sees a multi-select of available
+ * resources without first having to save a partial config.
+ *
+ * The adapter is instantiated with the provided config (whatever the
+ * wizard has collected so far — for GitHub that's often empty, since
+ * the token lives in the device-flow file). Adapters that validate
+ * non-auth fields in init may reject this call; we surface that as
+ * a "failed" status the UI can display.
+ */
+export async function discoverForWizard(args: {
+  wizardId: string;
+  config: Record<string, unknown>;
+  secrets: Record<string, string>;
+  logger: Logger;
+  repoRoot: string;
+}): Promise<{
+  candidates: DiscoveredCandidate[];
+  status: "ok" | "no-discovery" | "failed";
+  error?: string;
+}> {
+  const factory = factoryByWizardId(args.wizardId);
+  if (!factory) {
+    return {
+      candidates: [],
+      status: "failed",
+      error: `no adapter registered for wizard '${args.wizardId}'`,
+    };
+  }
+
+  const adapter = factory() as SourceAdapter;
+  if (typeof adapter.discoverProjects !== "function") {
+    return { candidates: [], status: "no-discovery" };
+  }
+
+  // Parse the caller's config through the adapter's schema so
+  // defaults fill in. Don't hard-fail — some adapters' schemas
+  // require fields that discovery doesn't actually need.
+  let parsedConfig: Record<string, unknown>;
+  try {
+    parsedConfig = adapter.configSchema.parse(args.config) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    parsedConfig = { ...args.config };
+  }
+
+  const taxonomy = await loadTaxonomy({
+    projectsPath: path.join(args.repoRoot, "config", "projects.yaml"),
+    peoplePath: path.join(args.repoRoot, "config", "people.yaml"),
+  });
+
+  const stubLlm: LLMAccess = { raw: null, complete: async () => "" };
+  const stubEngram: EngramAccess = {
+    ingest: async () => ({ id: "" }),
+    healthCheck: async () => ({ healthy: true, message: "wizard-stub" }),
+  };
+  const abortController = new AbortController();
+
+  try {
+    await adapter.init({
+      logger: args.logger.child({ adapter: args.wizardId }),
+      taxonomy,
+      llm: stubLlm,
+      engram: stubEngram,
+      config: parsedConfig,
+      secrets: args.secrets,
+      signal: abortController.signal,
+    });
+    const found = await adapter.discoverProjects();
+    await adapter.shutdown().catch(() => undefined);
+    const candidates: DiscoveredCandidate[] = found.map((c) => ({
+      ...c,
+      sourceAdapter: args.wizardId,
+    }));
+    return { candidates: dedupeBySlug(candidates), status: "ok" };
+  } catch (err) {
+    return {
+      candidates: [],
+      status: "failed",
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }

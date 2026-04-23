@@ -15,6 +15,8 @@ import {
 } from "@cortex/github-auth";
 import { applyWizardResult } from "../cli/config-mutation.js";
 import { resolveConfigPath } from "../cli/config-path.js";
+import { discoverForWizard } from "../cli/discovery.js";
+import { findRepoRoot } from "../cli/dotenv.js";
 import { findWizard, listWizards } from "../cli/wizard-registry.js";
 import {
   createWorkspace,
@@ -669,6 +671,34 @@ async function handleWizards(
         steps: wizard.steps.map((s) => ({ ...s, pattern: undefined })),
         secrets: wizard.secrets ?? [],
       });
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      pathname.startsWith("/api/wizards/") &&
+      pathname.endsWith("/discover")
+    ) {
+      const id = decodeURIComponent(
+        pathname.slice("/api/wizards/".length, -"/discover".length),
+      );
+      const wizard = findWizard(id);
+      if (!wizard) {
+        sendJson(res, 404, { error: `wizard '${id}' not found` });
+        return;
+      }
+      const body = (await readJsonBody(req)) as {
+        config?: Record<string, unknown>;
+        secrets?: Record<string, string>;
+      };
+      const result = await discoverForWizard({
+        wizardId: id,
+        config: body.config ?? {},
+        secrets: body.secrets ?? {},
+        logger,
+        repoRoot: findRepoRoot(process.cwd()),
+      });
+      sendJson(res, 200, result);
       return;
     }
 

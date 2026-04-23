@@ -5,6 +5,7 @@ import type {
   ClassificationContext,
   ClassifiedItem,
   NormalizedItem,
+  ProjectCandidate,
   RawSourceItem,
   WebhookContext,
   WebhookHandler,
@@ -298,6 +299,38 @@ export class GithubAdapter extends BaseAdapter {
       repoToProject: this.cfg.repoToProject,
     });
   }
+
+  /**
+   * Surface every repo the auth'd user can read as a project
+   * candidate. Archived + forks optional (include by default).
+   *
+   * Slug rule: owner-repo (kebab), truncated to 60 chars. Source
+   * hint carries `github_repos: ["<owner>/<repo>"]` so the adapter
+   * can route future syncs when the wizard writes a project entry.
+   */
+  async discoverProjects(): Promise<ProjectCandidate[]> {
+    const candidates: ProjectCandidate[] = [];
+    for await (const repo of this.client.listRepos()) {
+      if (repo.archived) continue; // Skip archived repos by default.
+      candidates.push({
+        slug: slugify(`${repo.owner.login}-${repo.name}`),
+        name: repo.full_name,
+        ...(repo.description ? { description: repo.description } : {}),
+        sourceHints: { github_repos: [repo.full_name] },
+      });
+    }
+    return candidates;
+  }
+}
+
+function slugify(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "repo";
 }
 
 function splitRepo(fullName: string): [string, string] {
