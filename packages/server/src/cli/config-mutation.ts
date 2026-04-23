@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { DerivedTaxonomy, WizardResult } from "@cortex/core";
+import type { DerivedTaxonomy, WizardResult } from "@onenomad/cortex-core";
 
 /**
  * Atomic multi-file config mutation for Cortex.
@@ -174,7 +174,7 @@ export async function readModuleConfig(
 
 function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
   return {
-    package: `@cortex/adapter-${result.moduleId}`,
+    package: `@onenomad/cortex-adapter-${result.moduleId}`,
     enabled: true,
     // Schedule is left to whatever the template has; `cortex configure
     // --schedule` is a future subcommand. For now, no schedule = ad-hoc
@@ -185,7 +185,7 @@ function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
 
 function buildProviderEntry(result: WizardResult): Record<string, unknown> {
   return {
-    package: `@cortex/provider-${result.moduleId}`,
+    package: `@onenomad/cortex-provider-${result.moduleId}`,
     enabled: true,
     config: result.config as Record<string, unknown>,
   };

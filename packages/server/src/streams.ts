@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { Logger, SourceAdapter } from "@cortex/core";
-import type { LLMRouter } from "@cortex/llm-core";
+import type { Logger, SourceAdapter } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import type { HeartbeatWriter } from "./heartbeat.js";
 import {

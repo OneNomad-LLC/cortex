@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Logger, SourceAdapter, StreamContext } from "@cortex/core";
+import type { Logger, SourceAdapter, StreamContext } from "@onenomad/cortex-core";
 import { startStreamWorkers } from "../src/streams.js";
 
 const silentLogger: Logger = {

@@ -7,8 +7,8 @@ import type {
   NormalizedItem,
   ProjectCandidate,
   RawSourceItem,
-} from "@cortex/core";
-import { BaseAdapter, matchesGlobs } from "@cortex/adapter-sdk";
+} from "@onenomad/cortex-core";
+import { BaseAdapter, matchesGlobs } from "@onenomad/cortex-adapter-sdk";
 import { BitbucketClient, type BitbucketTreeEntry } from "./client.js";
 
 export const bitbucketConfigSchema = z.object({
@@ -68,7 +68,7 @@ export class BitbucketAdapter extends BaseAdapter {
   readonly configSchema = bitbucketConfigSchema;
   readonly requiredSecrets = ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@cortex/pipeline-code"] as const;
+  readonly pipelines = ["@onenomad/cortex-pipeline-code"] as const;
 
   private client!: BitbucketClient;
   private cfg!: BitbucketConfig;

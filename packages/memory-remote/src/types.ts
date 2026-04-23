@@ -1,4 +1,4 @@
-import type { EngramAccess, HealthStatus } from "@cortex/core";
+import type { EngramAccess, HealthStatus } from "@onenomad/cortex-core";
 
 /**
  * Argument shape for an Engram search call. Kept in sync with the stdio

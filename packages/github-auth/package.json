@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/github-auth",
+  "name": "@onenomad/cortex-github-auth",
   "version": "0.0.0",
   "private": true,
   "description": "GitHub device-flow auth + token storage for Cortex.",

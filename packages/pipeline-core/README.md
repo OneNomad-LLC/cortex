@@ -1,4 +1,4 @@
-# @cortex/pipeline-core
+# @onenomad/cortex-pipeline-core
 
 Generic multi-stage pipeline framework. Specific pipelines
 (`pipeline-meeting`, `pipeline-doc`, `pipeline-code`) build on this.

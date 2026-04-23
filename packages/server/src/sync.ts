@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { Logger, RawSourceItem, SourceAdapter } from "@cortex/core";
-import type { LLMRouter } from "@cortex/llm-core";
-import type { Pipeline, PipelineContext } from "@cortex/pipeline-core";
-import { createCodePipeline } from "@cortex/pipeline-code";
-import { createConversationPipeline } from "@cortex/pipeline-conversation";
-import { createDocPipeline } from "@cortex/pipeline-doc";
-import { createMeetingPipeline } from "@cortex/pipeline-meeting";
+import type { Logger, RawSourceItem, SourceAdapter } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/cortex-llm-core";
+import type { Pipeline, PipelineContext } from "@onenomad/cortex-pipeline-core";
+import { createCodePipeline } from "@onenomad/cortex-pipeline-code";
+import { createConversationPipeline } from "@onenomad/cortex-pipeline-conversation";
+import { createDocPipeline } from "@onenomad/cortex-pipeline-doc";
+import { createMeetingPipeline } from "@onenomad/cortex-pipeline-meeting";
 import type { EngramClient } from "./clients/engram.js";
 
 export interface SyncOptions {
@@ -43,10 +43,10 @@ export interface PerItemResult {
  */
 export function resolvePipelines(adapter: SourceAdapter): Pipeline[] {
   return adapter.pipelines.map((id) => {
-    if (id === "@cortex/pipeline-code") return createCodePipeline();
-    if (id === "@cortex/pipeline-conversation") return createConversationPipeline();
-    if (id === "@cortex/pipeline-doc") return createDocPipeline();
-    if (id === "@cortex/pipeline-meeting") return createMeetingPipeline();
+    if (id === "@onenomad/cortex-pipeline-code") return createCodePipeline();
+    if (id === "@onenomad/cortex-pipeline-conversation") return createConversationPipeline();
+    if (id === "@onenomad/cortex-pipeline-doc") return createDocPipeline();
+    if (id === "@onenomad/cortex-pipeline-meeting") return createMeetingPipeline();
     throw new Error(`Unknown pipeline '${id}'. Register it in sync.ts.`);
   });
 }

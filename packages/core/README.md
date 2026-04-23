@@ -1,4 +1,4 @@
-# @cortex/core
+# @onenomad/cortex-core
 
 Shared types and interfaces. No I/O. No logic. Just contracts that every
 adapter, pipeline, and the server rely on.

@@ -1,4 +1,4 @@
-# @cortex/pipeline-research
+# @onenomad/cortex-pipeline-research
 
 Two-pass research pipeline. Given a `{topic, retrievedContext}` input
 produces:

@@ -6,7 +6,7 @@ import type {
   LLMAccess,
   ProjectCandidate,
   SourceAdapter,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 import { loadCortexConfig, type CortexConfig } from "../config.js";
 import { factoryByWizardId } from "../registry/adapters.js";
 import { loadTaxonomy } from "../taxonomy.js";

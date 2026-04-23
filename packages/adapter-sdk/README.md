@@ -1,4 +1,4 @@
-# @cortex/adapter-sdk
+# @onenomad/cortex-adapter-sdk
 
 Shared building blocks for source adapter packages. Use these so every
 adapter handles retries, rate limits, idempotency, and classification the

@@ -11,7 +11,7 @@ import type {
   StreamContext,
   WebhookContext,
   WebhookHandler,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 import { LLMClassifier } from "./classifier-llm.js";
 
 /**

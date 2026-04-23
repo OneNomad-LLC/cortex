@@ -188,7 +188,7 @@ export interface ProjectCandidate {
    * Source identifier the wizard writes into `projects.yaml.sources`,
    * e.g. `{ confluence_space: "ALPHA" }` or `{ bitbucket_repos:
    * ["alpha-api", "alpha-web"] }`. Keys match the schema in
-   * `@cortex/core/src/project.ts`.
+   * `@onenomad/cortex-core/src/project.ts`.
    */
   sourceHints?: Record<string, unknown>;
   /**

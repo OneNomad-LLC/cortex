@@ -2,7 +2,7 @@ import type {
   ClassificationContext,
   ClassifiedItem,
   NormalizedItem,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 
 export type ProjectMapper = (item: NormalizedItem) => {
   projects: string[];

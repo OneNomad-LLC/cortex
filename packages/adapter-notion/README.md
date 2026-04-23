@@ -1,4 +1,4 @@
-# @cortex/adapter-notion
+# @onenomad/cortex-adapter-notion
 
 Notion source adapter.
 
@@ -7,7 +7,7 @@ Config in `config/cortex.yaml`:
 ```yaml
 adapters:
   notion:
-    package: "@cortex/adapter-notion"
+    package: "@onenomad/cortex-adapter-notion"
     enabled: true
     schedule: "0 */6 * * *"
     config:
@@ -28,4 +28,4 @@ Required secrets (`.env`):
 Remember to share the target databases/pages with your integration from
 within Notion — API tokens alone don't grant access.
 
-Feeds into `@cortex/pipeline-doc`.
+Feeds into `@onenomad/cortex-pipeline-doc`.

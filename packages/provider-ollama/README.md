@@ -1,4 +1,4 @@
-# @cortex/provider-ollama
+# @onenomad/cortex-provider-ollama
 
 Local LLM provider backed by Ollama's native HTTP API.
 
@@ -8,7 +8,7 @@ Config:
 llm:
   providers:
     ollama:
-      package: "@cortex/provider-ollama"
+      package: "@onenomad/cortex-provider-ollama"
       enabled: true
       config:
         host: "${OLLAMA_HOST}"       # default http://localhost:11434

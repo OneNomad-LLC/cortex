@@ -4,7 +4,7 @@ import {
   defaultTokenPath,
   tryReadGithubToken,
   writeGithubToken,
-} from "@cortex/github-auth";
+} from "@onenomad/cortex-github-auth";
 import { openBrowser } from "./detach.js";
 
 /**

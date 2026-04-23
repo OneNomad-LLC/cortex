@@ -1,4 +1,4 @@
-# @cortex/provider-openrouter
+# @onenomad/cortex-provider-openrouter
 
 BYOK cloud LLM provider via OpenRouter. One API key, dozens of models.
 
@@ -8,7 +8,7 @@ Config:
 llm:
   providers:
     openrouter:
-      package: "@cortex/provider-openrouter"
+      package: "@onenomad/cortex-provider-openrouter"
       enabled: true
       config:
         baseUrl: "https://openrouter.ai/api/v1"   # optional

@@ -1,15 +1,15 @@
-import { defaultTrustForSource } from "@cortex/core";
+import { defaultTrustForSource } from "@onenomad/cortex-core";
 import type {
   ClassifiedItem,
   ContentType,
   MemoryMetadata,
   SourceType,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 import type {
   Pipeline,
   PipelineContext,
   PipelineMemory,
-} from "@cortex/pipeline-core";
+} from "@onenomad/cortex-pipeline-core";
 import { chunkCode } from "./chunk.js";
 import { detectLanguage, isProseLanguage } from "./language.js";
 
@@ -36,7 +36,7 @@ export function createCodePipeline(
   const skipBinary = opts.skipBinary ?? true;
 
   return {
-    id: "@cortex/pipeline-code",
+    id: "@onenomad/cortex-pipeline-code",
     version: "0.1.0",
 
     async run(

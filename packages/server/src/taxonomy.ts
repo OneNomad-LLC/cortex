@@ -6,7 +6,7 @@ import {
   type Person,
   type Project,
   type TaxonomyReader,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 import { parse as parseYaml } from "yaml";
 import { resolveLocalFirst } from "./config.js";
 

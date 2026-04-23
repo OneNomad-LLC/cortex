@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/dashboard",
+  "name": "@onenomad/cortex-dashboard",
   "version": "0.0.0",
   "private": true,
   "description": "Cortex per-user local dashboard. Thin Next.js client over the cortex start HTTP sidecar. See ADR-015.",

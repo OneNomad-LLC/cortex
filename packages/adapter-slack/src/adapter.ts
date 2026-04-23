@@ -6,8 +6,8 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
-} from "@cortex/core";
-import { BaseAdapter } from "@cortex/adapter-sdk";
+} from "@onenomad/cortex-core";
+import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
 import { SlackClient, type SlackMessage } from "./client.js";
 
 export const slackConfigSchema = z.object({
@@ -44,7 +44,7 @@ export class SlackAdapter extends BaseAdapter {
   readonly configSchema = slackConfigSchema;
   readonly requiredSecrets = ["SLACK_BOT_TOKEN"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@cortex/pipeline-conversation"] as const;
+  readonly pipelines = ["@onenomad/cortex-pipeline-conversation"] as const;
 
   private client!: SlackClient;
   private cfg!: SlackConfig;

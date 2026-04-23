@@ -4,7 +4,7 @@ import { readSessionHandoffs } from "../src/mcp/tools/read-session-handoffs.js";
 import { resolveSessionHandoff } from "../src/mcp/tools/resolve-session-handoff.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {

@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/memory-pgvector",
+  "name": "@onenomad/cortex-memory-pgvector",
   "version": "0.0.0",
   "private": true,
   "description": "Native hybrid-search memory backend for Cortex. Postgres + pgvector + tsvector, fused with reciprocal rank fusion. Designed as a fallback for when the Engram MCP service is unavailable, and as a self-hosted primary for deployments that prefer a SQL store.",
@@ -24,7 +24,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
     "pg": "^8.13.1",
     "zod": "^3.23.8"
   },

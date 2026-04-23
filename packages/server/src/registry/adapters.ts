@@ -3,19 +3,19 @@ import type {
   AdapterFactory,
   Logger,
   SourceAdapter,
-} from "@cortex/core";
-import { createAdapter as createBitbucketAdapter } from "@cortex/adapter-bitbucket";
-import { createAdapter as createConfluenceAdapter } from "@cortex/adapter-confluence";
-import { createAdapter as createGithubAdapter } from "@cortex/adapter-github";
-import { createAdapter as createGmailAdapter } from "@cortex/adapter-gmail";
-import { createAdapter as createGoogleCalendarAdapter } from "@cortex/adapter-google-calendar";
-import { createAdapter as createGoogleDriveAdapter } from "@cortex/adapter-google-drive";
-import { createAdapter as createJiraAdapter } from "@cortex/adapter-jira";
-import { createAdapter as createLinearAdapter } from "@cortex/adapter-linear";
-import { createAdapter as createLoomAdapter } from "@cortex/adapter-loom";
-import { createAdapter as createNotionAdapter } from "@cortex/adapter-notion";
-import { createAdapter as createObsidianAdapter } from "@cortex/adapter-obsidian";
-import { createAdapter as createSlackAdapter } from "@cortex/adapter-slack";
+} from "@onenomad/cortex-core";
+import { createAdapter as createBitbucketAdapter } from "@onenomad/cortex-adapter-bitbucket";
+import { createAdapter as createConfluenceAdapter } from "@onenomad/cortex-adapter-confluence";
+import { createAdapter as createGithubAdapter } from "@onenomad/cortex-adapter-github";
+import { createAdapter as createGmailAdapter } from "@onenomad/cortex-adapter-gmail";
+import { createAdapter as createGoogleCalendarAdapter } from "@onenomad/cortex-adapter-google-calendar";
+import { createAdapter as createGoogleDriveAdapter } from "@onenomad/cortex-adapter-google-drive";
+import { createAdapter as createJiraAdapter } from "@onenomad/cortex-adapter-jira";
+import { createAdapter as createLinearAdapter } from "@onenomad/cortex-adapter-linear";
+import { createAdapter as createLoomAdapter } from "@onenomad/cortex-adapter-loom";
+import { createAdapter as createNotionAdapter } from "@onenomad/cortex-adapter-notion";
+import { createAdapter as createObsidianAdapter } from "@onenomad/cortex-adapter-obsidian";
+import { createAdapter as createSlackAdapter } from "@onenomad/cortex-adapter-slack";
 import type { CortexConfig } from "../config.js";
 
 /**
@@ -24,30 +24,30 @@ import type { CortexConfig } from "../config.js";
  * `require()` — keeps the TypeScript check honest.
  */
 const adapterFactories: Record<string, AdapterFactory> = {
-  "@cortex/adapter-bitbucket": createBitbucketAdapter,
-  "@cortex/adapter-confluence": createConfluenceAdapter,
-  "@cortex/adapter-github": createGithubAdapter,
-  "@cortex/adapter-gmail": createGmailAdapter,
-  "@cortex/adapter-google-calendar": createGoogleCalendarAdapter,
-  "@cortex/adapter-google-drive": createGoogleDriveAdapter,
-  "@cortex/adapter-jira": createJiraAdapter,
-  "@cortex/adapter-linear": createLinearAdapter,
-  "@cortex/adapter-loom": createLoomAdapter,
-  "@cortex/adapter-notion": createNotionAdapter,
-  "@cortex/adapter-obsidian": createObsidianAdapter,
-  "@cortex/adapter-slack": createSlackAdapter,
+  "@onenomad/cortex-adapter-bitbucket": createBitbucketAdapter,
+  "@onenomad/cortex-adapter-confluence": createConfluenceAdapter,
+  "@onenomad/cortex-adapter-github": createGithubAdapter,
+  "@onenomad/cortex-adapter-gmail": createGmailAdapter,
+  "@onenomad/cortex-adapter-google-calendar": createGoogleCalendarAdapter,
+  "@onenomad/cortex-adapter-google-drive": createGoogleDriveAdapter,
+  "@onenomad/cortex-adapter-jira": createJiraAdapter,
+  "@onenomad/cortex-adapter-linear": createLinearAdapter,
+  "@onenomad/cortex-adapter-loom": createLoomAdapter,
+  "@onenomad/cortex-adapter-notion": createNotionAdapter,
+  "@onenomad/cortex-adapter-obsidian": createObsidianAdapter,
+  "@onenomad/cortex-adapter-slack": createSlackAdapter,
 };
 
 /**
  * Look up an adapter factory by the short id used in wizard specs
- * (e.g. `github` → `@cortex/adapter-github`). The wizard registry
+ * (e.g. `github` → `@onenomad/cortex-adapter-github`). The wizard registry
  * and the adapter registry use different keying (wizard id vs.
  * package name), so we map at the boundary.
  */
 export function factoryByWizardId(
   wizardId: string,
 ): AdapterFactory | undefined {
-  return adapterFactories[`@cortex/adapter-${wizardId}`];
+  return adapterFactories[`@onenomad/cortex-adapter-${wizardId}`];
 }
 
 export interface AdapterRegistry {

@@ -35,7 +35,7 @@ state under `~/.cortex/workspaces/<slug>/`. Manage from the terminal
 (`cortex workspace *`), from Claude via MCP tools, or from the
 dashboard dropdown.
 
-**Local dashboard.** `@cortex/dashboard` (Next.js 15) ships eight
+**Local dashboard.** `@onenomad/cortex-dashboard` (Next.js 15) ships eight
 widgets: priorities, today-meetings, upcoming-briefs, my-action-items,
 recent-decisions, recent-activity, code-activity, who-knows. Layout
 is YAML-driven with delivery/developer/custom role presets. Dashboard
@@ -53,9 +53,9 @@ meeting pipeline.
 **Five pipelines** — doc, meeting (3-pass), code, conversation,
 research (two-pass: extract → brief).
 
-**Pluggable memory backend** — Engram primary, `@cortex/memory-pgvector`
+**Pluggable memory backend** — Engram primary, `@onenomad/cortex-memory-pgvector`
 as a native hybrid-search fallback (Postgres + pgvector + tsvector,
-fused via RRF). `@cortex/memory-remote` skeleton ready for federated
+fused via RRF). `@onenomad/cortex-memory-remote` skeleton ready for federated
 personal-local + shared-team Engram per ADR-016.
 
 **Cron-based scheduler** runs every enabled adapter on its schedule
@@ -169,18 +169,18 @@ cortex help
 
 | Adapter | Status | Auth | Reuses |
 |---|---|---|---|
-| `@cortex/adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
-| `@cortex/adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
-| `@cortex/adapter-linear` | ✅ shipped | `LINEAR_API_KEY` | `pipeline-doc` |
-| `@cortex/adapter-loom` | ✅ shipped | `LOOM_API_KEY` | `pipeline-meeting` |
-| `@cortex/adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
-| `@cortex/adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
-| `@cortex/adapter-google-calendar` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@cortex/adapter-google-drive` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@cortex/adapter-gmail` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@cortex/adapter-bitbucket` | ✅ shipped | Atlassian token | `pipeline-code` |
-| `@cortex/adapter-github` | ✅ shipped | `GITHUB_TOKEN` | `pipeline-code` |
-| `@cortex/adapter-slack` | ✅ shipped | `SLACK_BOT_TOKEN` | `pipeline-conversation` |
+| `@onenomad/cortex-adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
+| `@onenomad/cortex-adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
+| `@onenomad/cortex-adapter-linear` | ✅ shipped | `LINEAR_API_KEY` | `pipeline-doc` |
+| `@onenomad/cortex-adapter-loom` | ✅ shipped | `LOOM_API_KEY` | `pipeline-meeting` |
+| `@onenomad/cortex-adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
+| `@onenomad/cortex-adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
+| `@onenomad/cortex-adapter-google-calendar` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/cortex-adapter-google-drive` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/cortex-adapter-gmail` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/cortex-adapter-bitbucket` | ✅ shipped | Atlassian token | `pipeline-code` |
+| `@onenomad/cortex-adapter-github` | ✅ shipped | `GITHUB_TOKEN` | `pipeline-code` |
+| `@onenomad/cortex-adapter-slack` | ✅ shipped | `SLACK_BOT_TOKEN` | `pipeline-conversation` |
 
 Enabling an adapter is a three-step flip:
 
@@ -309,12 +309,12 @@ providers (Anthropic/OpenAI/Google) per-task via
 
 Current provider packages:
 
-- `@cortex/provider-ollama` — local (Ollama, any model it supports;
+- `@onenomad/cortex-provider-ollama` — local (Ollama, any model it supports;
   `think: false` by default; `/api/embed` for embedding tasks)
-- `@cortex/provider-openrouter` — BYOK cloud aggregator
+- `@onenomad/cortex-provider-openrouter` — BYOK cloud aggregator
 
-Future: `@cortex/provider-anthropic`, `@cortex/provider-openai`,
-`@cortex/provider-google` for direct-provider BYOK.
+Future: `@onenomad/cortex-provider-anthropic`, `@onenomad/cortex-provider-openai`,
+`@onenomad/cortex-provider-google` for direct-provider BYOK.
 
 ## Real-time ingestion
 
@@ -343,7 +343,7 @@ deployment shape. See [ADR-013](docs/DECISIONS.md).
 
 Engram is the primary memory store. For deployments without Engram —
 or for a safety net when the Engram subprocess is down —
-`@cortex/memory-pgvector` provides a native hybrid-search backend
+`@onenomad/cortex-memory-pgvector` provides a native hybrid-search backend
 (Postgres + `pgvector` HNSW + `tsvector` GIN, fused via reciprocal
 rank fusion). Both expose the same ingest/search/health contract, so
 tools don't care which one answers.
@@ -431,41 +431,41 @@ AI Clients                         Browser
        │                                │
        │ MCP (stdio or HTTP)            │ fetch /api/cortex/*
        ▼                                ▼
-Cortex MCP server  ◄── HTTP sidecar ──► @cortex/dashboard
+Cortex MCP server  ◄── HTTP sidecar ──► @onenomad/cortex-dashboard
        │                                (Next.js 15, widgets)
        ├── MCP tools             17 shipped — knowledge, research,
        │                         session bridge, workspace mgmt
        │
        ├── LLM provider layer    (pluggable, per-task routing)
-       │     ├── @cortex/provider-ollama
-       │     ├── @cortex/provider-openrouter
+       │     ├── @onenomad/cortex-provider-ollama
+       │     ├── @onenomad/cortex-provider-openrouter
        │     └── (future: anthropic, openai, google)
        │
        ├── Source adapters       (modular, one package each)
-       │     ├── @cortex/adapter-confluence        ✅
-       │     ├── @cortex/adapter-jira              ✅
-       │     ├── @cortex/adapter-linear            ✅
-       │     ├── @cortex/adapter-loom              ✅
-       │     ├── @cortex/adapter-notion            ✅
-       │     ├── @cortex/adapter-obsidian          ✅
-       │     ├── @cortex/adapter-bitbucket         ✅
-       │     ├── @cortex/adapter-github            ✅
-       │     ├── @cortex/adapter-slack             ✅
-       │     ├── @cortex/adapter-google-calendar   ✅  ┐
-       │     ├── @cortex/adapter-google-drive      ✅  ├─ share @cortex/google-auth
-       │     └── @cortex/adapter-gmail             ✅  ┘
+       │     ├── @onenomad/cortex-adapter-confluence        ✅
+       │     ├── @onenomad/cortex-adapter-jira              ✅
+       │     ├── @onenomad/cortex-adapter-linear            ✅
+       │     ├── @onenomad/cortex-adapter-loom              ✅
+       │     ├── @onenomad/cortex-adapter-notion            ✅
+       │     ├── @onenomad/cortex-adapter-obsidian          ✅
+       │     ├── @onenomad/cortex-adapter-bitbucket         ✅
+       │     ├── @onenomad/cortex-adapter-github            ✅
+       │     ├── @onenomad/cortex-adapter-slack             ✅
+       │     ├── @onenomad/cortex-adapter-google-calendar   ✅  ┐
+       │     ├── @onenomad/cortex-adapter-google-drive      ✅  ├─ share @onenomad/cortex-google-auth
+       │     └── @onenomad/cortex-adapter-gmail             ✅  ┘
        │
        ├── Pipelines             (shape-specific, reusable)
-       │     ├── @cortex/pipeline-doc           ✅  (prose → chunked memories)
-       │     ├── @cortex/pipeline-meeting       ✅  (3-pass: structural → synthesis → brief)
-       │     ├── @cortex/pipeline-code          ✅  (per-file, language-aware chunking)
-       │     ├── @cortex/pipeline-conversation  ✅  (chat threads → transcript + quotes)
-       │     └── @cortex/pipeline-research      ✅  (topic → reference brief + findings)
+       │     ├── @onenomad/cortex-pipeline-doc           ✅  (prose → chunked memories)
+       │     ├── @onenomad/cortex-pipeline-meeting       ✅  (3-pass: structural → synthesis → brief)
+       │     ├── @onenomad/cortex-pipeline-code          ✅  (per-file, language-aware chunking)
+       │     ├── @onenomad/cortex-pipeline-conversation  ✅  (chat threads → transcript + quotes)
+       │     └── @onenomad/cortex-pipeline-research      ✅  (topic → reference brief + findings)
        │
        ├── Memory backend        (pluggable — engram, pgvector, or remote)
        │     ├── @onenomad/engram-memory     (stdio subprocess — primary)
-       │     ├── @cortex/memory-pgvector     (Postgres + pgvector — native fallback)
-       │     └── @cortex/memory-remote       (HTTP MCP — federation, ADR-016)
+       │     ├── @onenomad/cortex-memory-pgvector     (Postgres + pgvector — native fallback)
+       │     └── @onenomad/cortex-memory-remote       (HTTP MCP — federation, ADR-016)
        │
        ├── Workspace layer       (~/.cortex/workspaces/<slug>/)
        │     Per-user config + .env + memory state bundles.

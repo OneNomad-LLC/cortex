@@ -9,8 +9,8 @@ import type {
   NormalizedItem,
   ProjectCandidate,
   RawSourceItem,
-} from "@cortex/core";
-import { BaseAdapter } from "@cortex/adapter-sdk";
+} from "@onenomad/cortex-core";
+import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
 import { ConfluenceClient, type ConfluencePageFull } from "./client.js";
 import { storageToMarkdown } from "./storage.js";
 
@@ -72,7 +72,7 @@ interface RawConfluencePage {
  * storage-format XHTML into markdown, and tags by space using either a
  * rule-based map or a fallback LLM classifier (deferred).
  *
- * Declares `@cortex/pipeline-doc` so the server routes its output through
+ * Declares `@onenomad/cortex-pipeline-doc` so the server routes its output through
  * doc chunking before ingestion.
  */
 export class ConfluenceAdapter extends BaseAdapter {
@@ -85,7 +85,7 @@ export class ConfluenceAdapter extends BaseAdapter {
     "ATLASSIAN_API_TOKEN",
   ] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@cortex/pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
 
   private client!: ConfluenceClient;
   private cfg!: ConfluenceConfig;

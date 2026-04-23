@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/llm-core",
+  "name": "@onenomad/cortex-llm-core",
   "version": "0.0.0",
   "private": true,
   "description": "LLM provider interface and per-task router for Cortex.",
@@ -24,7 +24,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

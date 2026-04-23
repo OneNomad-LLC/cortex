@@ -148,8 +148,8 @@ function buildCortexYaml(input: WriteConfigInput): string {
 function buildProviderBlock(p: ProviderChoice): string[] {
   const pkg =
     p.id === "ollama"
-      ? "@cortex/provider-ollama"
-      : "@cortex/provider-openrouter";
+      ? "@onenomad/cortex-provider-ollama"
+      : "@onenomad/cortex-provider-openrouter";
 
   const cfg: string[] = [];
   if (p.id === "ollama") {

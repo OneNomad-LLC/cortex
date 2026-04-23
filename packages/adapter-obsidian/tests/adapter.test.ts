@@ -2,7 +2,7 @@ import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdapterContext } from "@cortex/core";
+import type { AdapterContext } from "@onenomad/cortex-core";
 import { ObsidianAdapter } from "../src/adapter.js";
 
 const tempRoots: string[] = [];

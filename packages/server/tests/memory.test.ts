@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Logger } from "@cortex/core";
-import type { LLMRouter } from "@cortex/llm-core";
+import type { Logger } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/cortex-llm-core";
 
 const silentLogger: Logger = {
   debug: () => {},

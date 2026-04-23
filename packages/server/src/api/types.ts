@@ -1,5 +1,5 @@
-import type { Logger } from "@cortex/core";
-import type { LLMRouter } from "@cortex/llm-core";
+import type { Logger } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { LoadedTaxonomy } from "../taxonomy.js";
 

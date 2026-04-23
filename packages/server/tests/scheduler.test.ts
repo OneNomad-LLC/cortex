@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SourceAdapter } from "@cortex/core";
+import type { SourceAdapter } from "@onenomad/cortex-core";
 import { createScheduler } from "../src/scheduler.js";
 
 function fakeAdapter(id: string): SourceAdapter {
@@ -16,7 +16,7 @@ function fakeAdapter(id: string): SourceAdapter {
       supportsComments: false,
       supportsRealTime: false,
     },
-    pipelines: ["@cortex/pipeline-doc"],
+    pipelines: ["@onenomad/cortex-pipeline-doc"],
     init: vi.fn(async () => undefined),
     shutdown: vi.fn(async () => undefined),
     healthCheck: vi.fn(async () => ({ healthy: true, message: "" })),

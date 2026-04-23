@@ -5,14 +5,14 @@ import {
   type ServerResponse,
 } from "node:http";
 import { randomUUID } from "node:crypto";
-import type { Logger } from "@cortex/core";
-import type { DeviceCodeGrant } from "@cortex/github-auth";
+import type { Logger } from "@onenomad/cortex-core";
+import type { DeviceCodeGrant } from "@onenomad/cortex-github-auth";
 import {
   createDeviceFlow,
   defaultTokenPath as defaultGithubTokenPath,
   tryReadGithubToken,
   writeGithubToken,
-} from "@cortex/github-auth";
+} from "@onenomad/cortex-github-auth";
 import { applyWizardResult } from "../cli/config-mutation.js";
 import { resolveConfigPath } from "../cli/config-path.js";
 import { discoverForWizard } from "../cli/discovery.js";

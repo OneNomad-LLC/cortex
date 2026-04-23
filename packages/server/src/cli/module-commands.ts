@@ -1,6 +1,6 @@
 import path from "node:path";
 import { confirm, select } from "@inquirer/prompts";
-import { defaultTokenPath, readGoogleToken } from "@cortex/google-auth";
+import { defaultTokenPath, readGoogleToken } from "@onenomad/cortex-google-auth";
 import {
   discoverProjectCandidates,
   loadCurrentConfig,

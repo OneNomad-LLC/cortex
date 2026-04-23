@@ -1,19 +1,19 @@
-import type { WizardModule } from "@cortex/core";
-import { bitbucketWizard } from "@cortex/adapter-bitbucket";
-import { confluenceWizard } from "@cortex/adapter-confluence";
-import { githubWizard } from "@cortex/adapter-github";
-import { gmailWizard } from "@cortex/adapter-gmail";
-import { googleCalendarWizard } from "@cortex/adapter-google-calendar";
-import { googleDriveWizard } from "@cortex/adapter-google-drive";
-import { jiraWizard } from "@cortex/adapter-jira";
-import { linearWizard } from "@cortex/adapter-linear";
-import { loomWizard } from "@cortex/adapter-loom";
-import { notionWizard } from "@cortex/adapter-notion";
-import { obsidianWizard } from "@cortex/adapter-obsidian";
-import { slackWizard } from "@cortex/adapter-slack";
-import { pgvectorWizard } from "@cortex/memory-pgvector";
-import { ollamaWizard } from "@cortex/provider-ollama";
-import { openrouterWizard } from "@cortex/provider-openrouter";
+import type { WizardModule } from "@onenomad/cortex-core";
+import { bitbucketWizard } from "@onenomad/cortex-adapter-bitbucket";
+import { confluenceWizard } from "@onenomad/cortex-adapter-confluence";
+import { githubWizard } from "@onenomad/cortex-adapter-github";
+import { gmailWizard } from "@onenomad/cortex-adapter-gmail";
+import { googleCalendarWizard } from "@onenomad/cortex-adapter-google-calendar";
+import { googleDriveWizard } from "@onenomad/cortex-adapter-google-drive";
+import { jiraWizard } from "@onenomad/cortex-adapter-jira";
+import { linearWizard } from "@onenomad/cortex-adapter-linear";
+import { loomWizard } from "@onenomad/cortex-adapter-loom";
+import { notionWizard } from "@onenomad/cortex-adapter-notion";
+import { obsidianWizard } from "@onenomad/cortex-adapter-obsidian";
+import { slackWizard } from "@onenomad/cortex-adapter-slack";
+import { pgvectorWizard } from "@onenomad/cortex-memory-pgvector";
+import { ollamaWizard } from "@onenomad/cortex-provider-ollama";
+import { openrouterWizard } from "@onenomad/cortex-provider-openrouter";
 import { webhooksWizard } from "./webhooks-wizard.js";
 
 /**

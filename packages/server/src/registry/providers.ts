@@ -2,11 +2,11 @@ import type {
   LLMProvider,
   LLMProviderFactory,
   LLMRouterConfig,
-} from "@cortex/llm-core";
-import { LLMRouter } from "@cortex/llm-core";
-import { createOllamaProvider } from "@cortex/provider-ollama";
-import { createOpenRouterProvider } from "@cortex/provider-openrouter";
-import type { Logger } from "@cortex/core";
+} from "@onenomad/cortex-llm-core";
+import { LLMRouter } from "@onenomad/cortex-llm-core";
+import { createOllamaProvider } from "@onenomad/cortex-provider-ollama";
+import { createOpenRouterProvider } from "@onenomad/cortex-provider-openrouter";
+import type { Logger } from "@onenomad/cortex-core";
 import type { CortexConfig } from "../config.js";
 
 /**
@@ -17,8 +17,8 @@ import type { CortexConfig } from "../config.js";
  * provider against LLMProvider at compile time. See ADR-009.
  */
 const providerFactories: Record<string, LLMProviderFactory> = {
-  "@cortex/provider-ollama": createOllamaProvider,
-  "@cortex/provider-openrouter": createOpenRouterProvider,
+  "@onenomad/cortex-provider-ollama": createOllamaProvider,
+  "@onenomad/cortex-provider-openrouter": createOpenRouterProvider,
 };
 
 /**

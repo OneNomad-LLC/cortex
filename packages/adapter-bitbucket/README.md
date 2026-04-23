@@ -1,15 +1,15 @@
-# @cortex/adapter-bitbucket
+# @onenomad/cortex-adapter-bitbucket
 
 Bitbucket Cloud source adapter. Reads repository trees via the REST
 `/src` endpoint, ingests source files as code memories through
-`@cortex/pipeline-code`.
+`@onenomad/cortex-pipeline-code`.
 
 Config:
 
 ```yaml
 adapters:
   bitbucket:
-    package: "@cortex/adapter-bitbucket"
+    package: "@onenomad/cortex-adapter-bitbucket"
     enabled: true
     schedule: "0 3 * * *"
     config:

@@ -1,4 +1,4 @@
-import type { EngramAccess, HealthStatus, Logger } from "@cortex/core";
+import type { EngramAccess, HealthStatus, Logger } from "@onenomad/cortex-core";
 import {
   callJsonTool,
   connectMcpSubprocess,

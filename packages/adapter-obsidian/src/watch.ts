@@ -1,8 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import chokidar from "chokidar";
-import type { RawSourceItem, StreamContext } from "@cortex/core";
-import { computeSourceId, contentHash } from "@cortex/adapter-sdk";
+import type { RawSourceItem, StreamContext } from "@onenomad/cortex-core";
+import { computeSourceId, contentHash } from "@onenomad/cortex-adapter-sdk";
 
 export interface WatchOptions {
   vaultPath: string;

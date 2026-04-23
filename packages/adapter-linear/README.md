@@ -1,4 +1,4 @@
-# @cortex/adapter-linear
+# @onenomad/cortex-adapter-linear
 
 Linear source adapter. Uses Linear's GraphQL API.
 
@@ -7,7 +7,7 @@ Config in `config/cortex.yaml`:
 ```yaml
 adapters:
   linear:
-    package: "@cortex/adapter-linear"
+    package: "@onenomad/cortex-adapter-linear"
     enabled: true
     schedule: "0 */3 * * *"
     config:
@@ -24,5 +24,5 @@ Required secrets (`.env`):
 
 - `LINEAR_API_KEY` — personal API key from <https://linear.app/settings/api>
 
-Feeds into `@cortex/pipeline-doc`. Each issue's title, description, and
+Feeds into `@onenomad/cortex-pipeline-doc`. Each issue's title, description, and
 comments are flattened into a single markdown doc.

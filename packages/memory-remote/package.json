@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/memory-remote",
+  "name": "@onenomad/cortex-memory-remote",
   "version": "0.0.0",
   "private": true,
   "description": "HTTP-backed EngramClient for federated Cortex memory (ADR-016).",
@@ -21,7 +21,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1"
   },
   "devDependencies": {

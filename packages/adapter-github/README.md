@@ -1,15 +1,15 @@
-# @cortex/adapter-github
+# @onenomad/cortex-adapter-github
 
 GitHub source adapter. Reads a repo's default-branch tree via the git
 trees API, fetches each file's raw content, and feeds
-`@cortex/pipeline-code`.
+`@onenomad/cortex-pipeline-code`.
 
 Config:
 
 ```yaml
 adapters:
   github:
-    package: "@cortex/adapter-github"
+    package: "@onenomad/cortex-adapter-github"
     enabled: true
     schedule: "0 4 * * *"
     config:

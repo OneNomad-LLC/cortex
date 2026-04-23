@@ -2,7 +2,7 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import type { AdapterContext } from "@cortex/core";
+import type { AdapterContext } from "@onenomad/cortex-core";
 import { ConfluenceAdapter } from "../src/adapter.js";
 
 const fixture = JSON.parse(
@@ -145,6 +145,6 @@ describe("ConfluenceAdapter", () => {
 
   it("declares pipeline-doc so the server routes output correctly", () => {
     const adapter = new ConfluenceAdapter();
-    expect(adapter.pipelines).toContain("@cortex/pipeline-doc");
+    expect(adapter.pipelines).toContain("@onenomad/cortex-pipeline-doc");
   });
 });

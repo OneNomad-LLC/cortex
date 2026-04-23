@@ -1,4 +1,4 @@
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 /**
  * Minimal console logger. Structured enough for grep; swap for pino/winston

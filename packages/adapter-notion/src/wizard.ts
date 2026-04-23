@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WizardModule } from "@cortex/core";
+import type { WizardModule } from "@onenomad/cortex-core";
 import { notionConfigSchema, type NotionConfig } from "./adapter.js";
 
 export const notionWizard: WizardModule<NotionConfig> = {

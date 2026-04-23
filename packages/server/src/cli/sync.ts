@@ -1,4 +1,4 @@
-import type { AdapterContext } from "@cortex/core";
+import type { AdapterContext } from "@onenomad/cortex-core";
 import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { buildAdapterRegistry } from "../registry/adapters.js";

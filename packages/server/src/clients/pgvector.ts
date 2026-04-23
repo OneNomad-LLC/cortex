@@ -1,10 +1,10 @@
-import type { EngramAccess, HealthStatus, Logger } from "@cortex/core";
-import type { LLMRouter } from "@cortex/llm-core";
+import type { EngramAccess, HealthStatus, Logger } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import {
   createPgPool,
   createPgVectorBackend,
   type MemoryBackend,
-} from "@cortex/memory-pgvector";
+} from "@onenomad/cortex-memory-pgvector";
 import type {
   EngramClient,
   EngramMemory,
@@ -21,7 +21,7 @@ export interface PgVectorClientOptions {
 }
 
 /**
- * Adapts `@cortex/memory-pgvector`'s MemoryBackend to the EngramClient shape
+ * Adapts `@onenomad/cortex-memory-pgvector`'s MemoryBackend to the EngramClient shape
  * the rest of the server already consumes. The point: callers don't have to
  * know which backend served the call; switching primary + fallback is a
  * config + factory change, not a tool-level refactor.

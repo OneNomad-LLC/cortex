@@ -1,4 +1,4 @@
-import { LLMError } from "@cortex/llm-core";
+import { LLMError } from "@onenomad/cortex-llm-core";
 
 export interface HttpFetchOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";

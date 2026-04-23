@@ -6,9 +6,9 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
-} from "@cortex/core";
-import { BaseAdapter } from "@cortex/adapter-sdk";
-import { GoogleAuthClient, readGoogleToken } from "@cortex/google-auth";
+} from "@onenomad/cortex-core";
+import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
+import { GoogleAuthClient, readGoogleToken } from "@onenomad/cortex-google-auth";
 
 export const googleDriveConfigSchema = z.object({
   /** Drive folder ids to scan. Files in subfolders are included too. */
@@ -66,7 +66,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
   readonly configSchema = googleDriveConfigSchema;
   readonly requiredSecrets = [] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@cortex/pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
 
   private auth!: GoogleAuthClient;
   private cfg!: GoogleDriveConfig;

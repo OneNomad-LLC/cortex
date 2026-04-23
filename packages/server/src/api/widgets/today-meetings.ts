@@ -1,4 +1,4 @@
-import { GoogleAuthClient, readGoogleToken } from "@cortex/google-auth";
+import { GoogleAuthClient, readGoogleToken } from "@onenomad/cortex-google-auth";
 import type { Widget } from "../types.js";
 
 export interface MeetingRow {

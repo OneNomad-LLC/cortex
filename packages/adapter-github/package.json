@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/adapter-github",
+  "name": "@onenomad/cortex-adapter-github",
   "version": "0.0.0",
   "private": true,
   "description": "GitHub source adapter for Cortex.",
@@ -21,9 +21,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
-    "@cortex/adapter-sdk": "workspace:*",
-    "@cortex/github-auth": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-adapter-sdk": "workspace:*",
+    "@onenomad/cortex-github-auth": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

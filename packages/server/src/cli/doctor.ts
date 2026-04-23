@@ -4,9 +4,9 @@ import { parse as parseYaml } from "yaml";
 import {
   defaultTokenPath,
   readGoogleToken,
-} from "@cortex/google-auth";
-import type { Logger } from "@cortex/core";
-import { createPgPool } from "@cortex/memory-pgvector";
+} from "@onenomad/cortex-google-auth";
+import type { Logger } from "@onenomad/cortex-core";
+import { createPgPool } from "@onenomad/cortex-memory-pgvector";
 import {
   resolveLocalFirst,
   type CortexConfig,
@@ -36,23 +36,23 @@ interface CheckResult {
 }
 
 const ADAPTER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
-  "@cortex/adapter-bitbucket": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@cortex/adapter-confluence": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@cortex/adapter-github": ["GITHUB_TOKEN"],
-  "@cortex/adapter-gmail": [],
-  "@cortex/adapter-google-calendar": [],
-  "@cortex/adapter-google-drive": [],
-  "@cortex/adapter-jira": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@cortex/adapter-linear": ["LINEAR_API_KEY"],
-  "@cortex/adapter-loom": ["LOOM_API_KEY"],
-  "@cortex/adapter-notion": ["NOTION_API_KEY"],
-  "@cortex/adapter-obsidian": [],
-  "@cortex/adapter-slack": ["SLACK_BOT_TOKEN"],
+  "@onenomad/cortex-adapter-bitbucket": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/cortex-adapter-confluence": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/cortex-adapter-github": ["GITHUB_TOKEN"],
+  "@onenomad/cortex-adapter-gmail": [],
+  "@onenomad/cortex-adapter-google-calendar": [],
+  "@onenomad/cortex-adapter-google-drive": [],
+  "@onenomad/cortex-adapter-jira": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/cortex-adapter-linear": ["LINEAR_API_KEY"],
+  "@onenomad/cortex-adapter-loom": ["LOOM_API_KEY"],
+  "@onenomad/cortex-adapter-notion": ["NOTION_API_KEY"],
+  "@onenomad/cortex-adapter-obsidian": [],
+  "@onenomad/cortex-adapter-slack": ["SLACK_BOT_TOKEN"],
 };
 
 const PROVIDER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
-  "@cortex/provider-ollama": [],
-  "@cortex/provider-openrouter": ["OPENROUTER_API_KEY"],
+  "@onenomad/cortex-provider-ollama": [],
+  "@onenomad/cortex-provider-openrouter": ["OPENROUTER_API_KEY"],
 };
 
 const GOOGLE_ID_TO_SCOPE: Record<string, string> = {

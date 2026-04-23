@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LLMError } from "@cortex/llm-core";
+import { LLMError } from "@onenomad/cortex-llm-core";
 import { OllamaProvider, ollamaConfigSchema } from "../src/provider.js";
 
 const baseCfg = ollamaConfigSchema.parse({

@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/provider-ollama",
+  "name": "@onenomad/cortex-provider-ollama",
   "version": "0.0.0",
   "private": true,
   "description": "Local Ollama LLM provider for Cortex.",
@@ -25,9 +25,9 @@
     "test:int": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
-    "@cortex/llm-core": "workspace:*",
-    "@cortex/llm-sdk": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-llm-core": "workspace:*",
+    "@onenomad/cortex-llm-sdk": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -4,7 +4,7 @@ import os from "node:os";
 import { z } from "zod";
 
 /**
- * Persisted GitHub token shape. Mirrors @cortex/google-auth for
+ * Persisted GitHub token shape. Mirrors @onenomad/cortex-google-auth for
  * consistency — both live under ~/.cortex/ as JSON.
  */
 export const githubTokenSchema = z.object({

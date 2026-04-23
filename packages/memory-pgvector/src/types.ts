@@ -1,7 +1,7 @@
-import type { HealthStatus } from "@cortex/core";
+import type { HealthStatus } from "@onenomad/cortex-core";
 
 /**
- * Minimal logger contract, mirroring `@cortex/core`'s Logger. Imported
+ * Minimal logger contract, mirroring `@onenomad/cortex-core`'s Logger. Imported
  * structurally so the backend stays usable in tests without the full server
  * logger plumbing.
  */

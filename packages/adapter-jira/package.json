@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/adapter-jira",
+  "name": "@onenomad/cortex-adapter-jira",
   "version": "0.0.0",
   "private": true,
   "description": "Atlassian Jira source adapter for Cortex.",
@@ -21,8 +21,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
-    "@cortex/adapter-sdk": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-adapter-sdk": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

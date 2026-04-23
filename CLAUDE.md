@@ -125,14 +125,14 @@ cortex/
     memory-metadata.json          # JSON schema for the metadata contract
 
   packages/
-    core/                         # @cortex/core
+    core/                         # @onenomad/cortex-core
       src/
         adapter.ts                # SourceAdapter interface
         types.ts                  # NormalizedItem, ClassifiedItem, enums
         context.ts                # AdapterContext
         capabilities.ts           # AdapterCapabilities
 
-    adapter-sdk/                  # @cortex/adapter-sdk
+    adapter-sdk/                  # @onenomad/cortex-adapter-sdk
       src/
         base-adapter.ts           # abstract base class
         retry.ts
@@ -141,42 +141,42 @@ cortex/
         classifier-llm.ts         # default LLM classifier
         classifier-rule.ts        # rule-based classifier
 
-    pipeline-core/                # @cortex/pipeline-core
+    pipeline-core/                # @onenomad/cortex-pipeline-core
       src/
         pipeline.ts               # generic pipeline framework
 
-    llm-core/                     # @cortex/llm-core
+    llm-core/                     # @onenomad/cortex-llm-core
       src/
         provider.ts               # LLMProvider interface
         router.ts                 # per-task routing + fallback chain
         types.ts                  # LLMRequest, LLMResponse, TaskPurpose
 
-    llm-sdk/                      # @cortex/llm-sdk
+    llm-sdk/                      # @onenomad/cortex-llm-sdk
       src/
         base-provider.ts
         openai-compatible.ts      # reused by most cloud providers
         retry.ts
         rate-limit.ts
 
-    provider-ollama/              # @cortex/provider-ollama
-    provider-openrouter/          # @cortex/provider-openrouter
+    provider-ollama/              # @onenomad/cortex-provider-ollama
+    provider-openrouter/          # @onenomad/cortex-provider-openrouter
     provider-anthropic/           # (future)
     provider-openai/              # (future)
     provider-google/              # (future)
 
-    pipeline-meeting/             # @cortex/pipeline-meeting (Phase 3)
+    pipeline-meeting/             # @onenomad/cortex-pipeline-meeting (Phase 3)
       src/
         prompts/                  # all prompts as .md files for review
         ...
 
-    pipeline-doc/                 # @cortex/pipeline-doc (Phase 5)
-    pipeline-code/                # @cortex/pipeline-code (Phase 10)
+    pipeline-doc/                 # @onenomad/cortex-pipeline-doc (Phase 5)
+    pipeline-code/                # @onenomad/cortex-pipeline-code (Phase 10)
 
-    adapter-loom/                 # @cortex/adapter-loom (Phase 4)
-    adapter-confluence/           # @cortex/adapter-confluence (Phase 5)
-    adapter-calendar/             # @cortex/adapter-calendar (Phase 6)
-    adapter-obsidian/             # @cortex/adapter-obsidian (Phase 9)
-    adapter-bitbucket/            # @cortex/adapter-bitbucket (Phase 10)
+    adapter-loom/                 # @onenomad/cortex-adapter-loom (Phase 4)
+    adapter-confluence/           # @onenomad/cortex-adapter-confluence (Phase 5)
+    adapter-calendar/             # @onenomad/cortex-adapter-calendar (Phase 6)
+    adapter-obsidian/             # @onenomad/cortex-adapter-obsidian (Phase 9)
+    adapter-bitbucket/            # @onenomad/cortex-adapter-bitbucket (Phase 10)
 
     server/                       # @onenomad/cortex (the CLI + MCP server)
       src/

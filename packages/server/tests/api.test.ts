@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDashboardApi, type DashboardApi } from "../src/api/server.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {

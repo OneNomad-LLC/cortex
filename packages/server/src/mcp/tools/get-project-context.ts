@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Person } from "@cortex/core";
+import type { Person } from "@onenomad/cortex-core";
 import type { McpTool, ToolContext } from "../tool.js";
 
 const inputSchema = z.object({

@@ -1,4 +1,4 @@
-# @cortex/adapter-gmail
+# @onenomad/cortex-adapter-gmail
 
 Gmail source adapter. Ingests threads matching a Gmail search query
 (`query` / `q` grammar — `label:inbox`, `from:boss@co.com`,
@@ -9,7 +9,7 @@ Config:
 ```yaml
 adapters:
   gmail:
-    package: "@cortex/adapter-gmail"
+    package: "@onenomad/cortex-adapter-gmail"
     enabled: true
     schedule: "0 */2 * * *"
     config:
@@ -24,5 +24,5 @@ Required OAuth scopes:
 
 - `https://www.googleapis.com/auth/gmail.readonly`
 
-Feeds `@cortex/pipeline-doc` for now. A dedicated `pipeline-email`
+Feeds `@onenomad/cortex-pipeline-doc` for now. A dedicated `pipeline-email`
 (with reply-chain handling, attachment awareness) is on the roadmap.

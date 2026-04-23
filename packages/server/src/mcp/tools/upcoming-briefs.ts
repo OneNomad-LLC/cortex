@@ -250,7 +250,7 @@ async function gatherContext(args: {
 }
 
 async function generateBriefText(args: {
-  llmRouter: NonNullable<ReturnType<() => import("@cortex/llm-core").LLMRouter>>;
+  llmRouter: NonNullable<ReturnType<() => import("@onenomad/cortex-llm-core").LLMRouter>>;
   event: {
     title: string;
     start: string;

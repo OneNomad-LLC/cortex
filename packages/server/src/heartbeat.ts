@@ -1,7 +1,7 @@
 import { writeFile, readFile, mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 export interface AdapterRunStats {
   /** Cron expression this adapter is scheduled on. */

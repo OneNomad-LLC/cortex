@@ -36,7 +36,7 @@ export interface TaxonomyReader {
 
 /**
  * Forward-declared LLM client surface used by adapters and pipelines.
- * Defined fully in `@cortex/llm-core`. We keep a minimal type here to avoid
+ * Defined fully in `@onenomad/cortex-llm-core`. We keep a minimal type here to avoid
  * a circular dep; the server wires the concrete router into this slot.
  */
 export interface LLMAccess {

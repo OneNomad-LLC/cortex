@@ -1,11 +1,11 @@
-# @cortex/pipeline-doc
+# @onenomad/cortex-pipeline-doc
 
 Pipeline for prose content — docs, wiki pages, tickets, notes. Chunks by
 heading hierarchy and emits one memory per chunk.
 
-Used by `@cortex/adapter-confluence`, `@cortex/adapter-notion`,
-`@cortex/adapter-jira`, `@cortex/adapter-google-drive`,
-`@cortex/adapter-obsidian`.
+Used by `@onenomad/cortex-adapter-confluence`, `@onenomad/cortex-adapter-notion`,
+`@onenomad/cortex-adapter-jira`, `@onenomad/cortex-adapter-google-drive`,
+`@onenomad/cortex-adapter-obsidian`.
 
 Stages:
 

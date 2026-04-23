@@ -1,8 +1,8 @@
-import { GoogleAuthClient } from "@cortex/google-auth";
+import { GoogleAuthClient } from "@onenomad/cortex-google-auth";
 import { describe, expect, it } from "vitest";
 import { createTodayMeetingsWidget } from "../src/api/widgets/today-meetings.js";
 import type { WidgetContext } from "../src/api/types.js";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {

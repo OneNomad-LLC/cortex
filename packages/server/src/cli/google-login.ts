@@ -1,5 +1,5 @@
 import { input, password, checkbox, confirm } from "@inquirer/prompts";
-import { runOAuthLoopback, defaultTokenPath, readGoogleToken } from "@cortex/google-auth";
+import { runOAuthLoopback, defaultTokenPath, readGoogleToken } from "@onenomad/cortex-google-auth";
 
 /**
  * Interactive OAuth login for Google services. Writes a refresh token to

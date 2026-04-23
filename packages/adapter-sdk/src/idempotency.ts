@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { SourceType } from "@cortex/core";
+import type { SourceType } from "@onenomad/cortex-core";
 
 /**
  * Compose a stable source_id from a source type and one or more identifier

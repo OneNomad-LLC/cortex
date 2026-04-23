@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   createResearchPipeline,
   type ResearchContextItem,
-} from "@cortex/pipeline-research";
+} from "@onenomad/cortex-pipeline-research";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({

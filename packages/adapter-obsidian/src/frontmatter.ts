@@ -1,6 +1,6 @@
 /**
  * Parse simple YAML-ish frontmatter without pulling a full YAML parser
- * (that lives in @cortex/server). Supports the subset Obsidian users
+ * (that lives in @onenomad/cortex-server). Supports the subset Obsidian users
  * actually write:
  *   - scalar keys: `title: Foo`, `date: 2026-04-22`
  *   - flow arrays: `tags: [a, b, c]`

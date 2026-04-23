@@ -27,7 +27,7 @@ derived from cortex.yaml. 138+ server tests, plus adapter/provider/
 pipeline tests across the workspace.
 
 Remaining work splits into:
-- **Step 0b (federation)** — `@cortex/memory-remote` for hybrid
+- **Step 0b (federation)** — `@onenomad/cortex-memory-remote` for hybrid
   personal-local + shared-team Engram. Architectural ADR pending.
 - **Sprint C polish** — wizard-spec-driven admin forms (the "web
   forms for every wizard module" goal from the original Sprint C
@@ -52,14 +52,14 @@ Remaining work splits into:
 ## Phase 1: Foundation
 
 - [x] Monorepo scaffold (pnpm workspaces, tsconfig.base, CI, docker-compose)
-- [x] `@cortex/core` — SourceAdapter, types, metadata contract
-- [x] `@cortex/adapter-sdk` — BaseAdapter, retry, rate-limit, classifier stubs
-- [x] `@cortex/pipeline-core` — Pipeline interface, stage runner
-- [x] `@cortex/llm-core` — LLMProvider interface + LLMRouter (ADR-010)
-- [x] `@cortex/llm-sdk` — BaseLLMProvider, OpenAI-compatible base, retry, http
-- [x] `@cortex/provider-ollama` — real HTTP impl, unit tests
-- [x] `@cortex/provider-openrouter` — real HTTP impl, unit tests
-- [x] `@cortex/server` — MCP skeleton (zero tools), config loader, provider
+- [x] `@onenomad/cortex-core` — SourceAdapter, types, metadata contract
+- [x] `@onenomad/cortex-adapter-sdk` — BaseAdapter, retry, rate-limit, classifier stubs
+- [x] `@onenomad/cortex-pipeline-core` — Pipeline interface, stage runner
+- [x] `@onenomad/cortex-llm-core` — LLMProvider interface + LLMRouter (ADR-010)
+- [x] `@onenomad/cortex-llm-sdk` — BaseLLMProvider, OpenAI-compatible base, retry, http
+- [x] `@onenomad/cortex-provider-ollama` — real HTTP impl, unit tests
+- [x] `@onenomad/cortex-provider-openrouter` — real HTTP impl, unit tests
+- [x] `@onenomad/cortex-server` — MCP skeleton (zero tools), config loader, provider
       registry, adapter registry stub
 - [x] `.env.example` with all required variables
 - [x] Docker Compose for Cortex + Engram + Persona local dev
@@ -78,8 +78,8 @@ Ollama and OpenRouter clients both work in isolation against live endpoints.
 
 ## Phase 2: Project Taxonomy
 
-- [x] `config/projects.yaml` schema (Zod) in `@cortex/core`
-- [x] `config/people.yaml` schema (Zod) in `@cortex/core`
+- [x] `config/projects.yaml` schema (Zod) in `@onenomad/cortex-core`
+- [x] `config/people.yaml` schema (Zod) in `@onenomad/cortex-core`
 - [x] Domain types: `Project`, `Person` (zod-inferred)
 - [x] Taxonomy loader with validation and lookup index
 - [x] MCP tool: `list_projects` (with `activeOnly` filter)
@@ -143,7 +143,7 @@ tools. Briefs readable, action items listed, decisions preserved.
 - [x] Page sync with `sort=-modified-date` for incremental pulls
 - [x] Storage-format (XHTML) to markdown converter (headings, lists,
       inline emphasis, code blocks, entity decoding)
-- [x] `@cortex/pipeline-doc` — chunk by heading hierarchy, one memory per
+- [x] `@onenomad/cortex-pipeline-doc` — chunk by heading hierarchy, one memory per
       chunk, shared across Notion/Jira/Google Drive/Obsidian
 - [x] `cortex sync <adapter>` CLI for one-shot manual runs
 - [x] 8 adapter tests, 7 pipeline tests
@@ -165,9 +165,9 @@ indexed and searchable via Cortex tools with correct project tagging.
 
 ## Phase 6: Pre-Meeting Briefs
 
-- [x] Google Calendar OAuth flow and token storage (`@cortex/google-auth`
+- [x] Google Calendar OAuth flow and token storage (`@onenomad/cortex-google-auth`
       + `cortex google-login`)
-- [x] Upcoming events poller (`@cortex/adapter-google-calendar`)
+- [x] Upcoming events poller (`@onenomad/cortex-adapter-google-calendar`)
 - [x] Brief generation pipeline: queries Engram for relevant project context,
       past meetings in series, related docs, open action items
 - [x] MCP tool: `upcoming_briefs`
@@ -273,19 +273,19 @@ Record a one-line summary after each Claude Code session.
   SourceType + metadata schema expanded to include jira, linear, notion,
   google_drive, google_meet, github, teams. 32 tests total; live boot
   against @onenomad/engram-memory and @onenomad/persona-mcp confirmed.
-- 2026-04-21: Phase 5 kickoff. First source adapter: @cortex/adapter-confluence
+- 2026-04-21: Phase 5 kickoff. First source adapter: @onenomad/cortex-adapter-confluence
   (Atlassian Cloud v2, basic auth, storage→markdown converter, rule-based
-  space→project classifier). New @cortex/pipeline-doc (heading-based
+  space→project classifier). New @onenomad/cortex-pipeline-doc (heading-based
   chunker, shared across doc-shaped sources). `cortex sync` CLI runs one
   adapter's full fetch→transform→classify→pipeline→ingest cycle.
   Adapter registry now real, not stubbed. 48 tests total.
-- 2026-04-22: Three more adapters. @cortex/adapter-jira (Cloud REST v3,
+- 2026-04-22: Three more adapters. @onenomad/cortex-adapter-jira (Cloud REST v3,
   basic auth shared with Confluence, ADF→markdown, rule-based
-  projectKey→project). @cortex/adapter-notion (bearer auth, block-tree
-  →markdown, databases+pages). @cortex/adapter-obsidian (filesystem
+  projectKey→project). @onenomad/cortex-adapter-notion (bearer auth, block-tree
+  →markdown, databases+pages). @onenomad/cortex-adapter-obsidian (filesystem
   walk, YAML frontmatter parser, path-prefix classifier with frontmatter
   override). All reuse pipeline-doc. 71 tests total.
-- 2026-04-22: Native Postgres fallback (ADR-012). @cortex/memory-pgvector
+- 2026-04-22: Native Postgres fallback (ADR-012). @onenomad/cortex-memory-pgvector
   with HNSW + tsvector GIN fused via RRF; 18 unit tests mocking pg.
   Memory-backend factory picks engram by default, flips to pgvector when
   the primary health check fails.
@@ -302,9 +302,9 @@ Record a one-line summary after each Claude Code session.
   install-hooks.mjs that works on Windows/Mac/Linux without bash on
   PATH. Cross-platform docs pass across README and SETUP.md.
 - 2026-04-22: Sprint A — wizard framework. WizardModule interface in
-  @cortex/core; CLI runner via @inquirer/prompts in @onenomad/cortex;
+  @onenomad/cortex-core; CLI runner via @inquirer/prompts in @onenomad/cortex;
   atomic multi-file config-mutation service (cortex.local.yaml + .env
-  + projects.local.yaml). First real wizard: @cortex/adapter-confluence
+  + projects.local.yaml). First real wizard: @onenomad/cortex-adapter-confluence
   with engagement/sub-brand/project/team context tuples.
 - 2026-04-22: Sprint B — every module gets a wizard. Jira + Linear +
   Notion + Loom + Obsidian + GitHub + Bitbucket + Slack adapters; Ollama

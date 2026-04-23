@@ -1,4 +1,4 @@
-# @cortex/adapter-loom
+# @onenomad/cortex-adapter-loom
 
 Loom recordings + transcripts source adapter.
 
@@ -13,7 +13,7 @@ Config in `config/cortex.yaml`:
 ```yaml
 adapters:
   loom:
-    package: "@cortex/adapter-loom"
+    package: "@onenomad/cortex-adapter-loom"
     enabled: true
     schedule: "*/15 * * * *"
     config:
@@ -31,7 +31,7 @@ Required secrets (`.env`):
 
 - `LOOM_API_KEY` — workspace API key from Loom admin
 
-Feeds into `@cortex/pipeline-meeting` (the 3-pass extraction). Each
+Feeds into `@onenomad/cortex-pipeline-meeting` (the 3-pass extraction). Each
 recording's transcript becomes a meeting-shaped `ClassifiedItem` whose
 run through the pipeline produces a brief plus per-decision and
 per-action-item memories.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Logger, SourceAdapter, WebhookHandler } from "@cortex/core";
+import type { Logger, SourceAdapter, WebhookHandler } from "@onenomad/cortex-core";
 import { createWebhookReceiver } from "../src/webhooks.js";
 
 const silentLogger: Logger = {

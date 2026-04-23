@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/llm-sdk",
+  "name": "@onenomad/cortex-llm-sdk",
   "version": "0.0.0",
   "private": true,
   "description": "Base classes and helpers for building LLM provider packages.",
@@ -24,8 +24,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*",
-    "@cortex/llm-core": "workspace:*",
+    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-llm-core": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

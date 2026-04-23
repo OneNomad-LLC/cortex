@@ -58,7 +58,7 @@ it's a structural refactor every time.
 
 ### The Contract
 
-Every adapter implements `SourceAdapter` from `@cortex/core`:
+Every adapter implements `SourceAdapter` from `@onenomad/cortex-core`:
 
 ```typescript
 export interface SourceAdapter {
@@ -140,7 +140,7 @@ cortex/
   package.json                    # workspace root
   pnpm-workspace.yaml             # or npm workspaces config
   packages/
-    core/                         # @cortex/core
+    core/                         # @onenomad/cortex-core
       src/
         adapter.ts                # SourceAdapter interface
         types.ts                  # NormalizedItem, ClassifiedItem, etc.
@@ -148,7 +148,7 @@ cortex/
         capabilities.ts
       package.json
 
-    adapter-sdk/                  # @cortex/adapter-sdk
+    adapter-sdk/                  # @onenomad/cortex-adapter-sdk
       src/
         base-adapter.ts           # optional base class
         retry.ts
@@ -158,37 +158,37 @@ cortex/
         classifier-rule.ts        # rule-based classifier
       package.json
 
-    pipeline-core/                # @cortex/pipeline-core
+    pipeline-core/                # @onenomad/cortex-pipeline-core
       src/
         pipeline.ts               # generic pipeline framework
       package.json
 
-    pipeline-meeting/             # @cortex/pipeline-meeting
+    pipeline-meeting/             # @onenomad/cortex-pipeline-meeting
       src/...                     # 3-pass extraction for transcripts
       package.json
 
-    pipeline-doc/                 # @cortex/pipeline-doc
+    pipeline-doc/                 # @onenomad/cortex-pipeline-doc
       src/...                     # chunking + enrichment for docs
       package.json
 
-    adapter-loom/                 # @cortex/adapter-loom
+    adapter-loom/                 # @onenomad/cortex-adapter-loom
       src/
         index.ts                  # exports createAdapter()
         api-client.ts
         transformer.ts
         config.ts
-      package.json                # depends on @cortex/core, @cortex/adapter-sdk
+      package.json                # depends on @onenomad/cortex-core, @onenomad/cortex-adapter-sdk
       README.md
 
-    adapter-confluence/           # @cortex/adapter-confluence
+    adapter-confluence/           # @onenomad/cortex-adapter-confluence
       src/...
       package.json
 
-    adapter-obsidian/             # @cortex/adapter-obsidian
+    adapter-obsidian/             # @onenomad/cortex-adapter-obsidian
       src/...
       package.json
 
-    server/                       # @cortex/server (the MCP server itself)
+    server/                       # @onenomad/cortex-server (the MCP server itself)
       src/
         mcp/
           server.ts
@@ -220,21 +220,21 @@ Cortex server loads enabled adapters at startup based on `config/cortex.yaml`:
 adapters:
   loom:
     enabled: true
-    package: "@cortex/adapter-loom"
+    package: "@onenomad/cortex-adapter-loom"
     schedule: "*/15 * * * *"      # every 15 min
     config:
       poll_new_only: true
 
   confluence:
     enabled: true
-    package: "@cortex/adapter-confluence"
+    package: "@onenomad/cortex-adapter-confluence"
     schedule: "0 */6 * * *"       # every 6 hours
     config:
       spaces: ["ALPHA", "BETA"]
 
   obsidian:
     enabled: false                # will enable when you start taking notes
-    package: "@cortex/adapter-obsidian"
+    package: "@onenomad/cortex-adapter-obsidian"
 ```
 
 Operations on adapters:
@@ -263,7 +263,7 @@ before any pipeline work happens.
 The happy path for adding, say, Slack:
 
 1. `mkdir packages/adapter-slack && cd packages/adapter-slack`
-2. `npm init`, add dependencies on `@cortex/core` and `@cortex/adapter-sdk`
+2. `npm init`, add dependencies on `@onenomad/cortex-core` and `@onenomad/cortex-adapter-sdk`
 3. Implement `SourceAdapter` in `src/index.ts`. Extend `BaseAdapter` from the
    SDK to inherit retry, rate-limit, and idempotency handling.
 4. Write transformer: Slack message -> NormalizedItem. Decide contentType
@@ -281,29 +281,29 @@ Roughly a day of work for a well-scoped source. Not weeks.
 
 The meeting extraction pipeline is specific to transcript-shaped content. The
 doc pipeline handles prose. Code needs different treatment entirely. Rather
-than bake these into the adapters, they're separate `@cortex/pipeline-*`
+than bake these into the adapters, they're separate `@onenomad/cortex-pipeline-*`
 packages.
 
 Each adapter declares which pipeline(s) its content flows through:
 
 ```typescript
 class LoomAdapter extends BaseAdapter {
-  pipelines = ["@cortex/pipeline-meeting"];
+  pipelines = ["@onenomad/cortex-pipeline-meeting"];
 }
 
 class ConfluenceAdapter extends BaseAdapter {
-  pipelines = ["@cortex/pipeline-doc"];
+  pipelines = ["@onenomad/cortex-pipeline-doc"];
 }
 
 class BitbucketAdapter extends BaseAdapter {
-  pipelines = ["@cortex/pipeline-code"];
+  pipelines = ["@onenomad/cortex-pipeline-code"];
 }
 ```
 
 This matters because new adapter types should be able to reuse existing
 pipelines without rewriting extraction logic. A Notion adapter would use
-`@cortex/pipeline-doc`. A Google Meet adapter would use
-`@cortex/pipeline-meeting`.
+`@onenomad/cortex-pipeline-doc`. A Google Meet adapter would use
+`@onenomad/cortex-pipeline-meeting`.
 
 When no existing pipeline fits, add a new one as a package. The framework
 doesn't care.
@@ -333,7 +333,7 @@ Covered in detail above. One per external source. Responsibilities in order:
 ### Pipelines
 
 Multi-stage processing between adapters and Engram ingestion. Generic
-framework in `@cortex/pipeline-core`; specific implementations as separate
+framework in `@onenomad/cortex-pipeline-core`; specific implementations as separate
 packages. Examples:
 
 - **pipeline-meeting**: structural -> synthesis -> brief for transcripts.

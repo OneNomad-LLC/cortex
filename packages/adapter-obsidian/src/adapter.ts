@@ -9,8 +9,8 @@ import type {
   NormalizedItem,
   RawSourceItem,
   StreamContext,
-} from "@cortex/core";
-import { BaseAdapter, computeSourceId, contentHash } from "@cortex/adapter-sdk";
+} from "@onenomad/cortex-core";
+import { BaseAdapter, computeSourceId, contentHash } from "@onenomad/cortex-adapter-sdk";
 import { parseFrontmatter } from "./frontmatter.js";
 import { walkVault } from "./walk.js";
 import { watchVault } from "./watch.js";
@@ -60,7 +60,7 @@ export class ObsidianAdapter extends BaseAdapter {
   readonly configSchema = obsidianConfigSchema;
   readonly requiredSecrets = [] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@cortex/pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
 
   private cfg!: ObsidianConfig;
 

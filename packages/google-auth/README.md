@@ -1,4 +1,4 @@
-# @cortex/google-auth
+# @onenomad/cortex-google-auth
 
 Shared OAuth primitives for the Google adapters
 (`adapter-google-calendar`, `adapter-google-drive`, `adapter-gmail`).

@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import type { MemoryMetadata } from "@cortex/core";
+import type { MemoryMetadata } from "@onenomad/cortex-core";
 import type {
   Pipeline,
   PipelineContext,
   PipelineMemory,
-} from "@cortex/pipeline-core";
+} from "@onenomad/cortex-pipeline-core";
 import type {
   ResearchExtracted,
   ResearchInput,
@@ -18,7 +18,7 @@ export function createResearchPipeline(
   const maxItemChars = opts.maxItemChars ?? 2_000;
 
   return {
-    id: "@cortex/pipeline-research",
+    id: "@onenomad/cortex-pipeline-research",
     version: "0.1.0",
 
     async run(

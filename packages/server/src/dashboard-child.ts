@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 /**
  * Auto-start the Next.js dashboard as a child of `cortex start` when
@@ -31,7 +31,7 @@ export async function startDashboardChild(
   const dashboardDir = resolveDashboardDir();
   if (!dashboardDir) {
     opts.logger.warn("dashboard.skip", {
-      reason: "couldn't locate @cortex/dashboard package dir",
+      reason: "couldn't locate @onenomad/cortex-dashboard package dir",
     });
     return undefined;
   }
@@ -103,7 +103,7 @@ export async function startDashboardChild(
 }
 
 /**
- * Walk up from this file to find the @cortex/dashboard package.
+ * Walk up from this file to find the @onenomad/cortex-dashboard package.
  * Mirrors the resolver in cli/dashboard.ts so both paths share the
  * same discovery logic; kept inline here to avoid a circular import.
  */

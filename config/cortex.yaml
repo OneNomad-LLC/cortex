@@ -3,7 +3,7 @@
 llm:
   providers:
     ollama:
-      package: "@cortex/provider-ollama"
+      package: "@onenomad/cortex-provider-ollama"
       enabled: true
       config:
         host: "${OLLAMA_HOST}"
@@ -19,177 +19,11 @@ llm:
 
   fallbackChain: []
 
-webhooks:
-  # Boot an HTTP receiver for push-based adapters (GitHub, Slack Events,
-  # Linear, ...). Off by default — enable only when you have a way to
-  # expose the port publicly (Tailscale Funnel, reverse proxy, ngrok).
-  enabled: false
-  host: "0.0.0.0"
-  port: 4040
-
-api:
-  # Dashboard API sidecar (ADR-015). Serves widget-shaped JSON for the
-  # per-user Cortex dashboard. Off by default; bound to localhost by
-  # default. Flip `enabled: true` when you run the dashboard next to
-  # cortex start. Bind beyond 127.0.0.1 only over Tailscale.
-  enabled: false
-  host: "127.0.0.1"
-  port: 4141
-
 memory:
   primary: engram
-  # Uncomment to enable the native Postgres fallback. At boot, Cortex health-
-  # checks the primary and, if it's unreachable, switches to the fallback for
-  # the rest of the session. Requires pgvector installed on the target DB.
-  # fallback: pgvector
+  # fallback: pgvector     # uncomment to enable the native Postgres fallback
   # pgvector:
   #   connectionString: "${POSTGRES_URL}"
-  #   table: cortex_memories
-  #   embeddingDim: 768       # must match the model bound to llm.tasks.embed
-  #   embedTask: embed
+  #   embeddingDim: 768    # must match the embed model's dimension
 
-adapters:
-  confluence:
-    package: "@cortex/adapter-confluence"
-    enabled: false
-    schedule: "0 */6 * * *"
-    config:
-      workspace: "yourcompany"     # <subdomain>.atlassian.net
-      spaces: []                   # space keys, e.g. [ENG, PRODUCT]
-      pageSize: 50
-      spaceToProject: {}           # e.g. { ENG: engineering }
-
-  jira:
-    package: "@cortex/adapter-jira"
-    enabled: false
-    schedule: "0 */3 * * *"
-    config:
-      workspace: "yourcompany"     # same subdomain as Confluence
-      projects: []                 # Jira project keys, e.g. [ENG, ROAD]
-      jql: ""                      # optional extra filter
-      pageSize: 50
-      maxIssuesPerRun: 0
-      projectToCortex: {}          # e.g. { ENG: engineering }
-
-  linear:
-    package: "@cortex/adapter-linear"
-    enabled: false
-    schedule: "0 */3 * * *"
-    config:
-      teams: []                    # Linear team keys, e.g. [ENG, DESIGN]
-      pageSize: 50
-      maxIssuesPerRun: 0
-      teamToProject: {}            # e.g. { ENG: engineering }
-      defaultProject: ""
-
-  loom:
-    package: "@cortex/adapter-loom"
-    enabled: false
-    schedule: "*/15 * * * *"
-    config:
-      workspace: "yourcompany"     # Loom workspace slug
-      folders: []                  # scope to folder ids, empty = all
-      pageSize: 50
-      maxRecordingsPerRun: 0
-      folderToProject: {}          # e.g. { fld_abc: engineering }
-      defaultProject: ""
-      skipWithoutTranscript: true
-
-  notion:
-    package: "@cortex/adapter-notion"
-    enabled: false
-    schedule: "0 */6 * * *"
-    config:
-      databases: []                # database ids to sync
-      pages: []                    # standalone page ids to include
-      pageSize: 50
-      maxPagesPerRun: 0
-      databaseToProject: {}        # e.g. { abc123def: engineering }
-      defaultProject: ""
-
-  obsidian:
-    package: "@cortex/adapter-obsidian"
-    enabled: false
-    config:
-      # Placeholder — `cortex add obsidian` writes the real path to
-      # cortex.local.yaml. A ${VAR} ref here would fail env expansion
-      # even while enabled: false, because the loader walks every
-      # non-comment line regardless of enabled state.
-      vaultPath: "./vault"
-      pathToProject: []            # [{ prefix: "work/alpha/", project: project-alpha }]
-      ignore: [".obsidian", ".trash", ".git", "node_modules"]
-      defaultProject: ""
-      maxFileBytes: 1048576
-
-  google-calendar:
-    package: "@cortex/adapter-google-calendar"
-    enabled: false
-    schedule: "*/30 * * * *"
-    config:
-      calendars: ["primary"]
-      lookAheadDays: 14
-      lookBackDays: 1
-      pageSize: 250
-      calendarToProject: {}
-      defaultProject: ""
-
-  google-drive:
-    package: "@cortex/adapter-google-drive"
-    enabled: false
-    schedule: "0 */6 * * *"
-    config:
-      folderIds: []
-      mimeTypes: ["application/vnd.google-apps.document"]
-      pageSize: 100
-      maxFilesPerRun: 0
-      folderToProject: {}
-      defaultProject: ""
-
-  gmail:
-    package: "@cortex/adapter-gmail"
-    enabled: false
-    schedule: "0 */2 * * *"
-    config:
-      query: "label:inbox newer_than:30d"
-      maxThreadsPerRun: 50
-      labelToProject: {}
-      defaultProject: ""
-
-  bitbucket:
-    package: "@cortex/adapter-bitbucket"
-    enabled: false
-    schedule: "0 3 * * *"
-    config:
-      workspace: "yourcompany"
-      repos: []
-      branch: "main"
-      includeGlobs: ["**/*.ts", "**/*.py", "**/*.go", "**/README*"]
-      excludeGlobs: ["**/node_modules/**", "**/dist/**"]
-      maxFilesPerRun: 0
-      repoToProject: {}
-      defaultProject: ""
-
-  github:
-    package: "@cortex/adapter-github"
-    enabled: false
-    schedule: "0 4 * * *"
-    config:
-      repos: []                    # owner/repo identifiers
-      branch: ""                   # empty = default branch per repo
-      includeGlobs: ["**/*.ts", "**/*.py", "**/*.go", "**/README*"]
-      excludeGlobs: ["**/node_modules/**", "**/dist/**"]
-      maxFilesPerRun: 0
-      repoToProject: {}
-      defaultProject: ""
-
-  slack:
-    package: "@cortex/adapter-slack"
-    enabled: false
-    schedule: "0 */2 * * *"
-    config:
-      workspace: "yourcompany"     # for URL building, e.g. yourcompany.slack.com
-      channels: []                 # channel ids; bot must be a member
-      historyDays: 7
-      maxThreadsPerRun: 100
-      channelToProject: {}
-      defaultProject: ""
+adapters: {}

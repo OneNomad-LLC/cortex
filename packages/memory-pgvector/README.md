@@ -1,4 +1,4 @@
-# @cortex/memory-pgvector
+# @onenomad/cortex-memory-pgvector
 
 Native hybrid-search memory backend for Cortex. Postgres + `pgvector` +
 `tsvector`, fused with **reciprocal rank fusion**. Implements the same
@@ -28,7 +28,7 @@ vector index and a tsvector index, fused at query time.
 ## Usage
 
 ```ts
-import { createPgPool, createPgVectorBackend } from "@cortex/memory-pgvector";
+import { createPgPool, createPgVectorBackend } from "@onenomad/cortex-memory-pgvector";
 
 const pool = createPgPool({ connectionString: process.env.POSTGRES_URL });
 const backend = createPgVectorBackend({
@@ -76,7 +76,7 @@ re-embed of every row. Reasonable defaults:
 ## Running tests
 
 ```bash
-pnpm --filter @cortex/memory-pgvector test
+pnpm --filter @onenomad/cortex-memory-pgvector test
 ```
 
 Tests run with an in-memory stub, so Postgres is **not** required. For a real

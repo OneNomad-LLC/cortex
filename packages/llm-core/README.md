@@ -1,4 +1,4 @@
-# @cortex/llm-core
+# @onenomad/cortex-llm-core
 
 Contract between pipelines and LLM providers.
 

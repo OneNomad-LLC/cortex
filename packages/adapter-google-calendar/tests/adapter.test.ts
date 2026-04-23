@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AdapterContext } from "@cortex/core";
+import type { AdapterContext } from "@onenomad/cortex-core";
 import { GoogleCalendarAdapter } from "../src/adapter.js";
 
 function baseCtx(cfg: Record<string, unknown>): AdapterContext {

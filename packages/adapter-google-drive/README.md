@@ -1,15 +1,15 @@
-# @cortex/adapter-google-drive
+# @onenomad/cortex-adapter-google-drive
 
 Google Drive + Docs source adapter. Lists files in configured folders
 and exports each Google Doc as markdown for ingestion through
-`@cortex/pipeline-doc`.
+`@onenomad/cortex-pipeline-doc`.
 
 Config:
 
 ```yaml
 adapters:
   google-drive:
-    package: "@cortex/adapter-google-drive"
+    package: "@onenomad/cortex-adapter-google-drive"
     enabled: true
     schedule: "0 */6 * * *"
     config:

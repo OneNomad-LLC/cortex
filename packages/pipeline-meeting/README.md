@@ -1,4 +1,4 @@
-# @cortex/pipeline-meeting
+# @onenomad/cortex-pipeline-meeting
 
 Three-pass meeting transcript extraction pipeline.
 

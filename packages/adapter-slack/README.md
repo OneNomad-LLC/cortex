@@ -1,15 +1,15 @@
-# @cortex/adapter-slack
+# @onenomad/cortex-adapter-slack
 
 Slack channels + threads source adapter. Reads channel history via
 Slack's Web API, follows threads, and hands the concatenated
-transcript to `@cortex/pipeline-conversation`.
+transcript to `@onenomad/cortex-pipeline-conversation`.
 
 Config:
 
 ```yaml
 adapters:
   slack:
-    package: "@cortex/adapter-slack"
+    package: "@onenomad/cortex-adapter-slack"
     enabled: true
     schedule: "0 */2 * * *"
     config:

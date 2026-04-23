@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WizardModule } from "@cortex/core";
+import type { WizardModule } from "@onenomad/cortex-core";
 import { bitbucketConfigSchema, type BitbucketConfig } from "./adapter.js";
 
 /**

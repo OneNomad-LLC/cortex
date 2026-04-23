@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/pipeline-core",
+  "name": "@onenomad/cortex-pipeline-core",
   "version": "0.0.0",
   "private": true,
   "description": "Generic multi-stage pipeline framework for Cortex.",
@@ -24,7 +24,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@cortex/core": "workspace:*"
+    "@onenomad/cortex-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

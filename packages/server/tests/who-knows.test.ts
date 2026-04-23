@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { whoKnowsWidget } from "../src/api/widgets/who-knows.js";
 import type { WidgetContext } from "../src/api/types.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
-import type { Logger } from "@cortex/core";
+import type { Logger } from "@onenomad/cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {

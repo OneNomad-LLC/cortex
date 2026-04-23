@@ -1,14 +1,14 @@
-import { defaultTrustForSource } from "@cortex/core";
+import { defaultTrustForSource } from "@onenomad/cortex-core";
 import type {
   ClassifiedItem,
   MemoryMetadata,
   SourceType,
-} from "@cortex/core";
+} from "@onenomad/cortex-core";
 import type {
   Pipeline,
   PipelineContext,
   PipelineMemory,
-} from "@cortex/pipeline-core";
+} from "@onenomad/cortex-pipeline-core";
 import { loadPrompt, renderPrompt } from "./prompts.js";
 import type {
   MeetingPipelineOptions,
@@ -30,7 +30,7 @@ export function createMeetingPipeline(
   } = opts;
 
   return {
-    id: "@cortex/pipeline-meeting",
+    id: "@onenomad/cortex-pipeline-meeting",
     version: "0.1.0",
 
     async run(

@@ -1,4 +1,4 @@
-# @cortex/llm-sdk
+# @onenomad/cortex-llm-sdk
 
 Shared building blocks for provider packages. Use these so every provider
 handles retries, timeouts, and OpenAI-compatible wire formats the same way.

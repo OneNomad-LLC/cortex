@@ -9,7 +9,7 @@ const DEFAULT_PORT = 3030;
 
 /**
  * `cortex dashboard` — spawns the Next.js dev server from the sibling
- * `@cortex/dashboard` package. This is the local-per-user UI described in
+ * `@onenomad/cortex-dashboard` package. This is the local-per-user UI described in
  * ADR-015. The dashboard is a thin HTTP client that talks to the sidecar
  * API on `cortex start`, so the user should run both.
  *
@@ -46,7 +46,7 @@ export async function runDashboard(args: string[]): Promise<number> {
   const dashboardDir = resolveDashboardDir();
   if (!dashboardDir) {
     process.stderr.write(
-      "cortex dashboard: couldn't locate @cortex/dashboard package. " +
+      "cortex dashboard: couldn't locate @onenomad/cortex-dashboard package. " +
         "Run this from a full cortex checkout.\n",
     );
     return 2;
