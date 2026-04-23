@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -7,13 +7,16 @@ import path from "node:path";
  *
  * Order (first hit wins):
  *   1. $CORTEX_CONFIG_PATH — explicit override
- *   2. Walk up from cwd looking for `config/cortex.yaml` — handles
+ *   2. Active workspace from `~/.cortex/state.json` — the workspace
+ *      user picked via `cortex workspace switch`. Read synchronously
+ *      here so every command that touches config doesn't have to be
+ *      async-aware.
+ *   3. Walk up from cwd looking for `config/cortex.yaml` — handles
  *      `cortex <cmd>` run from any subdirectory of the repo (or from
  *      the repo root itself).
- *   3. `~/.cortex/config/cortex.yaml` — the global-install location,
- *      matching the `~/.cortex/google-token.json` pattern used by
- *      @cortex/google-auth.
- *   4. Fallback: cwd-relative `./config/cortex.yaml`, whether or not it
+ *   4. `~/.cortex/config/cortex.yaml` — legacy global-install location,
+ *      kept as a fallback for setups that predate workspaces.
+ *   5. Fallback: cwd-relative `./config/cortex.yaml`, whether or not it
  *      exists. Commands that expect a real file surface a readable
  *      "not found" error; commands that bootstrap a new config (like
  *      `cortex init`) treat this as their write target.
@@ -34,6 +37,9 @@ export function resolveConfigPath(): string {
     if (existsSync(fromRelative)) return fromRelative;
   }
 
+  const fromWorkspace = resolveActiveWorkspaceConfig();
+  if (fromWorkspace) return fromWorkspace;
+
   const fromTree = walkUpForConfig(process.cwd());
   if (fromTree) return fromTree;
 
@@ -41,6 +47,43 @@ export function resolveConfigPath(): string {
   if (existsSync(homeDefault)) return homeDefault;
 
   return path.resolve(process.cwd(), "config", "cortex.yaml");
+}
+
+/**
+ * Read `~/.cortex/state.json` synchronously and return the active
+ * workspace's `cortex.yaml` path, if any. Sync on purpose: this hook
+ * is called from every CLI command via `resolveConfigPath`, and making
+ * it async would force every caller (doctor, sync, start, …) through
+ * an awaited helper for zero gain — the state file is tiny.
+ *
+ * Returns undefined if no state file, no active workspace, or the
+ * active workspace directory doesn't exist on disk. That lets
+ * downstream fallbacks kick in naturally.
+ */
+function resolveActiveWorkspaceConfig(): string | undefined {
+  const statePath =
+    process.env.CORTEX_STATE_PATH ??
+    path.join(os.homedir(), ".cortex", "state.json");
+  let raw: string;
+  try {
+    raw = readFileSync(statePath, "utf8");
+  } catch {
+    return undefined;
+  }
+  let parsed: { activeWorkspace?: string };
+  try {
+    parsed = JSON.parse(raw) as { activeWorkspace?: string };
+  } catch {
+    return undefined;
+  }
+  const slug = parsed.activeWorkspace;
+  if (!slug) return undefined;
+
+  const root =
+    process.env.CORTEX_WORKSPACES_ROOT ??
+    path.join(os.homedir(), ".cortex", "workspaces");
+  const candidate = path.join(root, slug, "config", "cortex.yaml");
+  return existsSync(candidate) ? candidate : undefined;
 }
 
 function walkUpForConfig(startDir: string): string | undefined {

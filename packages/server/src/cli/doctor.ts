@@ -13,6 +13,7 @@ import {
 } from "../config.js";
 import { createEngramClient } from "../clients/engram.js";
 import { resolveConfigPath } from "./config-path.js";
+import { getActiveWorkspace } from "./workspace/manager.js";
 
 /**
  * `cortex doctor` — pre-flight diagnostic. Runs mechanical checks without
@@ -75,7 +76,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
       verdict: "fail",
       detail: `not readable: ${resolvedCfg}`,
     });
-    renderAndReturn(results, resolvedCfg);
+    await renderAndReturn(results, resolvedCfg);
     return 1;
   }
   results.push({
@@ -114,7 +115,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
       verdict: "fail",
       detail: err instanceof Error ? err.message : String(err),
     });
-    renderAndReturn(results, resolvedCfg);
+    await renderAndReturn(results, resolvedCfg);
     return 1;
   }
   results.push({ name: "config parse", verdict: "ok" });
@@ -493,9 +494,18 @@ export function collectEnvRefs(cfgRaw: string): {
   return { refs, missing };
 }
 
-function renderAndReturn(results: CheckResult[], cfgPath: string): number {
+async function renderAndReturn(
+  results: CheckResult[],
+  cfgPath: string,
+): Promise<number> {
   process.stdout.write(`\ncortex doctor\n=============\n`);
-  process.stdout.write(`config: ${cfgPath}\n\n`);
+  const active = await getActiveWorkspace().catch(() => undefined);
+  if (active) {
+    process.stdout.write(`workspace: ${active.slug}\n`);
+  } else {
+    process.stdout.write(`workspace: (none — using legacy config resolution)\n`);
+  }
+  process.stdout.write(`config:    ${cfgPath}\n\n`);
   const width = Math.max(...results.map((r) => r.name.length), 20);
   for (const r of results) {
     const tag = tagFor(r.verdict);

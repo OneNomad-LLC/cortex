@@ -13,6 +13,7 @@ import {
 import { runSmoke } from "./smoke.js";
 import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
+import { runWorkspace } from "./workspace/command.js";
 import { startServer } from "../mcp/server.js";
 
 const HELP = `cortex — work-knowledge MCP server and CLI
@@ -41,6 +42,10 @@ Commands:
   add <module>               Enable a module via guided wizard.
   configure <module>         Re-run a module's wizard (current values as defaults).
   disable <module>           Turn off an already-configured module.
+
+  workspace <sub>            Manage named config bundles. Subcommands:
+                               list, current, add, switch, remove, rename.
+                               Each workspace has its own config/ and .env.
 
   google-login               Run the Google OAuth flow (for gmail/calendar/drive).
 
@@ -114,6 +119,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "google-login":
       return runGoogleLogin(rest);
+
+    case "workspace":
+      return runWorkspace(rest);
 
     case "start":
       await startServer();

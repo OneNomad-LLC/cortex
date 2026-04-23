@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 
@@ -43,9 +44,51 @@ export function loadDotEnv(p: string): void {
   }
 }
 
-/** Find the nearest .env starting from cwd and load it into process.env. */
+/**
+ * Find the .env to load and read it into process.env. Order matches
+ * the config resolver in `config-path.ts`:
+ *   1. Active workspace's .env (`~/.cortex/workspaces/<slug>/.env`).
+ *   2. Nearest .env walking up from cwd (the repo checkout case).
+ *
+ * Returning after the first hit means shell exports still win — the
+ * loader never overwrites an already-set env var.
+ */
 export function autoLoadDotEnv(): void {
+  const workspaceEnv = resolveActiveWorkspaceEnv();
+  if (workspaceEnv && existsSync(workspaceEnv)) {
+    loadDotEnv(workspaceEnv);
+    return;
+  }
   const root = findRepoRoot(process.cwd());
   const envPath = path.join(root, ".env");
   if (existsSync(envPath)) loadDotEnv(envPath);
+}
+
+/**
+ * Sync twin of `resolveActiveWorkspaceConfig` — reads state.json to
+ * find the active workspace's .env path. Kept local to this module
+ * so dotenv isn't entangled with the workspace manager's async API.
+ */
+function resolveActiveWorkspaceEnv(): string | undefined {
+  const statePath =
+    process.env.CORTEX_STATE_PATH ??
+    path.join(os.homedir(), ".cortex", "state.json");
+  let raw: string;
+  try {
+    raw = readFileSync(statePath, "utf8");
+  } catch {
+    return undefined;
+  }
+  let parsed: { activeWorkspace?: string };
+  try {
+    parsed = JSON.parse(raw) as { activeWorkspace?: string };
+  } catch {
+    return undefined;
+  }
+  const slug = parsed.activeWorkspace;
+  if (!slug) return undefined;
+  const root =
+    process.env.CORTEX_WORKSPACES_ROOT ??
+    path.join(os.homedir(), ".cortex", "workspaces");
+  return path.join(root, slug, ".env");
 }

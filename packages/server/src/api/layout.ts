@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { resolveLocalFirst } from "../config.js";
+import { getActiveWorkspace } from "../cli/workspace/manager.js";
 
 /**
  * A single widget slot on the dashboard. `props` is passed to the widget's

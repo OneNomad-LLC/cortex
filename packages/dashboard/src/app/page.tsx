@@ -25,9 +25,16 @@ export default async function Home(): Promise<React.JSX.Element> {
           </p>
         </div>
         {layout && (
-          <span className="text-xs text-neutral-500">
-            role: <span className="font-medium">{layout.role}</span>
-          </span>
+          <div className="flex items-baseline gap-3 text-xs text-neutral-500">
+            {layout.workspace && (
+              <span className="rounded bg-blue-500/15 px-2 py-0.5 font-medium text-blue-700 dark:text-blue-300">
+                {layout.workspace}
+              </span>
+            )}
+            <span>
+              role: <span className="font-medium">{layout.role}</span>
+            </span>
+          </div>
         )}
       </header>
 

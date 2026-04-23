@@ -21,6 +21,12 @@ export interface LayoutWidget {
 export interface ResolvedLayout {
   role: "delivery" | "developer" | "custom";
   widgets: LayoutWidget[];
+  /**
+   * Optional workspace slug. Present when the user has adopted
+   * workspaces via `cortex workspace add/switch`. Absent for legacy
+   * single-config installs.
+   */
+  workspace?: string;
 }
 
 type WidgetComponent = (props: Record<string, unknown>) => React.ReactNode;

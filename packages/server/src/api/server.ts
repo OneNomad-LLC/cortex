@@ -6,6 +6,7 @@ import {
 } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { Logger } from "@cortex/core";
+import { getActiveWorkspace } from "../cli/workspace/manager.js";
 import {
   type DashboardLayout,
   loadDashboardLayout,
@@ -83,7 +84,15 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
           ? await loadDashboardLayout(opts.layoutPath)
           : { role: "delivery", widgets: [] };
         const resolved = resolveLayout(raw);
-        sendJson(res, 200, resolved);
+        // Surface workspace name so the dashboard header can render
+        // which bundle of config is currently driving the UI. Undefined
+        // means the user hasn't adopted workspaces yet — the dashboard
+        // handles that case by hiding the badge.
+        const workspace = await getActiveWorkspace().catch(() => undefined);
+        sendJson(res, 200, {
+          ...resolved,
+          ...(workspace ? { workspace: workspace.slug } : {}),
+        });
       } catch (err) {
         logger.warn("api.layout.failed", {
           error: err instanceof Error ? err.message : String(err),
