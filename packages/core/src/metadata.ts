@@ -25,6 +25,7 @@ export const memoryMetadataSchema = z.object({
     "teams",
     "email",
     "obsidian",
+    "manual",
   ]),
   /** Stable identifier from the source. Used for idempotent ingestion. */
   source_id: z.string().min(1),

@@ -24,7 +24,10 @@ export type SourceType =
   // Mail
   | "email"
   // Personal notes
-  | "obsidian";
+  | "obsidian"
+  // Manually imported via `cortex import meeting` / MCP tool — used when
+  // the content came from a file the user dropped in, not an adapter.
+  | "manual";
 
 /**
  * Canonical content types. Pipelines route on these.

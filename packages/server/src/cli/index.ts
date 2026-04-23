@@ -1,6 +1,7 @@
 import { runDashboard } from "./dashboard.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
+import { runImportMeeting } from "./import-meeting.js";
 import { runGoogleLogin } from "./google-login.js";
 import { runInit } from "./init.js";
 import {
@@ -32,6 +33,9 @@ Commands:
                                --since=ISO  only items updated after this date
                                --limit=N    cap items processed
                                --dry-run    don't write to memory
+  import meeting <file>      Run a transcript through the meeting pipeline.
+                               --project=<slug> --date=<ISO> --attendees=<csv>
+                               --source-url=<url> --dry-run
 
   modules                    List all installable module wizards.
   add <module>               Enable a module via guided wizard.
@@ -86,6 +90,15 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "sync":
       return runSyncCli(rest);
+
+    case "import": {
+      const [sub, ...subArgs] = rest;
+      if (sub === "meeting") return runImportMeeting(subArgs);
+      process.stderr.write(
+        `cortex: unknown import subcommand '${sub ?? "(missing)"}'. Try: cortex import meeting <file>\n`,
+      );
+      return 2;
+    }
 
     case "modules":
       return runList();
