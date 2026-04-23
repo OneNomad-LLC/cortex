@@ -44,7 +44,8 @@ export type ContentType =
   | "conversation"
   | "commit"
   | "event"
-  | "reference";
+  | "reference"
+  | "session_handoff";
 
 /**
  * A file/link attached to a normalized item. Optional; not every source has

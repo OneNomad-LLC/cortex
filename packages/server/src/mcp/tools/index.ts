@@ -3,10 +3,13 @@ import { approveResearch } from "./approve-research.js";
 import { catchMeUp } from "./catch-me-up.js";
 import { catchMeUpOnMeeting } from "./catch-me-up-on-meeting.js";
 import { getProjectContext } from "./get-project-context.js";
+import { leaveSessionHandoff } from "./leave-session-handoff.js";
 import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { myActionItems } from "./my-action-items.js";
+import { readSessionHandoffs } from "./read-session-handoffs.js";
 import { research } from "./research.js";
+import { resolveSessionHandoff } from "./resolve-session-handoff.js";
 import { todaysDigest } from "./todays-digest.js";
 import { upcomingBriefs } from "./upcoming-briefs.js";
 
@@ -25,4 +28,7 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   approveResearch,
   listUnclassified,
   todaysDigest,
+  leaveSessionHandoff,
+  readSessionHandoffs,
+  resolveSessionHandoff,
 ];

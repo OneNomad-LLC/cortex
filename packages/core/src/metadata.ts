@@ -45,6 +45,9 @@ export const memoryMetadataSchema = z.object({
     "commit",
     "event",
     "reference",
+    // Cross-session handoffs — written by one Claude surface, read by
+    // the next so conversations survive a context switch.
+    "session_handoff",
   ]),
   /** Person slugs from config/people.yaml. May be empty. */
   people: z.array(z.string()),
