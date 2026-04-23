@@ -20,6 +20,7 @@ import { createPersonaClient } from "../clients/persona.js";
 import { startStreamWorkers } from "../streams.js";
 import { createWebhookReceiver } from "../webhooks.js";
 import { createDashboardApi } from "../api/server.js";
+import { startDashboardChild } from "../dashboard-child.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
 import { ALL_TOOLS } from "./tools/index.js";
@@ -201,6 +202,26 @@ export async function startServer(): Promise<void> {
     await dashboardApi.start();
   }
 
+  // Dashboard UI auto-start — spawn the Next.js dev server as a child
+  // when we're running as a daemon (HTTP MCP). When Cortex is spawned
+  // by Claude Code as a stdio subprocess, skip it: spawning Next
+  // inside Claude's process tree would be intrusive and noisy.
+  const autoStartDashboard =
+    cfg.api.enabled &&
+    (process.env.CORTEX_MCP_TRANSPORT ?? "stdio") === "http";
+  const dashboardChild = autoStartDashboard
+    ? await startDashboardChild({
+        logger: logger.child({ component: "dashboard-child" }),
+        apiHost: cfg.api.host,
+        apiPort: cfg.api.port,
+      }).catch((err) => {
+        logger.warn("dashboard.start_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return undefined;
+      })
+    : undefined;
+
   const mcp = new Server(
     { name: "cortex", version: "0.0.0" },
     { capabilities: { tools: {} } },
@@ -278,6 +299,7 @@ export async function startServer(): Promise<void> {
     await scheduler.stop();
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
+    if (dashboardChild) await dashboardChild.stop();
     if (dashboardApi) await dashboardApi.stop();
     try {
       await transportHandle.close();

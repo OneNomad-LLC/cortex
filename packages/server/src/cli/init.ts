@@ -631,45 +631,31 @@ async function runWebSetup(repoRoot: string): Promise<number> {
     ok("sidecar health check passed");
   }
 
-  const dashboard = await spawnDetached({
-    command: process.execPath,
-    args: [bin, "dashboard", "--port", String(dashboardPort)],
-    sessionDir,
-    label: "dashboard",
-  });
-  ok(`dashboard started (pid ${dashboard.pid})`);
-
+  // The sidecar auto-spawns the Next.js dashboard as a child when
+  // CORTEX_MCP_TRANSPORT=http (which we set above). Just wait for
+  // the dashboard to bind to :3030 and open the browser.
   const dashboardUrl = `http://localhost:${dashboardPort}`;
-  const dashReady = await waitForHttp(dashboardUrl, { timeoutMs: 30_000 });
+  const dashReady = await waitForHttp(dashboardUrl, { timeoutMs: 45_000 });
   if (!dashReady) {
     warn(
-      `Dashboard didn't respond at ${dashboardUrl} within 30s. ` +
-        `Tail ${dashboard.stdoutLog} for progress — Next.js takes a moment on first boot.`,
+      `Dashboard didn't respond at ${dashboardUrl} within 45s. ` +
+        `Tail ${sidecar.stdoutLog} for progress — Next.js takes a moment on first boot.`,
     );
   } else {
     ok(`dashboard listening at ${dashboardUrl}`);
   }
 
-  // 5. Open the browser.
   const opened = await openBrowser(`${dashboardUrl}/setup`);
   if (opened) ok("opened browser");
   else line(`  (couldn't auto-open — visit ${dashboardUrl}/setup manually)`);
 
   section("Running in the background");
-  line(`  sidecar    pid ${sidecar.pid}`);
-  line(`              logs ${sidecar.stdoutLog}`);
-  line(`  dashboard  pid ${dashboard.pid}`);
-  line(`              logs ${dashboard.stdoutLog}`);
+  line(`  cortex daemon  pid ${sidecar.pid}`);
+  line(`                  logs ${sidecar.stdoutLog}`);
+  line(`                  (dashboard runs as a child of this process)`);
   line("");
-  line(
-    "  Both survive this terminal. To stop them:",
-  );
-  if (process.platform === "win32") {
-    line(`      taskkill /PID ${sidecar.pid} /F`);
-    line(`      taskkill /PID ${dashboard.pid} /F`);
-  } else {
-    line(`      kill ${sidecar.pid} ${dashboard.pid}`);
-  }
+  line("  Stop with:  cortex stop");
+  line("  Restart:    cortex restart");
   line("");
   line(`  Finish setup at ${dashboardUrl}/setup, then your dashboard is live at ${dashboardUrl}.`);
   line("");
