@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   checkbox,
@@ -195,10 +196,15 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
 
   // Offer to seed from the repo's current config so users migrating
   // away from single-config setups keep their existing adapter + LLM
-  // choices.
+  // choices. Only ask if there actually IS a config to copy — if the
+  // user ran init from outside any cortex checkout, the copy would
+  // silently do nothing and the prompt is just noise.
+  const repoHasConfig =
+    repoRoot && existsSync(path.join(repoRoot, "config", "cortex.yaml"));
   const seedFromRepo =
-    repoRoot && (await confirm({
-      message: `Copy the current repo's config + .env into '${clean}'?`,
+    repoHasConfig &&
+    (await confirm({
+      message: `Copy config + .env from ${repoRoot} into '${clean}'?`,
       default: true,
     }));
 
