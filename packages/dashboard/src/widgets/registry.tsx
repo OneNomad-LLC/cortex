@@ -1,9 +1,11 @@
+import { CodeActivityWidget } from "./code-activity";
 import { MyActionItemsWidget } from "./my-action-items";
 import { PlaceholderWidget } from "./placeholder";
 import { PrioritiesWidget } from "./priorities";
 import { RecentActivityWidget } from "./recent-activity";
 import { RecentDecisionsWidget } from "./recent-decisions";
 import { TodayMeetingsWidget } from "./today-meetings";
+import { UpcomingBriefsWidget } from "./upcoming-briefs";
 
 /**
  * Layout entry as served by GET /api/layout. Matches the zod schema in
@@ -34,6 +36,8 @@ export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
   "recent-decisions": RecentDecisionsWidget as WidgetComponent,
   "recent-activity": RecentActivityWidget as WidgetComponent,
   "today-meetings": TodayMeetingsWidget as WidgetComponent,
+  "upcoming-briefs": UpcomingBriefsWidget as WidgetComponent,
+  "code-activity": CodeActivityWidget as WidgetComponent,
 };
 
 export function renderWidget(entry: LayoutWidget): React.ReactNode {
