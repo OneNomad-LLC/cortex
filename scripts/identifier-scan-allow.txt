@@ -55,6 +55,13 @@ your-cortex.example
 github.com/anthropics
 github.com/modelcontextprotocol
 github.com/pgvector/pgvector
+
+# Placeholder GitHub paths used in URL-parsing test fixtures
+github.com/user/
+github.com/foo/
+git@github.com:user/
+git@github.com:foo/
+ssh://git@git.example
 # GitHub OAuth device flow — public, well-known vendor endpoints
 github.com/login/device
 github.com/login/oauth/access_token

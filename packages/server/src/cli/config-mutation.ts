@@ -172,15 +172,46 @@ export async function readModuleConfig(
 
 // --- internals ---
 
+/**
+ * Sensible default cron for each adapter when none is specified.
+ * Picked per-source based on how frequently content realistically
+ * changes + API rate limits. Users override via /adapters/[id].
+ */
+const DEFAULT_SCHEDULES: Record<string, string> = {
+  // Source-control: repos change constantly, pull hourly to keep
+  // embeddings warm without hammering the API.
+  github: "0 * * * *",
+  bitbucket: "0 * * * *",
+  // Wiki-style: updated throughout the day but not minute-by-minute.
+  confluence: "0 */4 * * *",
+  notion: "0 */4 * * *",
+  // Conversation logs: real-time-ish, but pulling every 15 min is
+  // plenty for retrieval freshness.
+  slack: "*/15 * * * *",
+  gmail: "*/15 * * * *",
+  // Meetings / events: once an hour keeps the pre-meeting brief
+  // pipeline fresh without being spammy.
+  "google-calendar": "0 * * * *",
+  loom: "0 * * * *",
+  // PM tools: tickets move on a slower cadence.
+  linear: "0 */2 * * *",
+  jira: "0 */2 * * *",
+  // Drive: pull nightly — most adapters only care about recent docs.
+  "google-drive": "0 2 * * *",
+  // File-watcher based: stream() handles live updates; cron is just a
+  // periodic re-scan to catch anything the watcher missed.
+  obsidian: "0 */6 * * *",
+};
+
 function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
-  return {
+  const entry: Record<string, unknown> = {
     package: `@onenomad/cortex-adapter-${result.moduleId}`,
     enabled: true,
-    // Schedule is left to whatever the template has; `cortex configure
-    // --schedule` is a future subcommand. For now, no schedule = ad-hoc
-    // sync only.
     config: result.config as Record<string, unknown>,
   };
+  const defaultSchedule = DEFAULT_SCHEDULES[result.moduleId];
+  if (defaultSchedule) entry.schedule = defaultSchedule;
+  return entry;
 }
 
 function buildProviderEntry(result: WizardResult): Record<string, unknown> {
@@ -208,14 +239,19 @@ function applyByCategory(
   switch (category) {
     case "adapter": {
       const adapters = ((cfg.adapters as Record<string, unknown>) ?? {}) as Record<string, unknown>;
-      adapters[result.moduleId] = buildAdapterEntry(result);
+      // Merge rather than clobber — a re-run of the wizard should only
+      // overwrite what the wizard defines, preserving unrelated fields
+      // like `schedule` that the user set separately.
+      const existing = (adapters[result.moduleId] as Record<string, unknown>) ?? {};
+      adapters[result.moduleId] = { ...existing, ...buildAdapterEntry(result) };
       cfg.adapters = adapters;
       return cfg;
     }
     case "provider": {
       const llm = ((cfg.llm as Record<string, unknown>) ?? {}) as Record<string, unknown>;
       const providers = ((llm.providers as Record<string, unknown>) ?? {}) as Record<string, unknown>;
-      providers[result.moduleId] = buildProviderEntry(result);
+      const existing = (providers[result.moduleId] as Record<string, unknown>) ?? {};
+      providers[result.moduleId] = { ...existing, ...buildProviderEntry(result) };
       llm.providers = providers;
       cfg.llm = llm;
       return cfg;
@@ -404,6 +440,80 @@ export async function mergeProjects(
     }
     return { ...cfg, projects: [...bySlug.values()] };
   });
+}
+
+/**
+ * Add a path to `privateModules` in cortex.local.yaml. Deduplicates
+ * against existing entries. The path written is whatever the caller
+ * passes — typically the CONTAINER-side path (`/root/.cortex/modules/
+ * <name>`) because cortex reads this file from inside Docker.
+ */
+export async function addPrivateModule(
+  opts: ConfigMutationOptions,
+  modulePath: string,
+): Promise<{ filePath: string; added: boolean }> {
+  const configPath = await ensureLocalCopy(
+    path.join(opts.repoRoot, "config", "cortex.yaml"),
+  );
+  let added = false;
+  await mutateYaml(configPath, (doc) => {
+    const cfg = (doc ?? {}) as { privateModules?: unknown };
+    const current = Array.isArray(cfg.privateModules)
+      ? (cfg.privateModules as unknown[]).filter(
+          (v): v is string => typeof v === "string",
+        )
+      : [];
+    if (current.includes(modulePath)) {
+      return cfg;
+    }
+    added = true;
+    return { ...cfg, privateModules: [...current, modulePath] };
+  });
+  return { filePath: configPath, added };
+}
+
+/**
+ * Remove a path from `privateModules`. Returns `removed: false` when
+ * the path wasn't registered — that's not an error, just a no-op.
+ */
+export async function removePrivateModule(
+  opts: ConfigMutationOptions,
+  modulePath: string,
+): Promise<{ filePath: string; removed: boolean }> {
+  const configPath = await ensureLocalCopy(
+    path.join(opts.repoRoot, "config", "cortex.yaml"),
+  );
+  let removed = false;
+  await mutateYaml(configPath, (doc) => {
+    const cfg = (doc ?? {}) as { privateModules?: unknown };
+    const current = Array.isArray(cfg.privateModules)
+      ? (cfg.privateModules as unknown[]).filter(
+          (v): v is string => typeof v === "string",
+        )
+      : [];
+    const next = current.filter((p) => p !== modulePath);
+    if (next.length === current.length) return cfg;
+    removed = true;
+    return { ...cfg, privateModules: next };
+  });
+  return { filePath: configPath, removed };
+}
+
+/**
+ * Read the current `privateModules` list from cortex.local.yaml,
+ * falling back to the committed template. Returns `[]` when the key
+ * is missing or malformed.
+ */
+export async function listPrivateModulesFromConfig(
+  opts: ConfigMutationOptions,
+): Promise<string[]> {
+  const localPath = path.join(opts.repoRoot, "config", "cortex.local.yaml");
+  const templatePath = path.join(opts.repoRoot, "config", "cortex.yaml");
+  const doc =
+    (await tryReadYaml(localPath)) ?? (await tryReadYaml(templatePath)) ?? {};
+  const raw = (doc as { privateModules?: unknown }).privateModules;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((v): v is string => typeof v === "string");
 }
 
 async function atomicWrite(filePath: string, contents: string): Promise<void> {

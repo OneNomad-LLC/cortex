@@ -1,4 +1,5 @@
 import { runDashboard } from "./dashboard.js";
+import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
@@ -11,7 +12,7 @@ import {
   runDisable,
   runList,
 } from "./module-commands.js";
-import { runRestart, runStop } from "./restart.js";
+import { runModuleCommand } from "./module-install.js";
 import { runSmoke } from "./smoke.js";
 import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
@@ -25,11 +26,16 @@ Usage:
 
 Commands:
   init                       Interactive setup wizard (first run).
-  start                      Boot the Cortex MCP server over stdio.
-  stop                       Gracefully stop the running daemon.
-  restart [--foreground]     Stop the running daemon + spawn a fresh
-                               one detached. --foreground keeps it in
-                               this terminal.
+  start                      Boot Cortex in the foreground (stdio MCP by
+                               default; dev / local-only). Ctrl+C to stop.
+                               For a daemon, use \`cortex up\`.
+
+  up [-- args...]            Start the Docker stack in the background
+                               (wraps \`docker compose up -d\`). Adds
+                               --foreground to run attached.
+  down [-- args...]          Stop the Docker stack (wraps \`docker compose down\`).
+  logs [-- args...]          Tail Docker stack logs (wraps \`docker compose logs -f\`).
+
   status                     Show daemon heartbeat (uptime, adapter stats).
   doctor [--connect]         Pre-flight checks: config, secrets, tokens, taxonomy.
                                --connect also probes Engram + Postgres live.
@@ -48,6 +54,14 @@ Commands:
   add <module>               Enable a module via guided wizard.
   configure <module>         Re-run a module's wizard (current values as defaults).
   disable <module>           Turn off an already-configured module.
+
+  module install <src>       Install a private module (git URL or local path).
+                               --name=<slug>   override module name
+                               --no-build      skip pnpm install + build
+                               --path-only     register existing dir as-is
+                               --native        write host paths (non-Docker setups)
+  module list                Show installed private modules.
+  module remove <name>       Unregister a private module (keeps files).
 
   workspace <sub>            Manage named config bundles. Subcommands:
                                list, current, add, switch, remove, rename.
@@ -116,6 +130,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case "modules":
       return runList();
 
+    case "module":
+      return runModuleCommand(rest);
+
     case "add":
       return runAdd(rest);
 
@@ -138,11 +155,14 @@ export async function runCli(argv: string[]): Promise<number> {
       await startServer();
       return 0;
 
-    case "stop":
-      return runStop(rest);
+    case "up":
+      return runDockerUp(rest);
 
-    case "restart":
-      return runRestart(rest);
+    case "down":
+      return runDockerDown(rest);
+
+    case "logs":
+      return runDockerLogs(rest);
 
     default:
       process.stderr.write(`cortex: unknown command '${command}'\n\n`);

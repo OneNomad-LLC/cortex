@@ -89,6 +89,13 @@ export const cortexConfigSchema = z.object({
   webhooks: webhooksConfigSchema,
   api: apiConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
+  /**
+   * Absolute paths to private/personal Cortex module directories
+   * loaded at startup. Each must contain a `dist/index.js` exporting
+   * `mcpTools`. See `server/src/private-modules.ts` + the companion
+   * `cortex-private/` repo for the contract. Empty by default.
+   */
+  privateModules: z.array(z.string().min(1)).default([]),
 });
 
 export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
@@ -119,8 +126,59 @@ export async function loadCortexConfig(configPath: string): Promise<CortexConfig
   const resolved = await resolveLocalFirst(configPath);
   const raw = await readFile(resolved, "utf8");
   const substituted = expandEnv(raw);
-  const parsed: unknown = parseYaml(substituted);
-  return cortexConfigSchema.parse(parsed);
+  const parsedRaw: unknown = parseYaml(substituted);
+  // Empty / comments-only YAML documents parse to null. Substituting
+  // {} lets Zod emit the actual field-by-field "missing llm, missing
+  // api" errors instead of a root-level "Expected object, received
+  // null" that tells the user nothing about what's missing.
+  const parsed = parsedRaw ?? {};
+  const result = cortexConfigSchema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((i) => `  • ${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("\n");
+    throw new Error(
+      [
+        `Invalid cortex config at ${resolved}:`,
+        issues,
+        "",
+        "Hint: if this is a new workspace, open the dashboard's Setup page",
+        "(http://localhost:3030/setup) to configure providers + adapters, or run",
+        "`cortex init` for the terminal wizard.",
+      ].join("\n"),
+    );
+  }
+  return applyEnvOverrides(result.data);
+}
+
+/**
+ * Select fields (today: api.host / api.port / api.enabled) can be overridden
+ * via env vars so a Docker image or VPS deploy doesn't need to hand-edit a
+ * user's workspace config. The overrides kick in only when the env var is
+ * present — absent vars leave the YAML value untouched.
+ */
+export function applyEnvOverrides(cfg: CortexConfig): CortexConfig {
+  const envHost = process.env.CORTEX_API_HOST;
+  const envPort = process.env.CORTEX_API_PORT;
+  const envEnabled = process.env.CORTEX_API_ENABLED;
+  if (!envHost && !envPort && !envEnabled) return cfg;
+  return {
+    ...cfg,
+    api: {
+      ...cfg.api,
+      ...(envHost ? { host: envHost } : {}),
+      ...(envPort ? { port: parseIntOrThrow("CORTEX_API_PORT", envPort) } : {}),
+      ...(envEnabled ? { enabled: envEnabled === "true" || envEnabled === "1" } : {}),
+    },
+  };
+}
+
+function parseIntOrThrow(name: string, raw: string): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    throw new Error(`${name} must be a non-negative integer; got ${JSON.stringify(raw)}`);
+  }
+  return n;
 }
 
 /**
