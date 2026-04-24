@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!--
+    Cortex extension icon — a stylized brain.
+    Two hemispheres hint at gyri with sweeping curves. Indigo to
+    match the rest of the extension's UI chrome. The shape stays
+    readable at 16x16 because the silhouette has no thin features.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded-square tile background so the brain has a fill to sit on. -->
+  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="url(#bg)"/>
+
+  <!-- Brain silhouette: two hemispheres joined at a central fissure. -->
+  <g stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" fill="#ffffff">
+    <!-- Outer outline of both hemispheres -->
+    <path d="
+      M 64 22
+      C 46 22, 32 34, 30 48
+      C 20 52, 18 66, 28 74
+      C 24 86, 34 98, 48 98
+      C 52 106, 60 108, 64 104
+      C 68 108, 76 106, 80 98
+      C 94 98, 104 86, 100 74
+      C 110 66, 108 52, 98 48
+      C 96 34, 82 22, 64 22
+      Z"
+      fill="#ffffff" stroke-width="2.5"/>
+    <!-- Central fissure between hemispheres -->
+    <path d="M 64 24 L 64 104"
+      stroke="#4338ca" stroke-width="3" fill="none"/>
+    <!-- Gyri hints on left hemisphere -->
+    <path d="M 42 42 C 50 44, 50 54, 44 58"
+      stroke="#4338ca" stroke-width="2.5" fill="none"/>
+    <path d="M 38 68 C 48 68, 52 78, 44 84"
+      stroke="#4338ca" stroke-width="2.5" fill="none"/>
+    <!-- Gyri hints on right hemisphere -->
+    <path d="M 86 42 C 78 44, 78 54, 84 58"
+      stroke="#4338ca" stroke-width="2.5" fill="none"/>
+    <path d="M 90 68 C 80 68, 76 78, 84 84"
+      stroke="#4338ca" stroke-width="2.5" fill="none"/>
+  </g>
+
+  <!-- Soft highlight sits over everything for a subtle glossy look. -->
+  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="url(#shine)"/>
+</svg>

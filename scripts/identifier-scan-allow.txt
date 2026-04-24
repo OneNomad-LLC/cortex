@@ -21,6 +21,13 @@ yourcompany.slack.com
 yourco.slack.com
 example.slack.com
 
+# Service / product hostnames referenced by adapters, extractors, docs
+# (canonical URLs, not workspace-specific subdomains)
+app.slack.com
+.slack.com
+outlook.office.com
+jira.atlassian.net
+
 # Repo's own GitHub URL pattern when wrapped as a template — keep scoped to
 # the obvious "this is a placeholder" forms.
 <your-cortex-repo-url>
