@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS ${table} (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   source_id text,
   domain text NOT NULL DEFAULT 'work',
+  workspace text,
   content text NOT NULL,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   embedding vector(${embeddingDim}),
@@ -39,8 +40,18 @@ CREATE TABLE IF NOT EXISTS ${table} (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ${table}_source_id_uniq
-  ON ${table} (source_id)
+-- Pre-existing installs didn't have workspace — add it idempotently.
+ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS workspace text;
+
+-- Partial unique index scoped to (workspace, source_id). Different
+-- workspaces can legitimately share a source_id (e.g. a shared Loom
+-- URL ingested into two workspaces by two different Claude sessions).
+-- Drop the legacy global unique index if it's still around; the composite
+-- replaces it. CONCURRENTLY is incompatible with IF NOT EXISTS inside a
+-- transaction block, so we let Postgres serialize DDL.
+DROP INDEX IF EXISTS ${table}_source_id_uniq;
+CREATE UNIQUE INDEX IF NOT EXISTS ${table}_workspace_source_id_uniq
+  ON ${table} (workspace, source_id)
   WHERE source_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS ${table}_embedding_hnsw_idx
@@ -52,8 +63,18 @@ CREATE INDEX IF NOT EXISTS ${table}_tsv_gin_idx
 CREATE INDEX IF NOT EXISTS ${table}_domain_idx
   ON ${table} (domain);
 
+CREATE INDEX IF NOT EXISTS ${table}_workspace_idx
+  ON ${table} (workspace)
+  WHERE workspace IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS ${table}_project_idx
   ON ${table} ((metadata->>'project'));
+
+-- GIN index on the whole metadata lets us match array-valued project
+-- tags via @> containment (a memory with project: ["a","b"] is
+-- retrievable from a "project: a" filter).
+CREATE INDEX IF NOT EXISTS ${table}_metadata_gin_idx
+  ON ${table} USING GIN (metadata jsonb_path_ops);
 
 CREATE INDEX IF NOT EXISTS ${table}_type_idx
   ON ${table} ((metadata->>'type'));

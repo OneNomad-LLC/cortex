@@ -33,7 +33,10 @@ export interface PgVectorClientOptions {
 export async function createPgVectorClient(
   opts: PgVectorClientOptions,
 ): Promise<EngramClient> {
-  const pool = createPgPool({ connectionString: opts.connectionString });
+  const pool = createPgPool(
+    { connectionString: opts.connectionString },
+    { logger: opts.logger },
+  );
   const backend: MemoryBackend = createPgVectorBackend({
     pool,
     embed: async (text) => {
@@ -77,6 +80,7 @@ function wrapAsEngramClient(
         ...(args.source !== undefined ? { source: args.source } : {}),
         ...(args.sinceIso !== undefined ? { sinceIso: args.sinceIso } : {}),
         ...(args.domain !== undefined ? { domain: args.domain } : {}),
+        ...(args.workspace !== undefined ? { workspace: args.workspace } : {}),
       });
       // The MemoryBackend search shape is already a structural superset of
       // EngramMemory — just forward.

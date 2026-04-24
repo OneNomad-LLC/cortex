@@ -70,6 +70,30 @@ export const pgvectorWizard: WizardModule<PgVectorConfig> = {
       defaultValue: "4",
       pattern: /^\d+$/,
     },
+    {
+      key: "poolMax",
+      prompt:
+        "Max concurrent Postgres connections (node-postgres pool max; raise for high-concurrency MCP)",
+      type: "text",
+      defaultValue: "10",
+      pattern: /^\d+$/,
+    },
+    {
+      key: "poolIdleTimeoutMs",
+      prompt:
+        "Idle-connection timeout in ms (closes unused pool clients; 0 = never close)",
+      type: "text",
+      defaultValue: "30000",
+      pattern: /^\d+$/,
+    },
+    {
+      key: "poolConnectionTimeoutMs",
+      prompt:
+        "Connection-acquire timeout in ms (fail fast if the pool is saturated)",
+      type: "text",
+      defaultValue: "5000",
+      pattern: /^\d+$/,
+    },
   ],
   secrets: [
     {
@@ -84,7 +108,15 @@ export const pgvectorWizard: WizardModule<PgVectorConfig> = {
 const coercedConfigSchema = z.preprocess((val) => {
   if (typeof val !== "object" || val === null) return val;
   const obj = { ...(val as Record<string, unknown>) };
-  for (const k of ["embeddingDim", "defaultLimit", "rrfK", "channelMultiplier"]) {
+  for (const k of [
+    "embeddingDim",
+    "defaultLimit",
+    "rrfK",
+    "channelMultiplier",
+    "poolMax",
+    "poolIdleTimeoutMs",
+    "poolConnectionTimeoutMs",
+  ]) {
     const v = obj[k];
     if (typeof v === "string" && v.length > 0) obj[k] = Number(v);
     if (v === "" || v === undefined) delete obj[k];

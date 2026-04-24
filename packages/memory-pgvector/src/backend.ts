@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { HealthStatus } from "@onenomad/cortex-core";
 import { isSafeIdentifier, buildBootstrapSql } from "./schema.js";
 import {
+  buildDeleteQuery,
   buildHealthQuery,
   buildHybridSearchQuery,
   buildIngestQuery,
@@ -11,6 +12,7 @@ import type {
   Logger,
   Memory,
   MemoryBackend,
+  MemoryDeleteArgs,
   MemoryIngestInput,
   MemorySearchArgs,
 } from "./types.js";
@@ -41,6 +43,13 @@ export const pgVectorConfigSchema = z.object({
   rrfK: z.number().int().positive().default(60),
   /** Per-channel candidate cap. Higher = better fusion quality, slower. */
   channelMultiplier: z.number().int().positive().default(4),
+  /**
+   * Pool tuning — passed through to createPgPool when it owns the pool.
+   * Ignored when callers construct their own pool and hand it in.
+   */
+  poolMax: z.number().int().positive().default(10),
+  poolIdleTimeoutMs: z.number().int().nonnegative().default(30_000),
+  poolConnectionTimeoutMs: z.number().int().nonnegative().default(5_000),
 });
 
 export type PgVectorConfig = z.infer<typeof pgVectorConfigSchema>;
@@ -79,9 +88,29 @@ export function createPgVectorBackend(
       // future statement could legitimately contain a semicolon in a
       // string).
       await pool.query(sql);
+
+      // Warn if the table already has meaningful size — bootstrap's
+      // `CREATE INDEX IF NOT EXISTS` no-ops when the index is already
+      // there, but if someone dropped an index manually, a rebuild on a
+      // large table blocks writes. Telling the operator up front is
+      // cheaper than a silent stall.
+      const sizeRes = await pool.query<{ n: string | number }>(
+        `SELECT COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname = $1), 0) AS n`,
+        [cfg.table],
+      );
+      const n = Number(sizeRes.rows[0]?.n ?? 0);
+      if (n > 100_000) {
+        logger.warn("memory-pgvector.bootstrap.large_table", {
+          table: cfg.table,
+          approxRows: n,
+          note: "ANALYZE and index rebuilds may take time; run manually if you've dropped indexes.",
+        });
+      }
+
       logger.info("memory-pgvector.bootstrap.done", {
         table: cfg.table,
         embeddingDim: cfg.embeddingDim,
+        approxRows: n,
       });
     },
 
@@ -97,11 +126,13 @@ export function createPgVectorBackend(
       const md = input.metadata ?? {};
       const sourceId = typeof md.source_id === "string" ? md.source_id : null;
       const domain = typeof md.domain === "string" ? md.domain : "work";
+      const workspace = typeof md.workspace === "string" ? md.workspace : null;
 
       const q = buildIngestQuery({
         table: cfg.table,
         sourceId,
         domain,
+        workspace,
         content: input.content,
         metadata: md,
         embedding,
@@ -113,6 +144,33 @@ export function createPgVectorBackend(
         throw new Error("memory-pgvector: ingest returned no row");
       }
       return { id: row.id };
+    },
+
+    async ingestMany(inputs: MemoryIngestInput[]) {
+      // Sequential under the hood — node-postgres pools don't pipeline
+      // across clients, and multi-row upsert with `ON CONFLICT (...)`
+      // needs every row to match the same embedding dim. Per-row lets
+      // partial failures still succeed for siblings.
+      const results: { id: string }[] = [];
+      const errors: { index: number; error: string }[] = [];
+      for (const [i, input] of inputs.entries()) {
+        try {
+          results.push(await this.ingest(input));
+        } catch (err) {
+          errors.push({
+            index: i,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+      if (errors.length > 0) {
+        logger.warn("memory-pgvector.ingest_many.partial", {
+          total: inputs.length,
+          succeeded: results.length,
+          failed: errors.length,
+        });
+      }
+      return { results, errors };
     },
 
     async search(args: MemorySearchArgs) {
@@ -162,10 +220,22 @@ export function createPgVectorBackend(
       });
     },
 
+    async delete(args: MemoryDeleteArgs) {
+      const q = buildDeleteQuery({
+        table: cfg.table,
+        ...(args.sourceId !== undefined ? { sourceId: args.sourceId } : {}),
+        ...(args.id !== undefined ? { id: args.id } : {}),
+      });
+      const res = await pool.query<{ id: string }>(q.text, q.values);
+      lastSuccessAt = Date.now();
+      return { deleted: res.rows.length };
+    },
+
     async healthCheck(): Promise<HealthStatus> {
       try {
         const res = await pool.query<{
           has_vector: boolean;
+          has_table: boolean;
           row_count: string | number;
         }>(buildHealthQuery(cfg.table));
         lastSuccessAt = Date.now();
@@ -177,15 +247,19 @@ export function createPgVectorBackend(
             ...(lastSuccessAt !== undefined ? { lastSuccessAt } : {}),
           };
         }
-        const healthy = row.has_vector === true;
+        const healthy = row.has_vector === true && row.has_table === true;
+        const message = !row.has_vector
+          ? "pgvector extension not installed on this database"
+          : !row.has_table
+            ? `memories table '${cfg.table}' does not exist — run bootstrap()`
+            : "";
         return {
           healthy,
-          message: healthy
-            ? ""
-            : "pgvector extension not installed on this database",
+          message,
           ...(lastSuccessAt !== undefined ? { lastSuccessAt } : {}),
           details: {
             has_vector: row.has_vector,
+            has_table: row.has_table,
             row_count:
               typeof row.row_count === "string"
                 ? Number(row.row_count)

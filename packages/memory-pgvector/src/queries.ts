@@ -34,6 +34,7 @@ export function buildIngestQuery(args: {
   table: string;
   sourceId: string | null;
   domain: string;
+  workspace: string | null;
   content: string;
   metadata: Record<string, unknown>;
   embedding: number[];
@@ -45,20 +46,22 @@ export function buildIngestQuery(args: {
   if (args.sourceId) {
     return {
       text: `
-INSERT INTO ${args.table} (source_id, domain, content, metadata, embedding, updated_at)
-VALUES ($1, $2, $3, $4::jsonb, $5::vector, now())
-ON CONFLICT (source_id) WHERE source_id IS NOT NULL
+INSERT INTO ${args.table} (source_id, domain, workspace, content, metadata, embedding, updated_at)
+VALUES ($1, $2, $3, $4, $5::jsonb, $6::vector, now())
+ON CONFLICT (workspace, source_id) WHERE source_id IS NOT NULL
 DO UPDATE SET
   content    = EXCLUDED.content,
   metadata   = EXCLUDED.metadata,
   embedding  = EXCLUDED.embedding,
   domain     = EXCLUDED.domain,
+  workspace  = EXCLUDED.workspace,
   updated_at = now()
 RETURNING id
 `.trim(),
       values: [
         args.sourceId,
         args.domain,
+        args.workspace,
         args.content,
         JSON.stringify(args.metadata),
         vec,
@@ -67,12 +70,13 @@ RETURNING id
   }
   return {
     text: `
-INSERT INTO ${args.table} (domain, content, metadata, embedding)
-VALUES ($1, $2, $3::jsonb, $4::vector)
+INSERT INTO ${args.table} (domain, workspace, content, metadata, embedding)
+VALUES ($1, $2, $3, $4::jsonb, $5::vector)
 RETURNING id
 `.trim(),
     values: [
       args.domain,
+      args.workspace,
       args.content,
       JSON.stringify(args.metadata),
       vec,
@@ -100,6 +104,11 @@ export interface SearchQuery {
  * each channel rather than as a post-filter on the fused output. This is the
  * behavior a caller expects — "only pages in project X" means no
  * out-of-project page ever surfaces.
+ *
+ * Score semantics: the returned `score` is the RRF sum, not a cosine
+ * similarity. With k=60 a top-rank-in-both-channels hit scores ~0.033;
+ * monotonic with relevance but not 0..1 bounded. Callers that need a
+ * 0..1 score should post-normalize by dividing by the max of the batch.
  */
 export function buildHybridSearchQuery(args: {
   table: string;
@@ -129,8 +138,22 @@ export function buildHybridSearchQuery(args: {
   if (args.search.domain !== undefined) {
     where.push(`domain = ${push(args.search.domain)}`);
   }
+  if (args.search.workspace !== undefined) {
+    // Scope to this workspace OR rows with no workspace (legacy ingests
+    // predate session binding; they remain visible in every workspace
+    // for backwards compat).
+    const wParam = push(args.search.workspace);
+    where.push(`(workspace = ${wParam} OR workspace IS NULL)`);
+  }
   if (args.search.project !== undefined) {
-    where.push(`metadata->>'project' = ${push(args.search.project)}`);
+    // Match either a string-valued project OR an array that contains
+    // this slug. jsonb `@>` reads "left contains right"; we wrap the
+    // probe in a JSON array to cover both shapes in one predicate.
+    const pParam = push(args.search.project);
+    where.push(
+      `(metadata->>'project' = ${pParam} ` +
+        `OR metadata->'project' @> to_jsonb(ARRAY[${pParam}::text]))`,
+    );
   }
   if (args.search.type !== undefined) {
     where.push(`metadata->>'type' = ${push(args.search.type)}`);
@@ -195,8 +218,48 @@ LIMIT ${outerLimitParam}
   return { text, values };
 }
 
+export interface DeleteQuery {
+  text: string;
+  values: unknown[];
+}
+
 /**
- * Health check — cheap, no locks. Confirms the extension and table exist.
+ * Build a delete by source_id OR by id. Returns the deleted row count
+ * via `RETURNING id` — pg wraps it as rows.length.
+ */
+export function buildDeleteQuery(args: {
+  table: string;
+  sourceId?: string;
+  id?: string;
+}): DeleteQuery {
+  if (!isSafeIdentifier(args.table)) {
+    throw new Error(`memory-pgvector: unsafe table name '${args.table}'`);
+  }
+  if (args.sourceId && args.id) {
+    throw new Error(
+      "memory-pgvector: delete accepts sourceId OR id, not both",
+    );
+  }
+  if (args.sourceId) {
+    return {
+      text: `DELETE FROM ${args.table} WHERE source_id = $1 RETURNING id`,
+      values: [args.sourceId],
+    };
+  }
+  if (args.id) {
+    return {
+      text: `DELETE FROM ${args.table} WHERE id = $1::uuid RETURNING id`,
+      values: [args.id],
+    };
+  }
+  throw new Error("memory-pgvector: delete requires sourceId or id");
+}
+
+/**
+ * Health check — cheap, no locks. Confirms the extension + table exist and
+ * returns an ANALYZE-based row estimate. Exact COUNT(*) is a seq scan on a
+ * growing table; `reltuples` is instant and close enough for a health ping.
+ * Callers needing exact counts should run their own query.
  */
 export function buildHealthQuery(table: string): string {
   if (!isSafeIdentifier(table)) {
@@ -205,6 +268,10 @@ export function buildHealthQuery(table: string): string {
   return `
 SELECT
   EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') AS has_vector,
-  (SELECT COUNT(*) FROM ${table}) AS row_count
+  (SELECT to_regclass('${table}') IS NOT NULL) AS has_table,
+  COALESCE(
+    (SELECT reltuples::bigint FROM pg_class WHERE relname = '${table}'),
+    0
+  ) AS row_count
 `.trim();
 }

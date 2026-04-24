@@ -25,23 +25,38 @@ describe("buildIngestQuery", () => {
       table: "cortex_memories",
       sourceId: "confluence:42",
       domain: "work",
+      workspace: "onenomad",
       content: "hello",
-      metadata: { project: "alpha", type: "doc" },
+      metadata: { project: "alpha", type: "doc", workspace: "onenomad" },
       embedding: [0.1, 0.2, 0.3],
     });
     expect(q.text).toContain("INSERT INTO cortex_memories");
     expect(q.text).toContain(
-      "ON CONFLICT (source_id) WHERE source_id IS NOT NULL",
+      "ON CONFLICT (workspace, source_id) WHERE source_id IS NOT NULL",
     );
     expect(q.text).toContain("DO UPDATE SET");
     expect(q.text).toContain("RETURNING id");
     expect(q.values).toEqual([
       "confluence:42",
       "work",
+      "onenomad",
       "hello",
-      JSON.stringify({ project: "alpha", type: "doc" }),
+      JSON.stringify({ project: "alpha", type: "doc", workspace: "onenomad" }),
       "[0.1,0.2,0.3]",
     ]);
+  });
+
+  it("writes a null workspace when unbound (legacy-compat path)", () => {
+    const q = buildIngestQuery({
+      table: "cortex_memories",
+      sourceId: "x",
+      domain: "work",
+      workspace: null,
+      content: "hi",
+      metadata: {},
+      embedding: [1],
+    });
+    expect(q.values[2]).toBeNull();
   });
 
   it("skips the ON CONFLICT branch when sourceId is null", () => {
@@ -49,6 +64,7 @@ describe("buildIngestQuery", () => {
       table: "cortex_memories",
       sourceId: null,
       domain: "work",
+      workspace: null,
       content: "hi",
       metadata: {},
       embedding: [1, 2],
@@ -56,7 +72,7 @@ describe("buildIngestQuery", () => {
     expect(q.text).not.toContain("ON CONFLICT");
     expect(q.text).toContain("INSERT INTO cortex_memories");
     expect(q.text).toContain("RETURNING id");
-    expect(q.values).toEqual(["work", "hi", "{}", "[1,2]"]);
+    expect(q.values).toEqual(["work", null, "hi", "{}", "[1,2]"]);
   });
 
   it("rejects unsafe table names", () => {
@@ -65,6 +81,7 @@ describe("buildIngestQuery", () => {
         table: "drop--table",
         sourceId: null,
         domain: "work",
+        workspace: null,
         content: "x",
         metadata: {},
         embedding: [1],
@@ -116,7 +133,9 @@ describe("buildHybridSearchQuery", () => {
       },
     });
     expect(q.text).toContain("domain = $");
+    // Project filter matches either a string or an array containing the slug.
     expect(q.text).toContain("metadata->>'project' = $");
+    expect(q.text).toContain("metadata->'project' @> to_jsonb(ARRAY[");
     expect(q.text).toContain("metadata->>'type' = $");
     expect(q.text).toContain("metadata->>'source' = $");
     expect(q.text).toContain("(metadata->>'date')::timestamptz >= $");
@@ -146,11 +165,13 @@ describe("buildHybridSearchQuery", () => {
 });
 
 describe("buildHealthQuery", () => {
-  it("checks both pgvector extension presence and row count", () => {
+  it("checks pgvector extension, table existence, and an approx row count", () => {
     const sql = buildHealthQuery("cortex_memories");
     expect(sql).toContain("pg_extension");
     expect(sql).toContain("extname = 'vector'");
-    expect(sql).toContain("FROM cortex_memories");
+    expect(sql).toContain("to_regclass('cortex_memories')");
+    expect(sql).toContain("reltuples::bigint");
+    expect(sql).toContain("'cortex_memories'");
   });
 
   it("rejects unsafe table names", () => {

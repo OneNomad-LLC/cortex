@@ -25,7 +25,11 @@ function fakePool(
 
 describe("createPgVectorBackend", () => {
   it("bootstraps with the configured table + embedding dim", async () => {
-    const pool = fakePool(() => ({ rows: [] }));
+    // First call: DDL. Second call: reltuples size check for the
+    // large-table warning — returns 0 so we stay quiet.
+    const pool = fakePool((sql) =>
+      sql.includes("pg_class") ? { rows: [{ n: 0 }] } : { rows: [] },
+    );
     const backend = createPgVectorBackend({
       pool,
       embed: async () => [0, 0, 0],
@@ -33,10 +37,11 @@ describe("createPgVectorBackend", () => {
       logger: silentLogger,
     });
     await backend.bootstrap();
-    expect(pool.calls).toHaveLength(1);
+    expect(pool.calls).toHaveLength(2);
     expect(pool.calls[0]!.sql).toContain("CREATE EXTENSION IF NOT EXISTS vector");
     expect(pool.calls[0]!.sql).toContain("CREATE TABLE IF NOT EXISTS my_memories");
     expect(pool.calls[0]!.sql).toContain("embedding vector(3)");
+    expect(pool.calls[1]!.sql).toContain("reltuples::bigint");
   });
 
   it("ingest() calls embed() then upserts via source_id when present", async () => {
@@ -59,7 +64,7 @@ describe("createPgVectorBackend", () => {
     });
     expect(out.id).toBe("uuid-abc");
     expect(embed).toHaveBeenCalledWith("decision: use rate limits");
-    expect(pool.calls[0]!.sql).toContain("ON CONFLICT (source_id)");
+    expect(pool.calls[0]!.sql).toContain("ON CONFLICT (workspace, source_id)");
     expect(pool.calls[0]!.values?.[0]).toBe("confluence:42");
   });
 
@@ -132,9 +137,9 @@ describe("createPgVectorBackend", () => {
     expect(pool.calls[0]!.sql).toContain("metadata->>'project' = $");
   });
 
-  it("healthCheck() reports healthy when pgvector extension is present", async () => {
+  it("healthCheck() reports healthy when pgvector extension + table are present", async () => {
     const pool = fakePool(() => ({
-      rows: [{ has_vector: true, row_count: "17" }],
+      rows: [{ has_vector: true, has_table: true, row_count: "17" }],
     }));
     const backend = createPgVectorBackend({
       pool,
@@ -149,7 +154,7 @@ describe("createPgVectorBackend", () => {
 
   it("healthCheck() reports unhealthy when the extension is missing", async () => {
     const pool = fakePool(() => ({
-      rows: [{ has_vector: false, row_count: 0 }],
+      rows: [{ has_vector: false, has_table: false, row_count: 0 }],
     }));
     const backend = createPgVectorBackend({
       pool,
@@ -160,6 +165,21 @@ describe("createPgVectorBackend", () => {
     const h = await backend.healthCheck();
     expect(h.healthy).toBe(false);
     expect(h.message).toMatch(/pgvector extension/);
+  });
+
+  it("healthCheck() reports unhealthy when the table is missing", async () => {
+    const pool = fakePool(() => ({
+      rows: [{ has_vector: true, has_table: false, row_count: 0 }],
+    }));
+    const backend = createPgVectorBackend({
+      pool,
+      embed: async () => [0, 0],
+      config: { embeddingDim: 2 },
+      logger: silentLogger,
+    });
+    const h = await backend.healthCheck();
+    expect(h.healthy).toBe(false);
+    expect(h.message).toMatch(/does not exist/);
   });
 
   it("healthCheck() swallows pool errors and returns unhealthy", async () => {
