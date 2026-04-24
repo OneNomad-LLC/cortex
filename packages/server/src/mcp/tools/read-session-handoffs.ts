@@ -65,6 +65,7 @@ export const readSessionHandoffs: McpTool<typeof inputSchema, Output> = {
         sinceIso: since.toISOString(),
         limit: input.limit * 3,
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch((err) => {
         ctx.logger.warn("read_session_handoffs.engram_failed", {

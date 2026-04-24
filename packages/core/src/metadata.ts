@@ -106,6 +106,43 @@ export const memoryMetadataSchema = z.object({
    * engagement. Used by capacity / standup / cross-engagement views.
    */
   team: z.string().min(1).optional(),
+  /**
+   * Extracted due date (ISO 8601). Set by the temporal-extractor
+   * pipeline step when the content contains time-bound phrases
+   * ("by Friday", "tomorrow", "EOW") — relative phrases are
+   * resolved against `date` above. Absent when no deadline is
+   * discernible; retrieval tools treat absent as open-ended.
+   */
+  due_date: z.string().datetime({ offset: true }).optional(),
+  /**
+   * Urgency bucket derived from the content's tone/phrasing. High =
+   * explicit deadline or escalation language; medium = implied
+   * deadline; low = informational. Unset when nothing in the
+   * content suggests urgency.
+   */
+  urgency: z.enum(["high", "medium", "low"]).optional(),
+  /**
+   * True when the content mentions the Cortex user (by slug, name,
+   * email, or an alias). Resolved by comparing against the person
+   * flagged `self: true` in people.yaml. Powers `needs_my_attention`
+   * and boosts in todays_digest.
+   */
+  mentions_me: z.boolean().optional(),
+  /**
+   * The owner slug when the content attributes work to someone
+   * specific ("Alex will…", "@jane owns…"). Unset when ownership
+   * is ambiguous or absent.
+   */
+  owner: z.string().min(1).optional(),
+  /**
+   * Cortex workspace slug this memory belongs to. Stamped at ingest
+   * time from the session's bound workspace. Retrieval tools filter
+   * on this so content from a "work" workspace doesn't bleed into a
+   * "personal" session. Missing on memories ingested before the
+   * session-scoping rollout — callers treat the absence as
+   * "belongs to any workspace" (backwards compat).
+   */
+  workspace: z.string().min(1).optional(),
 });
 
 export type MemoryMetadata = z.infer<typeof memoryMetadataSchema>;

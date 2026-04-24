@@ -51,6 +51,7 @@ export const resolveSessionHandoff: McpTool<typeof inputSchema, Output> = {
       type: "session_handoff",
       limit: 5,
       domain: "work",
+      ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
     });
     const memory = hits.find((m) => {
       const meta = (m.metadata ?? {}) as Record<string, unknown>;

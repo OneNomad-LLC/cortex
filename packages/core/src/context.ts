@@ -32,6 +32,12 @@ export interface TaxonomyReader {
   findPersonByEmail(email: string): Person | undefined;
   /** Match by name or alias (case-insensitive, punctuation-insensitive). */
   findPerson(query: string): Person | undefined;
+  /**
+   * Returns the person flagged `self: true`, or undefined when the
+   * user hasn't identified themselves yet. Callers that need "the
+   * user" should go through this, not hard-code a slug.
+   */
+  findSelf(): Person | undefined;
 }
 
 /**

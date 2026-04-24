@@ -69,6 +69,9 @@ export const research: McpTool<typeof inputSchema, Output> = {
               limit: input.retrievalLimit,
               domain: "work",
               ...(projectSlug ? { project: projectSlug } : {}),
+              ...(ctx.sessionWorkspace
+                ? { workspace: ctx.sessionWorkspace }
+                : {}),
             })
             .catch((err) => {
               ctx.logger.warn("research.retrieval_failed", {
@@ -145,9 +148,16 @@ export const research: McpTool<typeof inputSchema, Output> = {
     if (!input.dryRun) {
       for (const mem of produced) {
         try {
+          // Stamp the session's workspace so this brief / finding
+          // stays visible only to sessions in the same workspace —
+          // matches the pattern in ingest_content. Without this,
+          // research output leaks across workspaces.
+          const metadata = ctx.sessionWorkspace
+            ? { ...mem.metadata, workspace: ctx.sessionWorkspace }
+            : mem.metadata;
           const res = await ctx.engram.ingest({
             content: mem.content,
-            metadata: mem.metadata,
+            metadata,
           });
           persisted.push({
             id: res.id,

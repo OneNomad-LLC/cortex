@@ -108,6 +108,7 @@ async function fetchRecent(
     sinceIso: since.toISOString(),
     limit: input.recentLimit,
     domain: "work",
+    ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
   });
 
   return memories.map((m) => {

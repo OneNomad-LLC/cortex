@@ -4,16 +4,27 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Logger } from "@onenomad/cortex-core";
+import { enterSession, runWithSession } from "../session-context.js";
 
 export interface TransportHandle {
   kind: "stdio" | "http";
   close(): Promise<void>;
   /** Actual bound port (http only). */
   port?: number;
+  /** Live session count for /api/status. */
+  sessionCount?: () => number;
 }
 
 export interface ConnectTransportArgs {
-  mcp: Server;
+  /**
+   * Factory invoked once per HTTP session (and once for stdio). Each
+   * call must produce a FRESH Server instance — the MCP SDK's Server
+   * tracks `_initialized` per-instance and rejects a second `initialize`
+   * on the same server, which is what made the old single-Server design
+   * reject the second Claude client. See ADR-018 for the session-scoping
+   * story; this factory is the transport-side half of that design.
+   */
+  buildMcp: () => Server;
   logger: Logger;
 }
 
@@ -39,15 +50,29 @@ export async function connectConfiguredTransport(
 async function connectStdio(
   args: ConnectTransportArgs,
 ): Promise<TransportHandle> {
+  // One stdio transport = one Claude Code subprocess = one session for
+  // the process lifetime. We bind a stable session id so session-aware
+  // tools (get/set_session_workspace, taxonomy cache, workspace
+  // helpers) work the same way they do under HTTP. ALS.enterWith makes
+  // the context stick across the async boundaries inside the MCP SDK's
+  // read loop — `runWithSession` won't, because we don't own the loop.
+  const sessionId = `stdio-${randomUUID()}`;
+  enterSession(sessionId);
+  const mcp = args.buildMcp();
   const transport = new StdioServerTransport();
-  await args.mcp.connect(transport);
-  args.logger.info("mcp.connected", { transport: "stdio" });
+  await mcp.connect(transport);
+  args.logger.info("mcp.connected", { transport: "stdio", sessionId });
   return {
     kind: "stdio",
     async close() {
       await transport.close();
     },
   };
+}
+
+interface HttpSession {
+  mcp: Server;
+  transport: StreamableHTTPServerTransport;
 }
 
 async function connectHttp(
@@ -58,25 +83,61 @@ async function connectHttp(
     throw new Error(`CORTEX_MCP_PORT must be a number, got '${process.env.CORTEX_MCP_PORT}'`);
   }
   const host = process.env.CORTEX_MCP_HOST ?? "0.0.0.0";
-  // Stateful session ids — each new client gets a uuid that the SDK
-  // attaches to responses and requires on subsequent calls. Stateless
-  // mode is possible but loses the ability to stream incremental
-  // responses across a multi-step tool call.
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
-  // The SDK's Transport interface has a few narrowly-optional fields the
-  // StreamableHTTP transport declares as `?:`, which trips
-  // `exactOptionalPropertyTypes` at the `connect()` seam. Cast through
-  // unknown — the shapes match at runtime.
-  await args.mcp.connect(transport as unknown as Parameters<typeof args.mcp.connect>[0]);
+
+  // One Server + Transport pair PER MCP session. The StreamableHTTP
+  // transport's internal `_initialized` flag is set on the first
+  // initialize call, and the Server's own initialization state is
+  // one-shot too — a second client would be rejected with
+  // "Server already initialized." Keying both instances by session id
+  // fixes concurrent-client support.
+  const sessions = new Map<string, HttpSession>();
+
+  // Factory — builds a fresh transport+server pair and wires up the
+  // session lifecycle hooks so we can clean up when a client
+  // disconnects.
+  const createSession = async (): Promise<HttpSession> => {
+    let sessionId: string | undefined;
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id: string) => {
+        sessionId = id;
+        sessions.set(id, { mcp, transport });
+        args.logger.info("mcp.session.initialized", {
+          sessionId: id,
+          live: sessions.size,
+        });
+      },
+      onsessionclosed: (id: string) => {
+        sessions.delete(id);
+        args.logger.info("mcp.session.closed", {
+          sessionId: id,
+          live: sessions.size,
+        });
+      },
+    });
+    const mcp = args.buildMcp();
+    // The SDK's Transport interface has a few narrowly-optional fields the
+    // StreamableHTTP transport declares as `?:`, which trips
+    // `exactOptionalPropertyTypes` at the `connect()` seam. Cast through
+    // unknown — the shapes match at runtime.
+    await mcp.connect(
+      transport as unknown as Parameters<typeof mcp.connect>[0],
+    );
+    // Belt-and-suspenders cleanup: if the transport errors before the
+    // onsessionclosed hook fires (network reset mid-stream, etc.),
+    // drop the mapping so the next reconnect gets a fresh pair.
+    transport.onerror = (err: Error) => {
+      args.logger.warn("mcp.session.transport_error", {
+        sessionId,
+        error: err.message,
+      });
+      if (sessionId) sessions.delete(sessionId);
+    };
+    return { mcp, transport };
+  };
 
   const httpServer: HttpServer = createServer((req, res) => {
-    // The SDK parses the request body itself, but we read it first to
-    // support non-JSON edge cases (health probes, favicon hits). For MCP
-    // calls the transport expects raw request/response and handles
-    // everything — we just forward.
-    void transport.handleRequest(req, res).catch((err) => {
+    void dispatch(req, res).catch((err) => {
       args.logger.warn("mcp.http.handler_failed", {
         error: err instanceof Error ? err.message : String(err),
       });
@@ -86,6 +147,45 @@ async function connectHttp(
       }
     });
   });
+
+  const dispatch = async (
+    req: Parameters<typeof httpServer.listeners>[0] extends unknown
+      ? import("node:http").IncomingMessage
+      : never,
+    res: import("node:http").ServerResponse,
+  ): Promise<void> => {
+    const headerId = headerValue(req.headers["mcp-session-id"]);
+    // Existing session — route to the live transport.
+    if (headerId && sessions.has(headerId)) {
+      const session = sessions.get(headerId)!;
+      runWithSession(headerId, () => {
+        void session.transport.handleRequest(req, res).catch((err) => {
+          args.logger.warn("mcp.http.dispatch_failed", {
+            sessionId: headerId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      });
+      return;
+    }
+    // Missing / unknown session id on anything other than a POST
+    // (which is where initialize lives). The SDK will return its own
+    // 400/404 explaining the client needs to initialize first.
+    // We still build a fresh transport — otherwise the SDK can't
+    // generate the session id to hand back in the 404 response.
+    const session = await createSession();
+    // Provisional session id for the ALS wrapper; real id is assigned
+    // by the transport and stashed in `sessions` via
+    // onsessioninitialized.
+    const tempId = headerId ?? randomUUID();
+    runWithSession(tempId, () => {
+      void session.transport.handleRequest(req, res).catch((err) => {
+        args.logger.warn("mcp.http.initialize_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    });
+  };
 
   const bound = await new Promise<number>((resolve, reject) => {
     httpServer.once("error", reject);
@@ -103,11 +203,23 @@ async function connectHttp(
   return {
     kind: "http",
     port: bound,
+    sessionCount: () => sessions.size,
     async close() {
       await new Promise<void>((resolve, reject) => {
         httpServer.close((err) => (err ? reject(err) : resolve()));
       });
-      await transport.close();
+      await Promise.all(
+        [...sessions.values()].map((s) => s.transport.close().catch(() => undefined)),
+      );
+      sessions.clear();
     },
   };
+}
+
+function headerValue(raw: unknown): string | undefined {
+  if (typeof raw === "string" && raw.length > 0) return raw;
+  if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "string") {
+    return raw[0];
+  }
+  return undefined;
 }

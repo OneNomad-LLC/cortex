@@ -69,6 +69,9 @@ export const catchMeUp: McpTool<typeof inputSchema, Output> = {
         sinceIso: since.toISOString(),
         limit: input.limit,
         domain: "work",
+        ...(ctx.sessionWorkspace
+          ? { workspace: ctx.sessionWorkspace }
+          : {}),
       })
       .catch((err) => {
         ctx.logger.warn("catch_me_up.engram_failed", {

@@ -79,6 +79,10 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
       ownerSlug = person?.slug ?? input.owner;
     }
 
+    const workspaceFilter = ctx.sessionWorkspace
+      ? { workspace: ctx.sessionWorkspace }
+      : {};
+
     const [upcoming, actionMems, recentDecisions, recentBriefs, recentOther, unclassified] =
       await Promise.all([
         input.upcomingHours > 0
@@ -89,6 +93,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
                 sinceIso: now.toISOString(),
                 limit: 10,
                 domain: "work",
+                ...workspaceFilter,
               })
               .catch(() => [])
           : Promise.resolve([]),
@@ -99,6 +104,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
             sinceIso: new Date(now.getTime() - 60 * 86_400_000).toISOString(),
             limit: 60,
             domain: "work",
+            ...workspaceFilter,
           })
           .catch(() => []),
         ctx.engram
@@ -108,6 +114,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
             sinceIso: recentSince.toISOString(),
             limit: 5,
             domain: "work",
+            ...workspaceFilter,
           })
           .catch(() => []),
         ctx.engram
@@ -117,6 +124,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
             sinceIso: recentSince.toISOString(),
             limit: 5,
             domain: "work",
+            ...workspaceFilter,
           })
           .catch(() => []),
         ctx.engram
@@ -125,6 +133,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
             sinceIso: recentSince.toISOString(),
             limit: 20,
             domain: "work",
+            ...workspaceFilter,
           })
           .catch(() => []),
         input.includeUnclassified
@@ -134,6 +143,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
                 sinceIso: new Date(now.getTime() - 14 * 86_400_000).toISOString(),
                 limit: 50,
                 domain: "work",
+                ...workspaceFilter,
               })
               .catch(() => [])
           : Promise.resolve([]),

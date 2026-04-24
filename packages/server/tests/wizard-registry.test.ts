@@ -18,6 +18,7 @@ describe("wizard-registry", () => {
       "obsidian",
       "ollama",
       "openrouter",
+      "outlook",
       "pgvector",
       "slack",
       "webhooks",

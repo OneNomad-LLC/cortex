@@ -67,6 +67,7 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
         type: "meeting",
         limit: 5,
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch((err) => {
         ctx.logger.warn("catch_me_up_on_meeting.engram_failed", {
@@ -103,6 +104,7 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
         query: rootId,
         limit: 50,
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch(() => []);
 

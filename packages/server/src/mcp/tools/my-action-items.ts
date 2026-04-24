@@ -87,6 +87,7 @@ export const myActionItems: McpTool<typeof inputSchema, Output> = {
         sinceIso: since.toISOString(),
         limit: input.limit * 2, // headroom for client-side owner filter
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch((err) => {
         ctx.logger.warn("my_action_items.engram_failed", {

@@ -23,6 +23,24 @@ export interface ToolContext {
    * trails can follow a user action through ingestion.
    */
   traceId?: string;
+  /**
+   * Workspace slug this tool call is scoped to, or null when the
+   * session is in no-workspace mode. Resolved from the MCP session
+   * binding (`set_session_workspace`) with a fallback to the legacy
+   * state.json active pointer for unbound sessions. Retrieval tools
+   * filter engram searches on this; workspace-scoped write tools
+   * use `requireSessionWorkspace()` directly to throw cleanly when
+   * there's nothing bound.
+   */
+  sessionWorkspace?: string | null;
+  /**
+   * Drop cached taxonomy for a workspace so the next tool call re-
+   * reads people.yaml + projects.yaml from disk. Mutation tools
+   * (add_person, add_project, update_user_identity) call this after
+   * a successful write. Optional so tests + the stdio fallback path
+   * can omit it.
+   */
+  invalidateTaxonomy?: (workspaceSlug: string) => void;
 }
 
 /**

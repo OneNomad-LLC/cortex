@@ -69,6 +69,7 @@ export const approveResearch: McpTool<typeof inputSchema, Output> = {
         query: input.sourceId,
         limit: 10,
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       });
       const brief = matches.find((m) => {
         const meta = (m.metadata ?? {}) as Record<string, unknown>;
@@ -82,9 +83,21 @@ export const approveResearch: McpTool<typeof inputSchema, Output> = {
       if (brief) {
         reIngestAttempted = true;
         const meta = (brief.metadata ?? {}) as Record<string, unknown>;
+        // Preserve (or stamp) workspace — if the brief was ingested
+        // pre-scoping its metadata has no workspace field; keeping it
+        // absent would leak it across workspaces on re-ingest. Honor
+        // the existing value when present.
+        const nextWorkspace =
+          (typeof meta.workspace === "string" ? meta.workspace : undefined) ??
+          ctx.sessionWorkspace ??
+          undefined;
         await ctx.engram.ingest({
           content: brief.content,
-          metadata: { ...meta, status: input.status },
+          metadata: {
+            ...meta,
+            status: input.status,
+            ...(nextWorkspace ? { workspace: nextWorkspace } : {}),
+          },
         });
         reIngestSuccess = true;
       }

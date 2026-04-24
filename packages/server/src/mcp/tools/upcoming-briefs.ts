@@ -75,6 +75,9 @@ export const upcomingBriefs: McpTool<typeof inputSchema, Output> = {
         sinceIso: now.toISOString(),
         limit: input.limit * 3,
         domain: "work",
+        ...(ctx.sessionWorkspace
+          ? { workspace: ctx.sessionWorkspace }
+          : {}),
       })
       .catch((err) => {
         ctx.logger.warn("upcoming_briefs.events_fetch_failed", {
@@ -103,6 +106,7 @@ export const upcomingBriefs: McpTool<typeof inputSchema, Output> = {
         engram: ctx.engram,
         projectSlug: eventProject,
         since: new Date(now.getTime() - 30 * 86_400_000),
+        sessionWorkspace: ctx.sessionWorkspace,
       });
 
       const peopleRaw = memory.metadata?.people;
@@ -175,12 +179,14 @@ async function gatherContext(args: {
   engram: EngramClient;
   projectSlug: string | undefined;
   since: Date;
+  sessionWorkspace: string | null | undefined;
 }): Promise<EventBrief["context"]> {
   const sinceIso = args.since.toISOString();
   const common = {
     sinceIso,
     domain: "work",
     ...(args.projectSlug ? { project: args.projectSlug } : {}),
+    ...(args.sessionWorkspace ? { workspace: args.sessionWorkspace } : {}),
   };
 
   const [meetings, actionItems, docs, decisions] = await Promise.all([

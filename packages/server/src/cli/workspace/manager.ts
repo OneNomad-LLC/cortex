@@ -127,15 +127,52 @@ export async function createWorkspace(opts: {
     await copyConfigDir(sourceRoot, ws.path);
     await copyEnvFile(sourceRoot, ws.path);
   } else {
-    // Blank slate — write a placeholder so the workspace is visible
-    // to `listWorkspaces` and doesn't look half-created.
+    // Blank slate — seed a minimum-viable cortex.yaml that actually
+    // boots the server. A comments-only placeholder parses to null
+    // and crashes schema validation on startup, which is a terrible
+    // first-run experience. This template has enough shape to load
+    // but leaves provider/adapter config for the dashboard wizard.
+    await writeFile(ws.configPath, bootstrapConfigTemplate(), "utf8");
+    // Seed an empty .env so secret writes (merge-append mode) have a
+    // target without needing to mkdir -p later.
     await writeFile(
-      ws.configPath,
-      "# New workspace — run `cortex init` to populate.\n",
+      ws.envPath,
+      "# Secrets land here. Filled in by wizards + `update_user_identity`.\n",
       "utf8",
     );
   }
   return ws;
+}
+
+/**
+ * Minimum cortex.yaml that parses cleanly against cortexConfigSchema
+ * and leaves the server bootable. No providers configured yet — the
+ * runtime logs a "no provider enabled" warning but keeps running so
+ * the user can reach the dashboard to finish setup.
+ */
+export function bootstrapConfigTemplate(): string {
+  return [
+    "# New workspace bootstrap — cortex boots against this, but nothing",
+    "# actually ingests or classifies until you finish setup.",
+    "# Open http://localhost:3030/setup (or wherever your dashboard is)",
+    "# and enable an LLM provider + at least one adapter.",
+    "",
+    "llm:",
+    "  providers: {}",
+    "  tasks:",
+    "    default: { provider: openrouter, model: \"anthropic/claude-haiku-4.5\" }",
+    "",
+    "memory:",
+    "  primary: engram",
+    "",
+    "api:",
+    "  enabled: true",
+    "  host: \"0.0.0.0\"",
+    "  port: 4141",
+    "",
+    "adapters: {}",
+    "",
+  ].join("\n");
 }
 
 export async function removeWorkspace(slug: string): Promise<void> {

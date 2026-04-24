@@ -728,4 +728,197 @@ Options considered:
 
 ---
 
+## ADR-017: Docker + Tailscale as the primary run path (2026-04-23)
+
+**Status**: Accepted
+
+**Context**: Cortex started as "install globally with `npm install -g
+@onenomad/cortex`, run `cortex start` on your laptop." On Windows
+that story broke repeatedly: PowerShell's `Start-Process` detach
+semantics, console-job cascades that killed "detached" children when
+the parent terminal closed, and the `spawnSync` hangs that motivated
+this ADR. Matt's laptop sleeps, closes, moves — an always-on daemon
+on the laptop is the wrong shape anyway.
+
+Options considered:
+
+- **A. Keep the npm-global path, fight the Windows detach story.**
+  Possible but fragile; every future CLI change risks re-breaking the
+  process tree on Windows. Net sink.
+- **B. Force systemd on Linux only, Mac launchd, Windows service.**
+  Three separate per-OS daemons with different failure modes. High
+  maintenance cost for a single-user project.
+- **C. Docker + docker compose as the primary run path; `cortex
+  start` becomes a foreground-only dev command.** One container
+  topology works identically on laptop, VPS, and CI. Chosen.
+
+**Decision**:
+
+- **Docker compose is the primary run path.** `packages/server/Dockerfile`
+  and `packages/dashboard/Dockerfile` produce two images; a single
+  `docker-compose.yml` wires them with a bind-mount for workspace
+  state. The CLI ships `cortex up / down / logs` as thin
+  `docker compose` wrappers so users don't have to remember flags.
+
+- **`cortex start` is foreground-only now.** It boots Cortex in the
+  current terminal, spawns the Next.js dashboard as a child (the
+  old auto-start behavior), and dies on Ctrl+C. No PID file, no
+  detach, no `stop` / `restart` CLI commands — `cortex up` / `down`
+  cover the daemon case. The detach plumbing (detach.ts,
+  pid-file.ts, restart.ts) is removed.
+
+- **Workspace state bind-mounts to `CORTEX_HOME_HOST`.** The user
+  points the env var at a host path (default `./.cortex-data`).
+  Workspaces, OAuth tokens, and engram/persona LanceDB data all
+  persist there. Matt can point it at his existing `~/.cortex` to
+  reuse workspaces he already built.
+
+- **Dashboard is its own compose service.** Not a child process of
+  cortex. Lets the dashboard restart independently, exposes
+  `docker compose logs dashboard` as a first-class command, and
+  gives a clean "one process per responsibility" topology.
+
+- **Recommended remote deploy path: Docker on a VPS behind
+  Tailscale.** ADR-005 already named Hetzner + Tailscale as the
+  hosting target; this ADR is the concrete "how." Tailscale keeps
+  the dashboard and MCP endpoints private without requiring an
+  auth layer in front. Documented in `docs/DEPLOY.md`.
+
+- **Default LLM flips to OpenRouter.** Ollama was the default when
+  Cortex assumed a local GPU box. A VPS has no GPU, so OpenRouter
+  (BYOK cloud aggregator) is the default for new setups; Ollama
+  stays as an opt-in toggle for users with local hardware.
+
+**Consequences**:
+
+- Users need Docker installed. That's a real barrier compared to
+  npm-global, but it's a one-time barrier — every other layer of
+  the system gets simpler afterwards.
+- Windows users aren't second-class anymore. The container runs
+  identically on Docker Desktop (Windows/Mac) and native Linux.
+- The `@onenomad/cortex` npm package still ships for folks who want
+  to embed Cortex as a library or run it in their own orchestrator,
+  but the documented path is `docker compose up`.
+- Obsidian adapter (Phase 9) now needs a filesystem bridge —
+  either a second bind mount for the vault path or a sidecar that
+  streams vault changes to the VPS over Tailscale. Deferred; the
+  adapter isn't built yet.
+
+---
+
+## ADR-018: Session-scoped workspaces via AsyncLocalStorage (2026-04-23)
+
+**Status**: Accepted
+
+**Context**: Pre-ADR-017 Cortex ran as a per-user npm-global CLI — one
+user, one process, one "active workspace" tracked in `~/.cortex/state.json`.
+ADR-017 flipped that: Cortex now runs as a shared container, and
+multiple Claude clients (Claude Code on laptop, Claude Desktop, the
+browser extension, another Claude Code session in a different repo)
+all connect to the *same* MCP server process concurrently.
+
+The "one active workspace per process" model is wrong for that topology.
+Matt has `onenomad` and `elevatedigital` workspaces; a Claude Code
+session inside `~/work/onenomad` should see onenomad memories, while a
+second session inside `~/work/elevate` should see elevatedigital
+memories — simultaneously, in the same server process.
+
+Tools that read per-workspace state:
+- Memory search (project taxonomy, ingest, search filters)
+- Identity + user profile (`update_user_identity`, `get_user_identity`)
+- Adapter config (which adapters enabled, tokens, schedules)
+- Action items + briefs + digests (workspace-filtered search)
+
+Options considered:
+
+- **A. Workspace as an explicit parameter on every tool.** Rejected:
+  Claude would have to thread the slug through every call — ergonomic
+  regression and a new vector for "Claude forgot to pass it and got
+  the wrong workspace's data." MCP tool schemas are supposed to stay
+  small.
+- **B. Per-session MCP servers (one subprocess per client).** Rejected:
+  contradicts ADR-017's container story, quintuples memory footprint,
+  and the browser extension's WS bridge needs exactly one process.
+- **C. AsyncLocalStorage-propagated session id, looked up against an
+  in-memory map of SessionState.** Chosen. The MCP streamable HTTP
+  transport already carries `mcp-session-id` per request; bind it at
+  the transport seam and every tool handler can read it implicitly.
+
+**Decision**:
+
+- **`packages/server/src/session-context.ts`** owns the primitive:
+  an `AsyncLocalStorage<{ sessionId }>` paired with a
+  `Map<sessionId, SessionState>`. `SessionState.workspace` is
+  `string | null | undefined` — undefined = never picked (fall back
+  to the state.json active pointer, backwards compat), null = user
+  explicitly chose "no workspace", string = bound.
+
+- **HTTP transport (`transport.ts`)** wraps every `handleRequest` in
+  `runWithSession(sessionId, ...)` so per-request ALS scoping works.
+  Concurrent requests stay isolated because `ALS.run` is callback-
+  scoped.
+
+- **Stdio transport** uses `enterSession(sessionId)` at startup
+  (`ALS.enterWith`) because the MCP SDK owns the stdin read loop —
+  we can't wrap individual tool calls. Stdio is one subprocess =
+  one client = one workspace for the process lifetime, so persistent
+  context is the right shape.
+
+- **Two new MCP tools**: `get_session_workspace` and
+  `set_session_workspace`. The system prompt tells Claude to call
+  `get_session_workspace` first every conversation; if unbound,
+  prompt the user with `list_workspaces` output and bind their
+  choice via `set_session_workspace`.
+
+- **`session-workspace-helpers.ts`** bridges the session binding to
+  the on-disk workspace manager. `requireSessionWorkspace()` throws
+  a clear error when nothing is resolvable; `maybeSessionWorkspace()`
+  returns null for tools that can degrade gracefully. Resolution
+  order: session binding → state.json active pointer → error.
+
+- **`TaxonomyCache`** holds a per-workspace `LoadedTaxonomy` lazily,
+  keyed by slug. Hit from the MCP server's per-call context setup:
+  the tool sees the taxonomy for its session's workspace, not a
+  process-global taxonomy. Mutation tools (`add_person`,
+  `add_project`, `update_user_identity`) call
+  `ctx.invalidateTaxonomy(slug)` after writing so the next read
+  re-loads from disk. In-flight promise dedup prevents thundering
+  herd on first concurrent access.
+
+- **Engram search filter is client-side**: `filterByWorkspace(rows,
+  slug)` runs after engram returns. Engram has no concept of Cortex
+  workspaces and we don't want it to — the filter is a Cortex
+  concern. Legacy memories (no `workspace` field in metadata) pass
+  through so pre-scoping ingests remain findable. Ingest stamps
+  `metadata.workspace` going forward.
+
+- **Session GC** runs hourly, evicting sessions last seen >24h ago.
+  Prevents the map from growing unbounded as ephemeral clients
+  come and go.
+
+**Consequences**:
+
+- The first tool call in a new Claude conversation is
+  `get_session_workspace`. That's one extra round-trip per session,
+  acceptable for the isolation guarantee.
+- Old clients that haven't learned the `get_session_workspace` flow
+  still work via the state.json fallback — `cortex workspace switch`
+  still flips the default. New clients (system prompt updated) pick
+  per-session.
+- Tests are the only callers that currently invoke `enterSession`
+  directly; HTTP uses `runWithSession`. Keeping the two separate is
+  intentional — `enterWith` in the HTTP path would leak context
+  across requests.
+- Schedulers + webhook handlers + cron ticks have no ALS context,
+  so they fall back to the state.json active pointer. For now
+  that's acceptable — cron is inherently process-global in scope.
+  A future ADR will revisit if we need per-workspace schedulers
+  (probably via spawning one cron loop per workspace).
+- Memory footprint: one `SessionState` is a few bytes; the
+  taxonomy cache holds two YAML trees per active workspace — a
+  few KB each. Bounded by `workspaces * sessions seen in the
+  last 24h`, which for a personal deployment is `O(10)`. Fine.
+
+---
+
 _Add new ADRs below this line._

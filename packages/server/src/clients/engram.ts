@@ -29,6 +29,14 @@ export interface EngramSearchArgs {
   sinceIso?: string;
   /** Domain to search within. Cortex uses "work". */
   domain?: string;
+  /**
+   * Workspace slug filter. Matches the `workspace` tag stamped on
+   * memories at ingest. When provided, results with a *different*
+   * workspace are excluded; results WITHOUT a workspace field (pre-
+   * session-scoping ingests) still pass so legacy memories remain
+   * findable.
+   */
+  workspace?: string;
 }
 
 export interface EngramMemory {
@@ -43,6 +51,25 @@ export interface EngramMemory {
 export interface EngramClient extends EngramAccess {
   search(args: EngramSearchArgs): Promise<EngramMemory[]>;
   shutdown(): Promise<void>;
+}
+
+/**
+ * Workspace-scoped filter applied after Engram returns results. Engram
+ * doesn't know about Cortex's `workspace` metadata — so the filter runs
+ * client-side here. Memories WITHOUT a workspace field pass through so
+ * legacy (pre-session-scoping) ingests remain findable. Exported for
+ * tests and re-use.
+ */
+export function filterByWorkspace(
+  rows: EngramMemory[],
+  workspace: string | undefined,
+): EngramMemory[] {
+  if (!workspace) return rows;
+  return rows.filter((row) => {
+    const meta = (row.metadata ?? {}) as Record<string, unknown>;
+    const w = typeof meta.workspace === "string" ? meta.workspace : undefined;
+    return w === undefined || w === workspace;
+  });
 }
 
 /**
@@ -82,6 +109,9 @@ function buildClient(sub: McpSubprocess, logger: Logger): EngramClient {
 
   return {
     async ingest(input) {
+      // 5-minute timeout: CPU embeddings + LanceDB write on large files
+      // can exceed the SDK's 60s default. Real deadlocks still surface,
+      // just after a longer grace period.
       const res = await callJsonTool<{ id?: string } | string>(
         sub.client,
         "memory_ingest",
@@ -89,6 +119,7 @@ function buildClient(sub: McpSubprocess, logger: Logger): EngramClient {
           content: input.content,
           metadata: input.metadata,
         },
+        { timeoutMs: 300_000 },
       );
       lastSuccessAt = Date.now();
       const id =
@@ -116,8 +147,8 @@ function buildClient(sub: McpSubprocess, logger: Logger): EngramClient {
       } | EngramMemory[]>(sub.client, "memory_search", payload);
       lastSuccessAt = Date.now();
 
-      if (Array.isArray(res)) return res;
-      return res?.memories ?? [];
+      const raw = Array.isArray(res) ? res : (res?.memories ?? []);
+      return filterByWorkspace(raw, args.workspace);
     },
 
     async healthCheck(): Promise<HealthStatus> {

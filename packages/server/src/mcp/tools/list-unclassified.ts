@@ -58,6 +58,7 @@ export const listUnclassified: McpTool<typeof inputSchema, Output> = {
         sinceIso: since.toISOString(),
         limit: input.limit * 3,
         domain: "work",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch((err) => {
         ctx.logger.warn("list_unclassified.engram_failed", {
