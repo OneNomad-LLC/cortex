@@ -1,5 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { parseDotEnv } from "./cli/dotenv.js";
 
 /**
  * Per-MCP-session context.
@@ -37,10 +41,110 @@ export interface SessionState {
   firstSeenAt: number;
   /** Last time we received a tool call on this session. */
   lastSeenAt: number;
+  /**
+   * Per-session env bag loaded from the bound workspace's .env at bind
+   * time. Tools that need workspace-scoped secrets should call
+   * `getSessionEnvVar(name)` instead of reading process.env directly —
+   * that way two sessions bound to two workspaces don't see each
+   * other's secrets. Not persisted to disk (it's reloadable from the
+   * workspace's .env).
+   */
+  envBag?: Map<string, string>;
 }
 
 const sessionStates = new Map<string, SessionState>();
 const contextStorage = new AsyncLocalStorage<{ sessionId: string }>();
+
+/**
+ * Where session bindings get persisted across server restarts. Docker
+ * deploys run the server as a long-lived container; a crash or redeploy
+ * wipes in-memory state otherwise, silently unbinding every live
+ * Claude session. Skip persistence entirely by setting
+ * `CORTEX_SESSION_STATE_PATH=`.
+ */
+function sessionStatePath(): string | undefined {
+  const explicit = process.env.CORTEX_SESSION_STATE_PATH;
+  if (explicit === "") return undefined;
+  if (explicit) return explicit;
+  return path.join(os.homedir(), ".cortex", "sessions.json");
+}
+
+let persistTimer: NodeJS.Timeout | undefined;
+
+/**
+ * Debounce on-disk writes. A bursty series of set_session_workspace
+ * calls from a client setting up multiple sessions coalesces into one
+ * disk write after 500ms of quiet. Timer is reset on every schedule.
+ */
+function schedulePersist(): void {
+  const p = sessionStatePath();
+  if (!p) return;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    void persistSessionStates(p).catch(() => undefined);
+  }, 500);
+  persistTimer.unref?.();
+}
+
+async function persistSessionStates(p: string): Promise<void> {
+  const serializable = [...sessionStates.entries()].map(([id, s]) => ({
+    id,
+    workspace: s.workspace === undefined ? null : s.workspace,
+    hadWorkspace: s.workspace !== undefined,
+    firstSeenAt: s.firstSeenAt,
+    lastSeenAt: s.lastSeenAt,
+  }));
+  await mkdir(path.dirname(p), { recursive: true });
+  const tmp = `${p}.tmp.${process.pid}`;
+  await writeFile(tmp, JSON.stringify({ sessions: serializable }, null, 2), "utf8");
+  await rename(tmp, p);
+}
+
+/**
+ * Called once at server startup. Rehydrates sessionStates from the
+ * persisted file so clients reconnecting after a restart keep their
+ * workspace binding. Sessions older than `maxAgeMs` are dropped.
+ */
+export async function restoreSessionStates(
+  maxAgeMs = 24 * 60 * 60 * 1000,
+): Promise<number> {
+  const p = sessionStatePath();
+  if (!p) return 0;
+  let raw: string;
+  try {
+    raw = await readFile(p, "utf8");
+  } catch {
+    return 0;
+  }
+  let parsed: {
+    sessions?: Array<{
+      id: string;
+      workspace: string | null;
+      hadWorkspace?: boolean;
+      firstSeenAt: number;
+      lastSeenAt: number;
+    }>;
+  };
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return 0;
+  }
+  const cutoff = Date.now() - maxAgeMs;
+  let restored = 0;
+  for (const s of parsed.sessions ?? []) {
+    if (s.lastSeenAt < cutoff) continue;
+    sessionStates.set(s.id, {
+      workspace: s.hadWorkspace === false ? undefined : s.workspace,
+      firstSeenAt: s.firstSeenAt,
+      lastSeenAt: s.lastSeenAt,
+      // envBag is intentionally not restored — reloaded lazily on
+      // first tool call that touches the bound workspace.
+    });
+    restored++;
+  }
+  return restored;
+}
 
 /**
  * Extract the MCP session id from an incoming HTTP request. Falls
@@ -92,6 +196,8 @@ function touchSession(sessionId: string): void {
       lastSeenAt: now,
     });
   }
+  // lastSeenAt changes on every request — debounce covers the burst.
+  schedulePersist();
 }
 
 /** Current session id, or undefined when outside an ALS context. */
@@ -123,8 +229,33 @@ export function setSessionWorkspace(
   };
   state.workspace = workspace;
   state.lastSeenAt = Date.now();
+  // Reload env bag on binding change. Keeps per-session secrets scoped
+  // to the newly-bound workspace; null workspace clears the bag.
+  if (typeof workspace === "string") {
+    const root =
+      process.env.CORTEX_WORKSPACES_ROOT ??
+      path.join(os.homedir(), ".cortex", "workspaces");
+    const envPath = path.join(root, workspace, ".env");
+    state.envBag = parseDotEnv(envPath);
+  } else {
+    delete state.envBag;
+  }
   sessionStates.set(sessionId, state);
+  schedulePersist();
   return state;
+}
+
+/**
+ * Workspace-scoped env accessor. Reads the current session's envBag
+ * first, falling back to `process.env` so tools unaware of session
+ * scoping still work. Tools that handle workspace-specific secrets
+ * (API keys, etc.) should prefer this over `process.env[name]`.
+ */
+export function getSessionEnvVar(name: string): string | undefined {
+  const bag = getCurrentSessionState()?.envBag;
+  const fromBag = bag?.get(name);
+  if (fromBag !== undefined && fromBag !== "") return fromBag;
+  return process.env[name];
 }
 
 /** Read the workspace for the current ALS-bound session. */
@@ -153,5 +284,6 @@ export function evictStaleSessions(olderThanMs: number): number {
       removed += 1;
     }
   }
+  if (removed > 0) schedulePersist();
   return removed;
 }

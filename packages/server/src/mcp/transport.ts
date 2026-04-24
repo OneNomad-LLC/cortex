@@ -84,6 +84,36 @@ async function connectHttp(
   }
   const host = process.env.CORTEX_MCP_HOST ?? "0.0.0.0";
 
+  // Optional shared-secret auth. When CORTEX_MCP_AUTH_TOKEN is set,
+  // every HTTP request must carry `Authorization: Bearer <token>`.
+  // The StreamableHTTP session id is a 128-bit randomUUID minted by
+  // the SDK, but sessions are keyed in-memory and the header is
+  // client-supplied on the wire — a bearer token is the cheap
+  // defense when the MCP port is exposed beyond localhost. Use a
+  // constant-time comparison so an attacker can't time-sidechannel
+  // the valid token.
+  const authToken = process.env.CORTEX_MCP_AUTH_TOKEN;
+  if (authToken && authToken.length < 16) {
+    throw new Error(
+      "CORTEX_MCP_AUTH_TOKEN must be at least 16 chars of entropy. " +
+        "Generate one with `openssl rand -hex 32`.",
+    );
+  }
+  const authOk = (req: import("node:http").IncomingMessage): boolean => {
+    if (!authToken) return true;
+    const header = headerValue(req.headers["authorization"]);
+    if (!header) return false;
+    const match = /^Bearer\s+(.+)$/i.exec(header);
+    if (!match) return false;
+    const supplied = match[1]!;
+    if (supplied.length !== authToken.length) return false;
+    let diff = 0;
+    for (let i = 0; i < authToken.length; i++) {
+      diff |= authToken.charCodeAt(i) ^ supplied.charCodeAt(i);
+    }
+    return diff === 0;
+  };
+
   // One Server + Transport pair PER MCP session. The StreamableHTTP
   // transport's internal `_initialized` flag is set on the first
   // initialize call, and the Server's own initialization state is
@@ -154,6 +184,15 @@ async function connectHttp(
       : never,
     res: import("node:http").ServerResponse,
   ): Promise<void> => {
+    if (!authOk(req)) {
+      args.logger.warn("mcp.http.auth_rejected", {
+        ip: req.socket.remoteAddress ?? "unknown",
+      });
+      res.statusCode = 401;
+      res.setHeader("WWW-Authenticate", "Bearer");
+      res.end("unauthorized");
+      return;
+    }
     const headerId = headerValue(req.headers["mcp-session-id"]);
     // Existing session — route to the live transport.
     if (headerId && sessions.has(headerId)) {

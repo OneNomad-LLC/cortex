@@ -15,7 +15,39 @@ import { ensureLocalCopy } from "./cli/config-mutation.js";
  * Reads and writes go through `ensureLocalCopy` so edits land in the
  * `.local.yaml` overlay (the one the loader actually reads) rather
  * than the committed template.
+ *
+ * Concurrency: upsertPerson / upsertProject / markSelf are
+ * read-modify-write against YAML files. Two concurrent tool calls on
+ * the same workspace would race (both read the pre-patch state, each
+ * writes its own, last-write-wins swallows the earlier update). The
+ * per-workspace `runLocked` serializes all mutations in this module
+ * keyed by the workspace root path. Reads are unlocked — YAML parses
+ * are safe against the atomic writer on the other side.
  */
+
+/**
+ * Per-workspace promise chain. Each `runLocked` appends a task to the
+ * chain for that workspace; concurrent tasks wait for the prior one
+ * to settle before running. In-process only — cross-process (multiple
+ * Cortex instances hitting the same workspace dir) would still race
+ * and needs a file lock, which we don't have yet.
+ */
+const mutationLocks = new Map<string, Promise<unknown>>();
+
+async function runLocked<T>(
+  key: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const prev = mutationLocks.get(key) ?? Promise.resolve();
+  const next = prev.then(task, task);
+  // Keep the chain alive only while the tail is still pending; once
+  // done, clear it so we don't pin errored promises in the map.
+  mutationLocks.set(key, next);
+  next.finally(() => {
+    if (mutationLocks.get(key) === next) mutationLocks.delete(key);
+  }).catch(() => undefined);
+  return next;
+}
 
 export interface TaxonomyPaths {
   /** Workspace root (active workspace path). Files live under config/. */
@@ -71,89 +103,96 @@ export async function writeProjects(
 
 /**
  * Upsert a person by slug. Returns the merged entry and whether it
- * was newly created.
+ * was newly created. Serialized per-workspace.
  */
 export async function upsertPerson(
   paths: TaxonomyPaths,
   patch: Partial<Person> & { slug: string },
 ): Promise<{ person: Person; created: boolean }> {
-  const people = await readPeople(paths);
-  const idx = people.findIndex((p) => p.slug === patch.slug);
-  const base: Person =
-    idx >= 0
-      ? people[idx]!
-      : {
-          slug: patch.slug,
-          name: patch.name ?? patch.slug,
-          email: patch.email ?? `${patch.slug}@unknown`,
-          projects: [],
-          aliases: [],
-        };
-  const merged: Person = {
-    ...base,
-    ...patch,
-    projects: patch.projects ?? base.projects,
-    aliases: patch.aliases ?? base.aliases,
-  };
-  if (idx >= 0) {
-    people[idx] = merged;
-  } else {
-    people.push(merged);
-  }
-  await writePeople(paths, people);
-  return { person: merged, created: idx < 0 };
+  return runLocked(paths.repoRoot, async () => {
+    const people = await readPeople(paths);
+    const idx = people.findIndex((p) => p.slug === patch.slug);
+    const base: Person =
+      idx >= 0
+        ? people[idx]!
+        : {
+            slug: patch.slug,
+            name: patch.name ?? patch.slug,
+            email: patch.email ?? `${patch.slug}@unknown`,
+            projects: [],
+            aliases: [],
+          };
+    const merged: Person = {
+      ...base,
+      ...patch,
+      projects: patch.projects ?? base.projects,
+      aliases: patch.aliases ?? base.aliases,
+    };
+    if (idx >= 0) {
+      people[idx] = merged;
+    } else {
+      people.push(merged);
+    }
+    await writePeople(paths, people);
+    return { person: merged, created: idx < 0 };
+  });
 }
 
 /**
- * Upsert a project by slug. Same semantics as upsertPerson.
+ * Upsert a project by slug. Same semantics as upsertPerson. Serialized
+ * per-workspace.
  */
 export async function upsertProject(
   paths: TaxonomyPaths,
   patch: Partial<Project> & { slug: string },
 ): Promise<{ project: Project; created: boolean }> {
-  const projects = await readProjects(paths);
-  const idx = projects.findIndex((p) => p.slug === patch.slug);
-  const base: Project =
-    idx >= 0
-      ? projects[idx]!
-      : {
-          slug: patch.slug,
-          name: patch.name ?? patch.slug,
-          active: patch.active ?? true,
-          description: patch.description ?? "",
-          aliases: [],
-          people: [],
-          sources: {},
-        };
-  const merged: Project = {
-    ...base,
-    ...patch,
-    aliases: patch.aliases ?? base.aliases,
-    people: patch.people ?? base.people,
-    sources: patch.sources ?? base.sources,
-  };
-  if (idx >= 0) {
-    projects[idx] = merged;
-  } else {
-    projects.push(merged);
-  }
-  await writeProjects(paths, projects);
-  return { project: merged, created: idx < 0 };
+  return runLocked(paths.repoRoot, async () => {
+    const projects = await readProjects(paths);
+    const idx = projects.findIndex((p) => p.slug === patch.slug);
+    const base: Project =
+      idx >= 0
+        ? projects[idx]!
+        : {
+            slug: patch.slug,
+            name: patch.name ?? patch.slug,
+            active: patch.active ?? true,
+            description: patch.description ?? "",
+            aliases: [],
+            people: [],
+            sources: {},
+          };
+    const merged: Project = {
+      ...base,
+      ...patch,
+      aliases: patch.aliases ?? base.aliases,
+      people: patch.people ?? base.people,
+      sources: patch.sources ?? base.sources,
+    };
+    if (idx >= 0) {
+      projects[idx] = merged;
+    } else {
+      projects.push(merged);
+    }
+    await writeProjects(paths, projects);
+    return { project: merged, created: idx < 0 };
+  });
 }
 
 /**
  * Clear `self: true` on any other person and set it on the given
  * slug. Used by update_user_identity so we maintain the invariant
- * that exactly one person is flagged as self.
+ * that exactly one person is flagged as self. Serialized per-workspace.
  */
 export async function markSelf(
   paths: TaxonomyPaths,
   slug: string,
 ): Promise<void> {
-  const people = await readPeople(paths);
-  for (const p of people) {
-    if (p.slug === slug) p.self = true;
-    else if (p.self) p.self = false;
-  }
-  await writePeople(paths, people);
+  await runLocked(paths.repoRoot, async () => {
+    const people = await readPeople(paths);
+    for (const p of people) {
+      if (p.slug === slug) p.self = true;
+      else if (p.self) p.self = false;
+    }
+    await writePeople(paths, people);
+  });
 }

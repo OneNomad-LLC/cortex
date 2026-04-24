@@ -19,6 +19,32 @@ export function findRepoRoot(startDir: string): string {
 }
 
 /**
+ * Parse a KEY=VALUE .env file into a Map without touching process.env.
+ * Used when we need to load per-workspace secrets into a session-
+ * scoped bag instead of mutating globals. Returns an empty Map if the
+ * file is missing or unreadable.
+ */
+export function parseDotEnv(p: string): Map<string, string> {
+  const result = new Map<string, string>();
+  let text: string;
+  try {
+    text = readFileSync(p, "utf8");
+  } catch {
+    return result;
+  }
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 0) continue;
+    const key = line.slice(0, eq).trim();
+    const value = unquote(line.slice(eq + 1).trim());
+    if (key) result.set(key, value);
+  }
+  return result;
+}
+
+/**
  * Minimal KEY=VALUE parser. Dedicated dotenv would be overkill for a
  * one-time read.
  *
@@ -26,21 +52,10 @@ export function findRepoRoot(startDir: string): string {
  * so a user's shell export still wins over the on-disk .env.
  */
 export function loadDotEnv(p: string): void {
-  try {
-    const text = readFileSync(p, "utf8");
-    for (const raw of text.split(/\r?\n/)) {
-      const line = raw.trim();
-      if (!line || line.startsWith("#")) continue;
-      const eq = line.indexOf("=");
-      if (eq < 0) continue;
-      const key = line.slice(0, eq).trim();
-      const value = unquote(line.slice(eq + 1).trim());
-      if (key && !process.env[key]) {
-        process.env[key] = value;
-      }
+  for (const [key, value] of parseDotEnv(p)) {
+    if (!process.env[key]) {
+      process.env[key] = value;
     }
-  } catch {
-    // non-fatal
   }
 }
 

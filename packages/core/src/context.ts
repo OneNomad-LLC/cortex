@@ -72,12 +72,26 @@ export interface LLMAccess {
  */
 export interface EngramAccess {
   ingest(input: EngramIngestInput): Promise<{ id: string }>;
+  /**
+   * Remove a memory by its stable source_id (the same key ingest
+   * dedupes on). Returns the number of rows removed — 0 if the id
+   * was never ingested, which callers should treat as success.
+   * Optional so test doubles and historical clients can omit it.
+   */
+  delete?(input: EngramDeleteInput): Promise<{ deleted: number }>;
   healthCheck(): Promise<HealthStatus>;
 }
 
 export interface EngramIngestInput {
   content: string;
   metadata: Record<string, unknown>;
+}
+
+export interface EngramDeleteInput {
+  /** Remove by stable source_id. Exactly one of `sourceId` / `id` required. */
+  sourceId?: string;
+  /** Remove by backend-assigned uuid. */
+  id?: string;
 }
 
 /**

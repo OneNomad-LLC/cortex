@@ -28,7 +28,11 @@ import type { AnyMcpTool, ToolContext } from "./tool.js";
 import { loadPrivateModules } from "../private-modules.js";
 import { resolveSessionWorkspaceSlug } from "../session-workspace-helpers.js";
 import { TaxonomyCache } from "../taxonomy-cache.js";
-import { evictStaleSessions, sessionCount } from "../session-context.js";
+import {
+  evictStaleSessions,
+  restoreSessionStates,
+  sessionCount,
+} from "../session-context.js";
 
 /**
  * Register the shared ListTools + CallTool handlers on a Server
@@ -127,6 +131,14 @@ export async function startServer(): Promise<void> {
 
   logger.info("startup.begin", { configPath });
   const cfg = await loadCortexConfig(configPath);
+
+  // Rehydrate session→workspace bindings from the last run. Dropping
+  // sessions older than 24h keeps the file bounded; anything active
+  // in the last day keeps its binding across server restarts.
+  const restored = await restoreSessionStates().catch(() => 0);
+  if (restored > 0) {
+    logger.info("sessions.restored", { count: restored });
+  }
 
   const repoRoot = path.resolve(path.dirname(configPath), "..");
   const taxonomy = await loadTaxonomy({
