@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-cache-sqlite": "workspace:*",
     "@onenomad/cortex-adapter-sdk": "workspace:*",
     "@onenomad/cortex-github-auth": "workspace:*",
     "@onenomad/cortex-google-auth": "workspace:*",
@@ -61,7 +62,7 @@
     "@onenomad/cortex-adapter-obsidian": "workspace:*",
     "@onenomad/cortex-adapter-outlook": "workspace:*",
     "@onenomad/cortex-adapter-slack": "workspace:*",
-    "@onenomad/engram-memory": "^1.0.0-beta.8",
+    "@onenomad/engram-memory": "1.0.0-beta.13",
     "@onenomad/persona-mcp": "^1.0.0-beta.6",
     "@inquirer/prompts": "^7.0.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
