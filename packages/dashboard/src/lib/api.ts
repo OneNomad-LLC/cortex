@@ -65,3 +65,38 @@ export async function fetchLayoutServer<T>(): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+/**
+ * Invoke a Cortex MCP tool from a client component. Posts to the
+ * sidecar's tool endpoint via the same `/api/cortex/*` rewrite the
+ * widget fetchers use, and unwraps the `{ result, error }` envelope
+ * the sidecar returns.
+ *
+ * Throws when the response is non-2xx OR when the envelope is missing
+ * `result` (server convention: tools that succeed always populate
+ * `result`, even if the value is `null`).
+ */
+export async function invokeMcpTool<T>(
+  name: string,
+  input: Record<string, unknown>,
+): Promise<T> {
+  const r = await fetch(
+    `/api/cortex/mcp/tools/${encodeURIComponent(name)}/invoke`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input }),
+    },
+  );
+  const body = (await r.json().catch(() => ({}))) as {
+    result?: T;
+    error?: string;
+  };
+  if (!r.ok) {
+    throw new Error(body.error ?? `${r.status} ${r.statusText}`);
+  }
+  if (body.result === undefined) {
+    throw new Error("missing result");
+  }
+  return body.result;
+}

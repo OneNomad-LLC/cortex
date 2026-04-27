@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { invokeMcpTool } from "@/lib/api";
 
 import { ProjectsTab } from "./projects-tab";
 import { PeopleTab } from "./people-tab";
@@ -101,31 +102,6 @@ interface JobProfileResponse {
   profile?: JobProfile;
   missing: string[];
   path: string;
-}
-
-async function invokeMcpTool<T>(
-  name: string,
-  input: Record<string, unknown>,
-): Promise<T> {
-  const r = await fetch(
-    `/api/cortex/mcp/tools/${encodeURIComponent(name)}/invoke`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ input }),
-    },
-  );
-  const body = (await r.json().catch(() => ({}))) as {
-    result?: T;
-    error?: string;
-  };
-  if (!r.ok) {
-    throw new Error(body.error ?? `${r.status} ${r.statusText}`);
-  }
-  if (body.result === undefined) {
-    throw new Error("missing result");
-  }
-  return body.result;
 }
 
 function IdentityTab(): React.JSX.Element {

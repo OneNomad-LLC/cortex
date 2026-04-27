@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { invokeMcpTool } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -135,22 +136,11 @@ function SearchPanel(): React.JSX.Element {
         const d = new Date(filters.since);
         if (!Number.isNaN(d.getTime())) input.since = d.toISOString();
       }
-      const r = await fetch(
-        "/api/cortex/mcp/tools/search_related/invoke",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ input }),
-        },
+      const result = await invokeMcpTool<SearchOutput>(
+        "search_related",
+        input,
       );
-      const body = (await r.json().catch(() => ({}))) as {
-        result?: SearchOutput;
-        error?: string;
-      };
-      if (!r.ok || !body.result) {
-        throw new Error(body.error ?? `${r.status} ${r.statusText}`);
-      }
-      setOutput(body.result);
+      setOutput(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setOutput(undefined);
