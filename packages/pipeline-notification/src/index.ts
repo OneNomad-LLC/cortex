@@ -20,3 +20,13 @@ export {
   type TemplateName,
   type TemplateVars,
 } from "./template.js";
+
+export {
+  createNotificationScheduler,
+  nextLocalDailyFire,
+  type NotificationScheduler,
+  type NotificationSchedulerOptions,
+  type ScheduledTriggerSpec,
+  type PreMeetingSpec,
+  type UpcomingEvent,
+} from "./scheduler.js";
