@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { CommandPalette } from "@/components/command-palette";
 import { SyncDock } from "@/components/sync-dock";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +28,7 @@ export default function RootLayout({
         >
           <TooltipProvider>
             <AppShell>{children}</AppShell>
+            <CommandPalette />
             <SyncDock />
           </TooltipProvider>
           <Toaster position="bottom-right" />
