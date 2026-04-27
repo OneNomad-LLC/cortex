@@ -2,18 +2,26 @@ import type { Logger } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { LoadedTaxonomy } from "../taxonomy.js";
+import type { Workspace } from "../cli/workspace/manager.js";
 
 /**
  * Context passed to every widget handler. Mirrors `ToolContext` (the MCP
  * tool context) deliberately — widgets are HTTP-shaped projections of the
  * same underlying data plane, so sharing the shape means a widget and a
  * tool can be cross-implemented without plumbing changes.
+ *
+ * `workspace` is the per-request workspace resolved from the dashboard's
+ * `?workspace=<slug>` query param (Phase 1b — workspace bleed fix).
+ * Falls back to `getActiveWorkspace()` when the query param is absent
+ * (preserves behavior for clients that don't pass workspace).
+ * Widget handlers filter results by `ctx.workspace?.slug` when set.
  */
 export interface WidgetContext {
   logger: Logger;
   engram: EngramClient;
   llmRouter: LLMRouter;
   taxonomy: LoadedTaxonomy;
+  workspace?: Workspace;
 }
 
 /**

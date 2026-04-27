@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface ActionItemRow {
   sourceId: string;
@@ -72,7 +73,7 @@ export const myActionItemsWidget: Widget<MyActionItemsOutput> = {
       .filter((s) => s.length > 0)
       .join(" ");
 
-    const memories = await ctx.engram
+    const memoriesRaw = await ctx.engram
       .search({
         query: searchQuery,
         type: "action_item",
@@ -87,6 +88,8 @@ export const myActionItemsWidget: Widget<MyActionItemsOutput> = {
         });
         return [];
       });
+    // Phase 1b — workspace bleed fix.
+    const memories = filterByWorkspace(memoriesRaw, ctx.workspace);
 
     const rows: ActionItemRow[] = [];
     for (const mem of memories) {

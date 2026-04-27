@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface RecentActivityProjectRow {
   project: string;
@@ -40,7 +41,7 @@ export const recentActivityWidget: Widget<RecentActivityOutput> = {
 
     const since = new Date(Date.now() - days * 86_400_000);
 
-    const memories = await ctx.engram
+    const memoriesRaw = await ctx.engram
       .search({
         query: "",
         sinceIso: since.toISOString(),
@@ -53,6 +54,8 @@ export const recentActivityWidget: Widget<RecentActivityOutput> = {
         });
         return [];
       });
+    // Phase 1b — workspace bleed fix.
+    const memories = filterByWorkspace(memoriesRaw, ctx.workspace);
 
     const byProject = new Map<string, RecentActivityProjectRow>();
     let total = 0;

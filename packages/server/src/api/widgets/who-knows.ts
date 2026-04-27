@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface WhoKnowsRow {
   /** People-taxonomy slug if the person is in people.yaml, else the raw tag. */
@@ -67,12 +68,14 @@ export const whoKnowsWidget: Widget<WhoKnowsOutput> = {
       domain: "work",
     };
 
-    const memories = await ctx.engram.search(searchArgs).catch((err) => {
+    const memoriesRaw = await ctx.engram.search(searchArgs).catch((err) => {
       ctx.logger.warn("widget.who_knows.engram_failed", {
         error: err instanceof Error ? err.message : String(err),
       });
       return [];
     });
+    // Phase 1b — workspace bleed fix.
+    const memories = filterByWorkspace(memoriesRaw, ctx.workspace);
 
     interface Accumulator {
       mentions: number;

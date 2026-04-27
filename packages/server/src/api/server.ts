@@ -29,6 +29,7 @@ import {
   removeWorkspace,
   switchWorkspace,
   validateSlug,
+  type Workspace,
 } from "../cli/workspace/manager.js";
 import { readState } from "../cli/workspace/state.js";
 import { loadCortexConfig, resolveLocalFirst } from "../config.js";
@@ -202,11 +203,36 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         sendJson(res, 404, { error: `widget '${name}' not found` });
         return;
       }
+      // Phase 1b — per-request workspace resolution. The dashboard sends
+      // `?workspace=<slug>` (1a) so each widget request can scope to the
+      // workspace the UI is currently viewing, regardless of the global
+      // active-pointer. Falls back to getActiveWorkspace() for clients
+      // that don't pass the param (CLI tooling, legacy callers).
+      // TODO(v8): consolidate with the MCP-side AsyncLocalStorage
+      // workspace store from session-context.ts (ADR-018) to avoid
+      // duplicating the bind pattern.
+      const requestedSlug = url.searchParams.get("workspace")?.trim();
+      let requestWorkspace: Workspace | undefined;
+      if (requestedSlug) {
+        requestWorkspace = await findWorkspace(requestedSlug);
+        if (!requestWorkspace) {
+          sendJson(res, 400, {
+            error: `unknown workspace '${requestedSlug}'`,
+          });
+          return;
+        }
+      } else {
+        requestWorkspace = await getActiveWorkspace().catch(() => undefined);
+      }
       const started = Date.now();
       try {
         const payload = await widget.handler(url.searchParams, {
           ...widgetCtx,
-          logger: logger.child({ widget: name }),
+          ...(requestWorkspace ? { workspace: requestWorkspace } : {}),
+          logger: logger.child({
+            widget: name,
+            ...(requestWorkspace ? { workspace: requestWorkspace.slug } : {}),
+          }),
         });
         logger.info("api.widget.ok", {
           widget: name,

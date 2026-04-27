@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface DecisionRow {
   sourceId: string;
@@ -48,7 +49,7 @@ export const recentDecisionsWidget: Widget<RecentDecisionsOutput> = {
       projectSlug = project.slug;
     }
 
-    const memories = await ctx.engram
+    const memoriesRaw = await ctx.engram
       .search({
         query: projectSlug ? `decision project:${projectSlug}` : "decision",
         type: "decision",
@@ -63,6 +64,8 @@ export const recentDecisionsWidget: Widget<RecentDecisionsOutput> = {
         });
         return [];
       });
+    // Phase 1b — workspace bleed fix.
+    const memories = filterByWorkspace(memoriesRaw, ctx.workspace);
 
     const rows: DecisionRow[] = [];
     for (const mem of memories) {

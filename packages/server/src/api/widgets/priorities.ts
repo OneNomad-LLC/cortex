@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface PriorityRow {
   sourceId: string;
@@ -48,7 +49,7 @@ export const prioritiesWidget: Widget<PrioritiesOutput> = {
     const now = new Date();
     const soonCutoff = new Date(now.getTime() + 48 * 3_600_000);
 
-    const [actionHits, decisionHits] = await Promise.all([
+    const [actionHitsRaw, decisionHitsRaw] = await Promise.all([
       ctx.engram
         .search({
           query:
@@ -81,6 +82,13 @@ export const prioritiesWidget: Widget<PrioritiesOutput> = {
           return [];
         }),
     ]);
+
+    // Phase 1b — workspace bleed fix. Drop memories not stamped with the
+    // requested workspace's slug. ctx.workspace is set by the sidecar
+    // dispatch from `?workspace=<slug>` query param; absent → no filter
+    // (legacy/global behavior).
+    const actionHits = filterByWorkspace(actionHitsRaw, ctx.workspace);
+    const decisionHits = filterByWorkspace(decisionHitsRaw, ctx.workspace);
 
     const rows: PriorityRow[] = [];
 

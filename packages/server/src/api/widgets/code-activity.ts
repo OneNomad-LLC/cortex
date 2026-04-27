@@ -1,4 +1,5 @@
 import type { Widget } from "../types.js";
+import { filterByWorkspace } from "./_workspace-filter.js";
 
 export interface CodeActivityRow {
   project: string;
@@ -38,7 +39,7 @@ export const codeActivityWidget: Widget<CodeActivityOutput> = {
     const limit = clampInt(query.get("limit"), 1, 50, 10);
     const since = new Date(Date.now() - days * 86_400_000);
 
-    const memories = await ctx.engram
+    const memoriesRaw = await ctx.engram
       .search({
         query: "code",
         type: "code",
@@ -52,6 +53,8 @@ export const codeActivityWidget: Widget<CodeActivityOutput> = {
         });
         return [];
       });
+    // Phase 1b — workspace bleed fix.
+    const memories = filterByWorkspace(memoriesRaw, ctx.workspace);
 
     const byProject = new Map<string, CodeActivityRow & { langs: Map<string, number> }>();
     let total = 0;
