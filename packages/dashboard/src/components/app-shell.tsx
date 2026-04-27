@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WorkspaceSwitcher } from "@/widgets/workspace-switcher";
 
 interface NavItem {
   href: string;
@@ -163,11 +164,15 @@ function WorkspaceFooter(): React.JSX.Element {
 
   return (
     <div className="flex items-center gap-2 p-3 text-xs">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <p className="text-muted-foreground">workspace</p>
-        <p className="truncate font-mono font-medium">
-          {workspace === undefined ? "…" : (workspace ?? "(none)")}
-        </p>
+        {workspace === undefined ? (
+          <p className="truncate font-mono font-medium">…</p>
+        ) : (
+          <WorkspaceSwitcher
+            {...(workspace ? { initialSlug: workspace } : {})}
+          />
+        )}
       </div>
       <ThemeToggle />
     </div>
