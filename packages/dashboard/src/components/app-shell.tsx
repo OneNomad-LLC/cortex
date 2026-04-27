@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  BookOpen,
   BookText,
   Cable,
   Cpu,
@@ -39,6 +40,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
       { href: "/notes", label: "Notes", icon: BookText },
       { href: "/widgets", label: "Widgets", icon: LayoutGrid },
       { href: "/search", label: "Search", icon: Search },
+      { href: "/docs", label: "Docs", icon: BookOpen },
       { href: "/status", label: "Status", icon: Activity },
     ],
   },
