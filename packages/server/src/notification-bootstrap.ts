@@ -11,26 +11,32 @@ import {
 } from "@onenomad/cortex-pipeline-notification";
 import { SlackClient } from "@onenomad/cortex-adapter-slack";
 import type { Logger } from "@onenomad/cortex-core";
-import { buildPlaceholderVars, buildTriggerId, flavorToTemplate } from "./cli/notify-args.js";
+import { buildTriggerId, flavorToTemplate } from "./cli/notify-args.js";
+import { buildVarsForFlavor } from "./notification-data.js";
+import type { WidgetContext } from "./api/types.js";
 
 /**
  * Bootstrap the notification scheduler at server startup. Returns a
  * stoppable handle. No-op (returns null) when SLACK_TOKEN is absent —
  * server boot shouldn't fail just because Slack isn't wired yet.
  *
- * What this PR ships:
- *   - 8am morning + 5pm eod daily fire (placeholder vars)
- *   - pre-meeting hook is plumbed but `fetchEvents` returns []
- *     until the calendar-source wiring lands in the next PR
+ * What's plumbed:
+ *   - 8am morning + 5pm eod daily fire with real data (today-meetings,
+ *     priorities, my-action-items handlers)
+ *   - pre-meeting hook is wired but uses placeholder vars + an empty
+ *     `fetchEvents`; calendar-source wiring lands in a follow-up
  *
  * What's deferred:
- *   - Real data plumbing — call today-meetings + priorities +
- *     upcoming-briefs handlers to populate vars (next PR)
- *   - notifications.yaml workspace config (next PR)
- *   - calendar-source events for the pre-meeting trigger (next PR)
+ *   - Pre-meeting per-event vars (needs upcoming-briefs single-event
+ *     query + calendar-source events feed)
+ *   - notifications.yaml per-workspace config (channel + per-trigger
+ *     enable/disable)
+ *   - Overnight signals in the morning brief
  */
 export interface NotificationBootstrapOptions {
   logger: Logger;
+  /** Widget context — the data builders call widget handlers via this. */
+  widgetContext: WidgetContext;
   /** Override Slack channel. Default `@self`. */
   channel?: string;
 }
@@ -72,9 +78,14 @@ export async function bootstrapNotifications(
     channel,
   });
 
-  // 8am morning + 5pm eod, both with placeholder vars per this PR's
-  // scope. Data plumbing PR will replace `buildPlaceholderVars` with
-  // calls into today-meetings / priorities / upcoming-briefs.
+  const dataCtx = {
+    ctx: opts.widgetContext,
+    logger: opts.logger.child({ component: "notification-data" }),
+  };
+
+  // 8am morning + 5pm eod, with real data pulled from the dashboard
+  // widget handlers via the data-builder. A handler failure degrades
+  // to a partial brief rather than skipping the fire entirely.
   const triggers: ScheduledTriggerSpec[] = [
     {
       flavor: "morning",
@@ -85,7 +96,7 @@ export async function bootstrapNotifications(
           flavor: "morning",
           triggerId: buildTriggerId("morning", now),
           template: flavorToTemplate("morning"),
-          vars: buildPlaceholderVars("morning", now),
+          vars: await buildVarsForFlavor("morning", dataCtx, now),
         };
       },
     },
@@ -98,7 +109,7 @@ export async function bootstrapNotifications(
           flavor: "eod",
           triggerId: buildTriggerId("eod", now),
           template: flavorToTemplate("eod"),
-          vars: buildPlaceholderVars("eod", now),
+          vars: await buildVarsForFlavor("eod", dataCtx, now),
         };
       },
     },
@@ -110,8 +121,8 @@ export async function bootstrapNotifications(
     triggers,
     preMeeting: {
       async fetchEvents() {
-        // Placeholder — calendar-source hookup lands in the data
-        // plumbing PR.
+        // Placeholder — calendar-source hookup is a follow-up. Returns
+        // empty so the scheduler runs but never fires a pre-meeting.
         return [];
       },
       async buildFireArgs(event, now) {
@@ -119,7 +130,7 @@ export async function bootstrapNotifications(
           flavor: "pre-meeting",
           triggerId: `pre-meeting:${event.id}`,
           template: flavorToTemplate("pre-meeting"),
-          vars: buildPlaceholderVars("pre-meeting", now),
+          vars: await buildVarsForFlavor("pre-meeting", dataCtx, now),
         };
       },
       leadMinutes: 30,

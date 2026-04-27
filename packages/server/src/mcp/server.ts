@@ -344,6 +344,12 @@ export async function startServer(): Promise<void> {
   const notifications = await (await import("../notification-bootstrap.js"))
     .bootstrapNotifications({
       logger: logger.child({ component: "notification-bootstrap" }),
+      widgetContext: {
+        logger: logger.child({ component: "notification-widget-ctx" }),
+        engram,
+        llmRouter: router,
+        taxonomy,
+      },
     })
     .catch((err) => {
       logger.warn("notification.bootstrap.failed", {
