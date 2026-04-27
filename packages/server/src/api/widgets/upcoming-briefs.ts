@@ -63,6 +63,12 @@ function clampInt(
  * engram/llmRouter/taxonomy/logger bag with MCP tools, but doesn't have
  * persona (tools that need persona can't be widget-wrapped without
  * extending WidgetContext). upcoming_briefs doesn't use persona today.
+ *
+ * Workspace bleed v8: ctx.workspace is populated per-request by the API
+ * server (Phase 1b) but the bridge dropped it on the way to the MCP
+ * tool. The tool's engram.search() applies the workspace filter at the
+ * DB layer when sessionWorkspace is set — without this thread-through,
+ * workspace switching had no effect on the upcoming-briefs widget.
  */
 function toToolContext(ctx: WidgetContext): ToolContext {
   return {
@@ -70,6 +76,7 @@ function toToolContext(ctx: WidgetContext): ToolContext {
     logger: ctx.logger,
     engram: ctx.engram,
     persona: undefined as never,
+    sessionWorkspace: ctx.workspace?.slug ?? null,
     ...(ctx.llmRouter ? { llmRouter: ctx.llmRouter } : {}),
   };
 }

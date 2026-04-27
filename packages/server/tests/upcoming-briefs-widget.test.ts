@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { upcomingBriefsWidget } from "../src/api/widgets/upcoming-briefs.js";
 import type { WidgetContext } from "../src/api/types.js";
-import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
+import type {
+  EngramClient,
+  EngramMemory,
+  EngramSearchArgs,
+} from "../src/clients/engram.js";
 import type { Logger } from "@onenomad/cortex-core";
 
 function nullLogger(): Logger {
@@ -15,12 +19,16 @@ function nullLogger(): Logger {
   return log;
 }
 
-function fakeEngram(rows: EngramMemory[]): EngramClient {
+function fakeEngram(
+  rows: EngramMemory[],
+  searchSpy?: { calls: EngramSearchArgs[] },
+): EngramClient {
   return {
     async ingest() {
       return { id: "x" };
     },
     async search(args) {
+      if (searchSpy) searchSpy.calls.push(args);
       if (!args.type) return rows;
       return rows.filter((r) => {
         const meta = (r.metadata ?? {}) as Record<string, unknown>;
@@ -123,6 +131,46 @@ describe("upcoming-briefs widget", () => {
       ]),
     );
     expect(out.events.length).toBe(0);
+  });
+
+  // v8 — workspace bleed regression for the dashboard widget.
+  // Without the toToolContext sessionWorkspace thread-through, this
+  // dropped on the floor: ctx.workspace was set per-request but the
+  // bridge to the MCP tool didn't carry it, so engram.search() ran
+  // unfiltered and returned cross-workspace results.
+  it("v8: forwards ctx.workspace.slug to engram.search() as workspace filter", async () => {
+    const spy: { calls: EngramSearchArgs[] } = { calls: [] };
+    const baseCtx = mockCtx([]);
+    const ctxWithWorkspace: WidgetContext = {
+      ...baseCtx,
+      engram: fakeEngram([], spy),
+      workspace: {
+        slug: "work",
+        rootPath: "/tmp/work",
+        cortexConfigPath: "/tmp/work/cortex.yaml",
+      } as never,
+    };
+    await upcomingBriefsWidget.handler(
+      new URLSearchParams({ hoursAhead: "8" }),
+      ctxWithWorkspace,
+    );
+    expect(spy.calls.length).toBeGreaterThan(0);
+    expect(spy.calls.every((c) => c.workspace === "work")).toBe(true);
+  });
+
+  it("v8: omits workspace param when ctx.workspace is unset", async () => {
+    const spy: { calls: EngramSearchArgs[] } = { calls: [] };
+    const baseCtx = mockCtx([]);
+    const ctxWithoutWorkspace: WidgetContext = {
+      ...baseCtx,
+      engram: fakeEngram([], spy),
+    };
+    await upcomingBriefsWidget.handler(
+      new URLSearchParams({ hoursAhead: "8" }),
+      ctxWithoutWorkspace,
+    );
+    expect(spy.calls.length).toBeGreaterThan(0);
+    expect(spy.calls.every((c) => c.workspace === undefined)).toBe(true);
   });
 
   it("honors minutesThreshold for imminent-only briefs", async () => {
