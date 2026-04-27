@@ -11,7 +11,13 @@ import type { CortexConfig } from "../config.js";
  * Returns absolute paths so the repo layer doesn't have to think
  * about CWD.
  */
-export function resolveNotesDir(cfg: CortexConfig): { vaultPath: string; notesDir: string } {
+export interface ResolvedNotesRepo {
+  vaultPath: string;
+  notesDir: string;
+  ignoreDirs: ReadonlySet<string>;
+}
+
+export function resolveNotesDir(cfg: CortexConfig): ResolvedNotesRepo {
   const entry = cfg.adapters.obsidian;
   if (!entry || !entry.enabled) {
     throw new Error(
@@ -29,5 +35,6 @@ export function resolveNotesDir(cfg: CortexConfig): { vaultPath: string; notesDi
   return {
     vaultPath,
     notesDir: join(vaultPath, subdir),
+    ignoreDirs: new Set(parsed.data.ignore),
   };
 }

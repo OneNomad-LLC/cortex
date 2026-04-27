@@ -21,6 +21,7 @@ import { listWorkspacesTool } from "./list-workspaces.js";
 import { myActionItems } from "./my-action-items.js";
 import { noteCreate } from "./note-create.js";
 import { noteDelete } from "./note-delete.js";
+import { noteGet } from "./note-get.js";
 import { noteList } from "./note-list.js";
 import { noteUpdate } from "./note-update.js";
 import { readSessionHandoffs } from "./read-session-handoffs.js";
@@ -83,6 +84,7 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   noteUpdate,
   noteDelete,
   noteList,
+  noteGet,
   // Browser control — routed through the Cortex bridge to the
   // extension. Claude gets eyes + hands in the user's real browser.
   ...ALL_BROWSER_TOOLS,
