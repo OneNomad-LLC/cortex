@@ -1,3 +1,4 @@
+import { runBackfillCli } from "./backfill.js";
 import { runDashboard } from "./dashboard.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
 import { autoLoadDotEnv } from "./dotenv.js";
@@ -66,6 +67,13 @@ Commands:
   workspace <sub>            Manage named config bundles. Subcommands:
                                list, current, add, switch, remove, rename.
                                Each workspace has its own config/ and .env.
+
+  backfill workspace --slug <slug>
+                             Audit how many memories lack a workspace stamp
+                             and would benefit from re-ingest under <slug>.
+                             --limit=N (default 1000), --query=<text>,
+                             --dry-run. Audit-only today; the write path
+                             requires an engram-side memory_add_tag follow-up.
 
   github-login [--scopes <csv>]
                              Device-flow OAuth with GitHub. No PAT paste needed.
@@ -150,6 +158,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "workspace":
       return runWorkspace(rest);
+
+    case "backfill":
+      return runBackfillCli(rest);
 
     case "start":
       await startServer();
