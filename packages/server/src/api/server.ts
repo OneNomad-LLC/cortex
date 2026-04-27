@@ -38,7 +38,7 @@ import {
   loadDashboardLayout,
   resolveLayout,
 } from "./layout.js";
-import { ALL_WIDGETS, WIDGETS_BY_NAME } from "./widgets/index.js";
+import { buildWidgetRegistry } from "./widgets/index.js";
 import type { Widget, WidgetContext } from "./types.js";
 import type { HeartbeatWriter } from "../heartbeat.js";
 import { getSharedLogBus, type LogLine } from "../log-bus.js";
@@ -107,6 +107,15 @@ export interface DashboardApiOptions extends WidgetContext {
    * restarting cortex.
    */
   taxonomyCache?: TaxonomyCache;
+  /**
+   * ADR-019 Phase 1 — SQLite cache for the priorities widget. When
+   * provided, requests to `/api/widgets/priorities` are served from
+   * cache on hit, computed on miss with the result written back.
+   * Optional: tests pass `undefined` to exercise the registry without
+   * dragging the cache-sqlite package (and its `node:sqlite` import)
+   * into the vite/vitest transform graph.
+   */
+  cache?: import("@onenomad/cortex-cache-sqlite").CacheStorage;
 }
 
 export interface DashboardApi {
@@ -135,6 +144,14 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     taxonomy: opts.taxonomy,
   };
 
+  // ADR-019 Phase 1 — registry built per-instance so the optional cache
+  // is wired in at construction time rather than module-load time. Tests
+  // omit `opts.cache`; production passes a real cache from startup.
+  const widgets: readonly Widget[] = buildWidgetRegistry(opts.cache);
+  const widgetsByName: ReadonlyMap<string, Widget> = new Map(
+    widgets.map((w) => [w.name, w]),
+  );
+
   let server: Server | undefined;
 
   const handle = async (
@@ -156,7 +173,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     const pathname = url.pathname;
 
     if (req.method === "GET" && pathname === "/health") {
-      sendJson(res, 200, { ok: true, version: 1, widgets: ALL_WIDGETS.length });
+      sendJson(res, 200, { ok: true, version: 1, widgets: widgets.length });
       return;
     }
 
@@ -188,7 +205,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (req.method === "GET" && pathname === "/api/widgets") {
       sendJson(res, 200, {
-        widgets: ALL_WIDGETS.map((w) => ({
+        widgets: widgets.map((w) => ({
           name: w.name,
           description: w.description,
         })),
@@ -198,7 +215,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (req.method === "GET" && pathname.startsWith("/api/widgets/")) {
       const name = pathname.slice("/api/widgets/".length);
-      const widget: Widget | undefined = WIDGETS_BY_NAME.get(name);
+      const widget: Widget | undefined = widgetsByName.get(name);
       if (!widget) {
         sendJson(res, 404, { error: `widget '${name}' not found` });
         return;
@@ -367,7 +384,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
           opts.logger.info("api.listening", {
             host,
             port,
-            widgets: ALL_WIDGETS.length,
+            widgets: widgets.length,
           });
           if (host !== "127.0.0.1" && host !== "localhost") {
             opts.logger.warn("api.non_local_bind", {
@@ -400,7 +417,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "/health",
         "/api/layout",
         "/api/widgets",
-        ...ALL_WIDGETS.map((w) => `/api/widgets/${w.name}`),
+        ...widgets.map((w) => `/api/widgets/${w.name}`),
         "GET /api/workspaces",
         "POST /api/workspaces",
         "POST /api/workspaces/switch",

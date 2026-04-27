@@ -307,6 +307,15 @@ export async function startServer(): Promise<void> {
     logger.child({ component: "taxonomy-cache" }),
   );
 
+  // ADR-019 Phase 1 — open the SQLite widget cache when the dashboard
+  // API is enabled. Lives at $CORTEX_HOME/dashboard-cache.db; tests
+  // override via CORTEX_DASHBOARD_CACHE_PATH.
+  const dashboardCache = cfg.api.enabled
+    ? (await import("@onenomad/cortex-cache-sqlite")).openCache(
+        (await import("../cli/workspace/state.js")).dashboardCachePath(),
+      )
+    : undefined;
+
   const dashboardApi = cfg.api.enabled
     ? createDashboardApi({
         engram,
@@ -317,6 +326,7 @@ export async function startServer(): Promise<void> {
         adapters: liveState.adapters,
         reload: triggerReload,
         taxonomyCache,
+        ...(dashboardCache ? { cache: dashboardCache } : {}),
         logger: logger.child({ component: "dashboard-api" }),
         host: cfg.api.host,
         port: cfg.api.port,
