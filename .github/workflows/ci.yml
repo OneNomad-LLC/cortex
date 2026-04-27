@@ -18,7 +18,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Bumped from 20 → 22 to satisfy `packages/cache-sqlite`'s
+          # `engines.node >=22.16` (node:sqlite is a 22.5+ builtin,
+          # stable in 22.16). Other packages stay forward-compatible.
+          node-version: 22
           cache: pnpm
 
       - name: Install
