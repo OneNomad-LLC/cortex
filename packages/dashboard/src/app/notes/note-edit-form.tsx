@@ -24,6 +24,16 @@ interface NoteEditFormProps {
   mode: "create" | "edit";
   /** Pre-loaded note for edit mode. */
   initial?: NoteRead;
+  /**
+   * Override post-save behavior. When provided, the form does NOT
+   * navigate; the caller decides what to render next (e.g. swap
+   * back to a read-only view in the same page). Default: router.push("/notes").
+   */
+  onSaved?: (slug: string) => void;
+  /** Override the cancel button. Default: router.push("/notes"). */
+  onCancel?: () => void;
+  /** Override post-delete behavior. Default: router.push("/notes"). */
+  onDeleted?: () => void;
 }
 
 const SUGGEST_DEBOUNCE_MS = 1500;
@@ -31,6 +41,9 @@ const SUGGEST_DEBOUNCE_MS = 1500;
 export function NoteEditForm({
   mode,
   initial,
+  onSaved,
+  onCancel,
+  onDeleted,
 }: NoteEditFormProps): React.JSX.Element {
   const router = useRouter();
 
@@ -142,13 +155,15 @@ export function NoteEditForm({
       }
       if (!finalTitle) finalTitle = "Untitled note";
 
+      let savedSlug = initial?.id ?? "";
       if (mode === "create") {
-        await invokeNoteTool("note_create", {
+        const created = await invokeNoteTool<{ slug: string }>("note_create", {
           title: finalTitle,
           body,
           ...(finalProject ? { project: finalProject } : {}),
           ...(finalTags.length > 0 ? { tags: finalTags } : {}),
         });
+        savedSlug = created.slug;
         toast.success(`Created: ${finalTitle}`);
       } else if (initial) {
         await invokeNoteTool("note_update", {
@@ -160,8 +175,13 @@ export function NoteEditForm({
         });
         toast.success(`Saved: ${finalTitle}`);
       }
-      router.push("/notes");
-      router.refresh();
+
+      if (onSaved) {
+        onSaved(savedSlug);
+      } else {
+        router.push("/notes");
+        router.refresh();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -177,12 +197,24 @@ export function NoteEditForm({
     try {
       await invokeNoteTool("note_delete", { slug: initial.id });
       toast.success(`Deleted ${initial.title}`);
-      router.push("/notes");
-      router.refresh();
+      if (onDeleted) {
+        onDeleted();
+      } else {
+        router.push("/notes");
+        router.refresh();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setDeleting(false);
+    }
+  }
+
+  function cancel(): void {
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.push("/notes");
     }
   }
 
@@ -192,11 +224,11 @@ export function NoteEditForm({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push("/notes")}
+          onClick={cancel}
           className="text-muted-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to notes
+          {onCancel ? "Cancel edit" : "Back to notes"}
         </Button>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {mode === "edit" && initial ? (
@@ -279,7 +311,7 @@ export function NoteEditForm({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => router.push("/notes")}
+            onClick={cancel}
             disabled={saving}
           >
             Cancel
