@@ -14,20 +14,39 @@ Cortex adds domain-specific MCP tools (projects, meetings, briefs,
 action items, research) and modular source adapters. Every adapter
 and LLM provider is a standalone package — install only what you use.
 
+## Documentation
+
+- **[docs/MCP-STACK.md](docs/MCP-STACK.md)** — how Cortex, Engram,
+  Persona, and Synapse fit together (and which ones you actually need).
+- **[docs/USING.md](docs/USING.md)** — day-in-the-life: what Cortex does
+  for you in the morning, during the day, and at end of day.
+- **[docs/SETUP.md](docs/SETUP.md)** — full from-scratch installation,
+  environment variables, OAuth flows.
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — internal data plane,
+  pipelines, adapter contract.
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — ADR log.
+
 ## Status
 
-**Seventeen MCP tools** live:
+**MCP tool surface** (workspace-scoped unless noted):
 
 - *Knowledge:* `list_projects`, `get_project_context`, `catch_me_up`,
   `catch_me_up_on_meeting`, `my_action_items`, `upcoming_briefs`,
-  `list_unclassified`, `todays_digest`
+  `list_unclassified`, `todays_digest`, `search_related`
+- *Notes:* `note_create`, `note_update`, `note_delete`, `note_list` —
+  markdown notes saved to your Obsidian vault under
+  `<vault>/cortex-notes/`, ingested into Engram automatically
+- *Identity:* `get_user_identity`, `update_user_identity`,
+  `get_job_profile`, `set_job_profile`, `update_job_profile` (job
+  profile is private-module; optional)
 - *Research:* `research`, `approve_research` (draft / in_review /
   approved / revoked)
 - *Session bridge:* `leave_session_handoff`, `read_session_handoffs`,
   `resolve_session_handoff` — hand a conversation off between Claude
   Desktop, Claude Code, and Claude for Chrome via Cortex as the bus
 - *Workspaces:* `list_workspaces`, `current_workspace`,
-  `switch_workspace`, `add_workspace`
+  `switch_workspace`, `add_workspace`, `set_session_workspace`,
+  `get_session_workspace`
 
 **Workspaces.** One Cortex install serves multiple jobs or contexts
 (e.g. employer + personal) with fully isolated config + .env + memory
@@ -35,11 +54,27 @@ state under `~/.cortex/workspaces/<slug>/`. Manage from the terminal
 (`cortex workspace *`), from Claude via MCP tools, or from the
 dashboard dropdown.
 
-**Local dashboard.** `@onenomad/cortex-dashboard` (Next.js 15) ships eight
-widgets: priorities, today-meetings, upcoming-briefs, my-action-items,
-recent-decisions, recent-activity, code-activity, who-knows. Layout
-is YAML-driven with delivery/developer/custom role presets. Dashboard
-is optional — off by default (`api.enabled: false`).
+**Local dashboard.** `@onenomad/cortex-dashboard` (Next.js 15 + shadcn/ui)
+provides:
+
+- **Today timeline (`/`)** — chronological "what needs your attention
+  right now" view: overdue items, next 2 hours, rest of day, EOD
+  capture prompt after 16:00 local
+- **Notes (`/notes`)** — TipTap markdown editor; saves to your
+  Obsidian vault and ingests via the obsidian adapter
+- **Search (`/search`)** — semantic + keyword retrieval via
+  `search_related`, with type / source / project / since filters
+- **Widgets (`/widgets`)** — the original grid: priorities,
+  today-meetings, upcoming-briefs, my-action-items, recent-decisions,
+  recent-activity, code-activity, who-knows
+- **Settings (`/settings`)** — Identity (name, role, job profile),
+  Workspaces, Projects + People YAML editors, raw config
+- **MCP console (`/mcp`)** — invoke any registered MCP tool form-driven
+- **Adapters / Providers / Modules** — wizard-driven config forms
+- **Status / Logs** — live heartbeat and tail
+
+Layout is YAML-driven with delivery/developer/custom role presets.
+Dashboard is optional — off by default (`api.enabled: false`).
 
 **Twelve source adapters** — Confluence, Jira, Linear, Loom, Notion,
 Obsidian, Google Calendar, Google Drive, Gmail, Bitbucket, GitHub,
@@ -64,6 +99,25 @@ file readable via `cortex status`. **Push-based ingestion** — adapters
 can implement `stream()` (Obsidian file-watcher) or `webhook()`
 (GitHub push events) for near-real-time updates alongside the cron
 path. **LLM classifier fallback** wired into every adapter.
+
+**Active notifications.** Cortex's notification dispatcher fires three
+recurring triggers via Slack DM:
+
+- **Morning brief** at 08:00 local — today's meetings, priority
+  action items, overnight signals
+- **Pre-meeting brief** T-30 minutes per calendar event — attendees,
+  prior context, open commitments, suggested questions
+- **End-of-day capture** at 17:00 local — open commitments to
+  resolve, snooze, or roll forward
+
+Configured via `~/.cortex/workspaces/<slug>/notifications.yaml`. Manual
+fire from the CLI: `cortex notify <morning|pre-meeting|eod>
+[--dry-run]`.
+
+**SQLite read-model cache.** Dashboard widgets are cached in a
+per-host SQLite file so dashboard load drops from 2-5s to sub-100ms
+(ADR-019 Phase 1). Refresher runs in-process on a per-widget cadence;
+stale-while-revalidate semantics are Phase 2.
 
 **Pre-flight diagnostic.** `cortex doctor [--connect]` verifies
 config, secrets, tokens, and taxonomy before boot; `--connect` also
