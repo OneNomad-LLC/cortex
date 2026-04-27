@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,6 +13,7 @@ import {
   createNote,
   deleteNote,
   ensureNotesDir,
+  getNote,
   listNotes,
   updateNote,
 } from "../src/notes/repo.js";
@@ -25,6 +26,21 @@ function tmpRepo() {
     repo,
     cleanup: () => {
       try { rmSync(dir, { recursive: true, force: true }); } catch { /* nothing */ }
+    },
+  };
+}
+
+/** Vault-flavored repo: cortex-notes lives at <vault>/cortex-notes/. */
+function tmpVaultRepo() {
+  const vaultPath = mkdtempSync(join(tmpdir(), "cortex-vault-test-"));
+  const notesDir = join(vaultPath, "cortex-notes");
+  const repo = { vaultPath, notesDir };
+  ensureNotesDir(repo);
+  return {
+    repo,
+    vaultPath,
+    cleanup: () => {
+      try { rmSync(vaultPath, { recursive: true, force: true }); } catch { /* nothing */ }
     },
   };
 }
@@ -266,14 +282,141 @@ describe("listNotes", () => {
     try {
       // Drop a stray markdown file with no frontmatter.
       const strayPath = join(repo.notesDir, "stray.md");
-      readFileSync; // satisfy unused-warn — we use writeFileSync below
-      const { writeFileSync } = require("node:fs");
       writeFileSync(strayPath, "# stray", "utf8");
 
       createNote(repo, { title: "real note", body: "" });
       const notes = listNotes(repo);
       expect(notes.length).toBe(1);
       expect(notes[0]!.title).toBe("real note");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("federates: surfaces obsidian-authored notes from elsewhere in the vault", () => {
+    const { repo, vaultPath, cleanup } = tmpVaultRepo();
+    try {
+      createNote(repo, { title: "Cortex one", body: "" });
+      // Drop a hand-authored markdown at the vault root with loose frontmatter.
+      writeFileSync(
+        join(vaultPath, "ideas.md"),
+        "---\ntitle: Random idea\ntags: [scratch]\n---\nA thought.\n",
+        "utf8",
+      );
+      // And another, in a subdir, no frontmatter at all.
+      mkdirSync(join(vaultPath, "daily"));
+      writeFileSync(
+        join(vaultPath, "daily", "2026-04-27.md"),
+        "Standup notes go here.\n",
+        "utf8",
+      );
+
+      const notes = listNotes(repo);
+      const kinds = notes.map((n) => n.kind).sort();
+      expect(kinds).toEqual(["cortex", "obsidian", "obsidian"]);
+
+      const cortex = notes.find((n) => n.kind === "cortex");
+      expect(cortex?.slug).toBe("cortex-one");
+      expect(cortex?.id).toBe("cortex-one");
+
+      const ideas = notes.find((n) => n.relativePath === "ideas.md");
+      expect(ideas?.title).toBe("Random idea");
+      expect(ideas?.tags).toEqual(["scratch"]);
+      expect(ideas?.kind).toBe("obsidian");
+
+      const daily = notes.find(
+        (n) => n.relativePath === "daily/2026-04-27.md",
+      );
+      // Falls back to the filename when frontmatter is missing.
+      expect(daily?.title).toBe("2026-04-27");
+      expect(daily?.preview).toContain("Standup");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("ignores .obsidian / .git / node_modules during the vault walk", () => {
+    const { repo, vaultPath, cleanup } = tmpVaultRepo();
+    try {
+      mkdirSync(join(vaultPath, ".obsidian"));
+      writeFileSync(join(vaultPath, ".obsidian", "config.md"), "# config", "utf8");
+      mkdirSync(join(vaultPath, "node_modules", "junk"), { recursive: true });
+      writeFileSync(
+        join(vaultPath, "node_modules", "junk", "README.md"),
+        "# noise",
+        "utf8",
+      );
+      writeFileSync(join(vaultPath, "real.md"), "# real", "utf8");
+
+      const notes = listNotes(repo);
+      expect(notes.map((n) => n.relativePath).filter(Boolean)).toEqual([
+        "real.md",
+      ]);
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+describe("getNote", () => {
+  it("reads a cortex note's full body", () => {
+    const { repo, cleanup } = tmpRepo();
+    try {
+      const a = createNote(repo, {
+        title: "Hello",
+        body: "This is the full body.",
+        project: "alpha",
+      });
+      const read = getNote(repo, { kind: "cortex", slug: a.slug });
+      expect(read.kind).toBe("cortex");
+      expect(read.title).toBe("Hello");
+      expect(read.body).toContain("This is the full body.");
+      expect(read.project).toBe("alpha");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("reads an obsidian note's body via relativePath", () => {
+    const { repo, vaultPath, cleanup } = tmpVaultRepo();
+    try {
+      writeFileSync(
+        join(vaultPath, "doc.md"),
+        "---\ntitle: Doc\n---\nbody here\n",
+        "utf8",
+      );
+      const read = getNote(repo, {
+        kind: "obsidian",
+        relativePath: "doc.md",
+      });
+      expect(read.kind).toBe("obsidian");
+      expect(read.title).toBe("Doc");
+      expect(read.body.trim()).toBe("body here");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("rejects relativePaths that escape the vault", () => {
+    const { repo, cleanup } = tmpVaultRepo();
+    try {
+      expect(() =>
+        getNote(repo, { kind: "obsidian", relativePath: "../leak.md" }),
+      ).toThrow(/invalid relativePath/);
+      expect(() =>
+        getNote(repo, { kind: "obsidian", relativePath: "/etc/passwd" }),
+      ).toThrow(/invalid relativePath/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("throws on missing notes", () => {
+    const { repo, cleanup } = tmpRepo();
+    try {
+      expect(() => getNote(repo, { kind: "cortex", slug: "ghost" })).toThrow(
+        /not found/,
+      );
     } finally {
       cleanup();
     }

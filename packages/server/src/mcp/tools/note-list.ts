@@ -15,16 +15,20 @@ interface Output {
 }
 
 /**
- * List cortex-authored notes. Reads frontmatter + first ~200 chars of
- * body from each `.md` file in the cortex-notes subdir; no engram
- * round-trip. Sorted by `updated` desc.
+ * Federated listing across the whole obsidian vault. Returns both
+ * cortex-authored notes (kind=cortex, dashboard-editable) and
+ * obsidian-authored notes anywhere else in the vault (kind=obsidian,
+ * read-only in the dashboard). Filesystem-only — no engram round-trip.
+ * Sorted by `updated` desc.
  */
 export const noteList: McpTool<typeof inputSchema, Output> = {
   name: "note_list",
   description:
-    "List cortex-authored notes — slug, title, project, tags, " +
-    "updated, and a 200-char preview per note. Filesystem-only " +
-    "(no engram call). Filter by `project` to scope to one " +
+    "List every markdown note in the user's obsidian vault — both " +
+    "cortex-authored (kind: 'cortex', editable from the dashboard) " +
+    "and obsidian-authored (kind: 'obsidian', read-only in the " +
+    "dashboard). Each entry has id, title, project, tags, updated, " +
+    "and a 200-char preview. Filter by `project` to scope to one " +
     "engagement. Sorted newest-updated first.",
   inputSchema,
 
