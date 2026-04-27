@@ -337,6 +337,21 @@ export async function startServer(): Promise<void> {
     await dashboardApi.start();
   }
 
+  // Prong B notification scheduler — fires morning brief 8am, EOD 5pm,
+  // pre-meeting T-30 per calendar event. No-op when SLACK_TOKEN is
+  // unset. Scoped to the daemon-mode boot path; CLI-only invocations
+  // (e.g. `cortex sync`) don't need long-lived schedulers.
+  const notifications = await (await import("../notification-bootstrap.js"))
+    .bootstrapNotifications({
+      logger: logger.child({ component: "notification-bootstrap" }),
+    })
+    .catch((err) => {
+      logger.warn("notification.bootstrap.failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    });
+
   // Dashboard UI auto-start — spawn the Next.js dev server as a child
   // when we're running as a daemon (HTTP MCP). When Cortex is spawned
   // by Claude Code as a stdio subprocess, skip it: spawning Next
@@ -428,6 +443,7 @@ export async function startServer(): Promise<void> {
     logger.info("shutdown.begin");
     clearInterval(sessionGcTimer);
     await scheduler.stop();
+    if (notifications) await notifications.stop();
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
     if (dashboardChild) await dashboardChild.stop();
