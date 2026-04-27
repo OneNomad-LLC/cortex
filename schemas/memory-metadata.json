@@ -143,6 +143,11 @@
       "type": "string",
       "minLength": 1,
       "description": "Dev team slug. Cross-cuts engagements — same team often works across multiple clients."
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Cortex workspace slug. Stamped at ingest by ingest_content (packages/server/src/mcp/tools/ingest-content.ts) when the request is bound to a workspace. Used by the dashboard's per-workspace widget filter (Phase 1b). Optional — legacy memories from before workspace support don't carry it."
     }
   }
 }
