@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { WizardForm } from "./wizard-form";
 
 /**
@@ -252,12 +253,12 @@ function DoneCard(): React.JSX.Element {
         setup and open the dashboard.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <a
+        <Link
           href="/"
           className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
         >
           Finish setup → go to dashboard
-        </a>
+        </Link>
         <span className="text-xs text-emerald-800 dark:text-emerald-300">
           Keep this tab open and come back any time.
         </span>
