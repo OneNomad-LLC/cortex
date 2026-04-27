@@ -7,6 +7,7 @@ import { prioritiesWidget } from "./priorities.js";
 import { recentActivityWidget } from "./recent-activity.js";
 import { recentDecisionsWidget } from "./recent-decisions.js";
 import { todayMeetingsWidget } from "./today-meetings.js";
+import { todayTimelineWidget } from "./today-timeline.js";
 import { upcomingBriefsWidget } from "./upcoming-briefs.js";
 import { whoKnowsWidget } from "./who-knows.js";
 
@@ -22,6 +23,7 @@ import { whoKnowsWidget } from "./who-knows.js";
  */
 export function buildWidgetRegistry(cache?: CacheStorage): readonly Widget[] {
   return [
+    todayTimelineWidget,
     cache ? withCache(prioritiesWidget, cache) : prioritiesWidget,
     myActionItemsWidget,
     recentDecisionsWidget,
