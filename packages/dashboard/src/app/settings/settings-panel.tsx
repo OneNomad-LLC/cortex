@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ProjectsTab } from "./projects-tab";
+import { PeopleTab } from "./people-tab";
+
 interface Workspace {
   slug: string;
   path: string;
@@ -48,10 +51,10 @@ export function SettingsPanel(): React.JSX.Element {
         <WorkspacesTab />
       </TabsContent>
       <TabsContent value="projects" className="mt-4">
-        <WorkspaceFileEditor name="projects" />
+        <ProjectsTab />
       </TabsContent>
       <TabsContent value="people" className="mt-4">
-        <WorkspaceFileEditor name="people" />
+        <PeopleTab />
       </TabsContent>
       <TabsContent value="raw" className="mt-4">
         <RawConfigTab />
@@ -781,116 +784,6 @@ function WorkspacesTab(): React.JSX.Element {
         </div>
       )}
     </div>
-  );
-}
-
-function WorkspaceFileEditor({
-  name,
-}: {
-  name: "projects" | "people";
-}): React.JSX.Element {
-  const [content, setContent] = useState<string | undefined>();
-  const [initial, setInitial] = useState<string | undefined>();
-  const [filePath, setFilePath] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await fetch(`/api/cortex/workspace-files/${name}`, {
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        const body = (await r.json()) as { path: string; content: string };
-        if (cancelled) return;
-        setContent(body.content);
-        setInitial(body.content);
-        setFilePath(body.path);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [name]);
-
-  async function save(): Promise<void> {
-    if (content === undefined) return;
-    setSaving(true);
-    try {
-      const r = await fetch(`/api/cortex/workspace-files/${name}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      if (!r.ok) {
-        const body = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `${r.status} ${r.statusText}`);
-      }
-      toast.success(`${name}.yaml saved`);
-      setInitial(content);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const dirty = content !== undefined && initial !== undefined && content !== initial;
-
-  if (error) {
-    return (
-      <Card className="border-destructive/40 bg-destructive/5">
-        <CardHeader>
-          <CardDescription className="text-destructive">
-            Couldn&apos;t load {name}.yaml: {error}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  if (content === undefined) {
-    return <Skeleton className="h-72 w-full" />;
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-base font-mono">{name}.yaml</CardTitle>
-            {filePath && (
-              <CardDescription className="font-mono text-xs break-all">
-                {filePath}
-              </CardDescription>
-            )}
-          </div>
-          <Button
-            onClick={() => void save()}
-            disabled={saving || !dirty}
-            size="sm"
-          >
-            <Save className="h-3 w-3" />
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="min-h-[400px] font-mono text-xs"
-          spellCheck={false}
-        />
-        <p className="mt-2 text-xs text-muted-foreground">
-          YAML is validated on save. An invalid document won&apos;t overwrite
-          the existing file — the error shows up as a toast instead.
-        </p>
-      </CardContent>
-    </Card>
   );
 }
 
