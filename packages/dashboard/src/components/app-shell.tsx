@@ -9,6 +9,7 @@ import {
   Cpu,
   FileText,
   LayoutDashboard,
+  LayoutGrid,
   Package,
   Search,
   Settings,
@@ -33,7 +34,8 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Overview",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/", label: "Today", icon: LayoutDashboard },
+      { href: "/widgets", label: "Widgets", icon: LayoutGrid },
       { href: "/search", label: "Search", icon: Search },
       { href: "/status", label: "Status", icon: Activity },
     ],
