@@ -25,6 +25,19 @@ export function stateFilePath(): string {
   );
 }
 
+/**
+ * SQLite database path for the dashboard widget cache (ADR-019). Lives
+ * as a sibling of state.json so a single env override (CORTEX_HOME) or
+ * CORTEX_STATE_PATH directory can move the entire user-state bundle.
+ * Override directly via CORTEX_DASHBOARD_CACHE_PATH for tests/dev.
+ */
+export function dashboardCachePath(): string {
+  if (process.env.CORTEX_DASHBOARD_CACHE_PATH) {
+    return process.env.CORTEX_DASHBOARD_CACHE_PATH;
+  }
+  return path.join(path.dirname(stateFilePath()), "dashboard-cache.db");
+}
+
 export async function readState(): Promise<CortexState> {
   const file = stateFilePath();
   let raw: string;
