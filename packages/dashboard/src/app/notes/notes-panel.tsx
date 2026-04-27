@@ -3,7 +3,11 @@
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
+  ExternalLink,
+  Eye,
   FilePlus,
   FileText,
   RefreshCw,
@@ -31,17 +35,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { NoteEditor } from "./note-editor";
 
 interface NoteSummary {
-  slug: string;
+  id: string;
+  slug?: string;
   title: string;
   project?: string;
   tags?: string[];
   updated: string;
   preview: string;
+  kind: "cortex" | "obsidian";
+  relativePath?: string;
 }
 
 interface NoteListResponse {
@@ -79,7 +87,16 @@ export function NotesPanel(): React.JSX.Element {
   const [error, setError] = useState<string | undefined>();
   const [unavailable, setUnavailable] = useState(false);
   const [editing, setEditing] = useState<NoteSummary | undefined>();
+  const [viewing, setViewing] = useState<NoteSummary | undefined>();
   const [creating, setCreating] = useState(false);
+
+  function openNote(note: NoteSummary): void {
+    if (note.kind === "obsidian") {
+      setViewing(note);
+    } else {
+      setEditing(note);
+    }
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -183,8 +200,8 @@ export function NotesPanel(): React.JSX.Element {
       ) : (
         <ul className="space-y-2">
           {filtered.map((n) => (
-            <li key={n.slug}>
-              <NoteCard note={n} onClick={() => setEditing(n)} />
+            <li key={n.id}>
+              <NoteCard note={n} onClick={() => openNote(n)} />
             </li>
           ))}
         </ul>
@@ -214,6 +231,13 @@ export function NotesPanel(): React.JSX.Element {
             setEditing(undefined);
             await refresh();
           }}
+        />
+      )}
+
+      {viewing && (
+        <ObsidianNoteDialog
+          note={viewing}
+          onClose={() => setViewing(undefined)}
         />
       )}
     </div>
@@ -254,9 +278,11 @@ function EmptyState({
       <CardHeader>
         <CardTitle className="text-base">No notes yet</CardTitle>
         <CardDescription>
-          Notes are markdown files saved to{" "}
-          <code className="font-mono text-xs">cortex-notes/</code> in your
-          Obsidian vault. Indexed automatically for search.
+          This view shows everything in your Obsidian vault — both notes
+          you create here (saved to{" "}
+          <code className="font-mono text-xs">cortex-notes/</code>) and
+          notes you author in Obsidian directly. All indexed automatically
+          for search.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -276,6 +302,7 @@ function NoteCard({
   note: NoteSummary;
   onClick: () => void;
 }): React.JSX.Element {
+  const Icon = note.kind === "obsidian" ? Eye : FileText;
   return (
     <button
       type="button"
@@ -285,8 +312,16 @@ function NoteCard({
       <Card className="transition group-hover:border-primary/40">
         <CardContent className="space-y-2 p-4">
           <div className="flex items-baseline gap-2">
-            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-sm font-medium">{note.title}</span>
+            {note.kind === "obsidian" && (
+              <Badge
+                variant="outline"
+                className="text-[10px] uppercase tracking-wider"
+              >
+                obsidian
+              </Badge>
+            )}
             <span className="ml-auto text-xs text-muted-foreground">
               {formatRelativeDate(note.updated)}
             </span>
@@ -308,7 +343,7 @@ function NoteCard({
               </Badge>
             ))}
             <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-              {note.slug}
+              {note.slug ?? note.relativePath}
             </span>
           </div>
         </CardContent>
@@ -340,14 +375,11 @@ function NoteDialog({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // For "edit", fetch the full note body via note_list result is just preview;
-  // we need the full body. Currently the spec says note_list returns preview
-  // only — so we need a separate read. The Phase 1 spec doesn't include
-  // note_get, so for v1 we use the preview as the seed and let Matt expand
-  // it. After Phase 1 ships note_get, swap this to a real fetch.
+  // Edit dialog only opens for cortex-kind notes. Pull the full body
+  // via note_get; preview is fine for the listing but the editor
+  // needs the real markdown source.
   useEffect(() => {
     if (mode === "edit" && note) {
-      // Best-effort: try note_get if it exists, otherwise fall back to preview.
       void (async () => {
         try {
           const result = await invokeMcpTool<{ body: string }>("note_get", {
@@ -496,6 +528,118 @@ function NoteDialog({
               <Save className="h-3 w-3" />
               {saving ? "Saving…" : "Save"}
             </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Read-only viewer for obsidian-authored notes that live elsewhere
+ * in the vault. We don't write to these from the dashboard — Matt
+ * (or another tool) authored them in Obsidian, and silently
+ * round-tripping them through our editor would risk frontmatter
+ * shape drift. Instead we render the markdown and offer a deep
+ * link to open the file in Obsidian for editing.
+ */
+function ObsidianNoteDialog({
+  note,
+  onClose,
+}: {
+  note: NoteSummary;
+  onClose: () => void;
+}): React.JSX.Element {
+  const [body, setBody] = useState<string | undefined>();
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await invokeMcpTool<{ body: string }>("note_get", {
+          relativePath: note.relativePath,
+        });
+        if (!cancelled) setBody(result.body);
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : String(e));
+          setBody(note.preview);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [note.relativePath, note.preview]);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>{note.title}</span>
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase tracking-wider"
+            >
+              obsidian · read-only
+            </Badge>
+          </DialogTitle>
+          <DialogDescription>
+            <code className="font-mono text-xs">{note.relativePath}</code>
+            {" — "}edit in Obsidian to change the contents.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading || body === undefined ? (
+          <Skeleton className="h-72 w-full" />
+        ) : (
+          <ScrollArea className="h-[60vh] rounded-md border bg-muted/20 p-4">
+            <article className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {body}
+              </ReactMarkdown>
+            </article>
+          </ScrollArea>
+        )}
+
+        {loadError && (
+          <p className="text-xs text-destructive">
+            Couldn&apos;t load full body — falling back to preview. {loadError}
+          </p>
+        )}
+
+        <DialogFooter className="sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {note.project && (
+              <Badge variant="outline" className="text-[10px]">
+                {note.project}
+              </Badge>
+            )}
+            {(note.tags ?? []).map((t) => (
+              <Badge key={t} variant="secondary" className="text-[10px]">
+                #{t}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {note.relativePath && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const file = encodeURIComponent(note.relativePath ?? "");
+                  window.open(`obsidian://open?file=${file}`, "_blank");
+                }}
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open in Obsidian
+              </Button>
+            )}
+            <Button onClick={onClose}>Close</Button>
           </div>
         </DialogFooter>
       </DialogContent>
