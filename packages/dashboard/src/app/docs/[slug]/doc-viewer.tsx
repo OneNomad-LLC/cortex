@@ -3,31 +3,52 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import { useTheme } from "next-themes";
 import Link from "next/link";
-
-import { cn } from "@/lib/utils";
 
 interface DocViewerProps {
   markdown: string;
 }
 
 /**
- * Renders a markdown doc with prose styling. Internal `./X.md` and `X.md`
- * relative links rewrite to `/docs/<slug>` so cross-references inside the
- * docs/ folder navigate within the dashboard.
+ * Renders a markdown doc with GitHub-flavored styling. Layout, heading
+ * borders, tables, blockquotes, code-block surfaces, and inline code
+ * pills come from `github-markdown-css/github-markdown.css` (imported
+ * once in globals.css). Code-block syntax highlighting comes from
+ * `rehype-highlight`; the resulting `.hljs-*` classes are mapped onto
+ * github-markdown-css's `--color-prettylights-syntax-*` variables in
+ * globals.css so they auto-swap with the theme.
+ *
+ * `data-theme` is forwarded based on next-themes' resolved theme so
+ * github-markdown-css picks the matching color set even when the user
+ * has toggled away from their OS preference.
+ *
+ * Internal `./X.md` and `X.md` relative links rewrite to
+ * `/docs/<slug>` so cross-references inside the docs/ folder navigate
+ * within the dashboard.
  */
 export function DocViewer({ markdown }: DocViewerProps): React.JSX.Element {
+  const { resolvedTheme } = useTheme();
+  // useTheme returns undefined on the server; fall back to "light" so
+  // the SSR HTML is deterministic. The class on <html> handles the
+  // visual flash; this attribute just steers github-markdown-css when
+  // it differs from prefers-color-scheme.
+  const dataTheme: "light" | "dark" =
+    resolvedTheme === "dark" ? "dark" : "light";
+
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="markdown-body" data-theme={dataTheme}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{
           a: ({ href, children, ...props }) => {
             const target = href ?? "";
             const internal = rewriteInternalLink(target);
             if (internal) {
               return (
-                <Link href={internal} className="text-primary hover:underline">
+                <Link href={internal}>
                   {children}
                 </Link>
               );
@@ -39,29 +60,10 @@ export function DocViewer({ markdown }: DocViewerProps): React.JSX.Element {
                 {...(isExternal
                   ? { target: "_blank", rel: "noopener noreferrer" }
                   : {})}
-                className="text-primary hover:underline"
                 {...props}
               >
                 {children}
               </a>
-            );
-          },
-          code: ({ className, children, ...props }) => {
-            // ReactMarkdown passes block code with a `language-*` class on
-            // the <code> nested in <pre>, and inline code with no class. We
-            // want a tighter inline style and let prose handle blocks.
-            const isInline = !className?.includes("language-");
-            return (
-              <code
-                className={cn(
-                  isInline &&
-                    "rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]",
-                  className,
-                )}
-                {...props}
-              >
-                {children}
-              </code>
             );
           },
         }}

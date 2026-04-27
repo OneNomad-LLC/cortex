@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "github-markdown-css/github-markdown.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -129,4 +130,92 @@
     @apply bg-background text-foreground;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
+}
+
+/*
+ * github-markdown-css ships its own canvas + page-padding styling that
+ * fights the dashboard's Card container. Strip the canvas/background so
+ * the markdown content renders inside whatever surface wraps it. Keep
+ * everything else: heading borders, table borders, blockquote bar,
+ * spacing, font stack.
+ */
+.markdown-body {
+  background-color: transparent;
+}
+
+/*
+ * Map highlight.js token classes onto github-markdown-css's
+ * prettylights-syntax variables. Those variables already swap with
+ * `data-theme="dark"` (set by DocViewer based on next-themes), so the
+ * highlighted code recolors automatically when the user toggles theme.
+ *
+ * Without this block, rehype-highlight emits .hljs-* classes that
+ * don't have any default colors — code blocks would render plain.
+ */
+.markdown-body .hljs {
+  color: var(--fgColor-default, var(--color-fg-default));
+  background: transparent;
+}
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote {
+  color: var(--color-prettylights-syntax-comment);
+}
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-doctag,
+.markdown-body .hljs-formula,
+.markdown-body .hljs-section {
+  color: var(--color-prettylights-syntax-keyword);
+}
+.markdown-body .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-template-tag,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-meta-string {
+  color: var(--color-prettylights-syntax-string);
+}
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-symbol,
+.markdown-body .hljs-bullet,
+.markdown-body .hljs-link {
+  color: var(--color-prettylights-syntax-constant);
+}
+.markdown-body .hljs-title,
+.markdown-body .hljs-title.class_,
+.markdown-body .hljs-title.function_,
+.markdown-body .hljs-class .hljs-title,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-type {
+  color: var(--color-prettylights-syntax-entity);
+}
+.markdown-body .hljs-variable,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-property {
+  color: var(--color-prettylights-syntax-variable);
+}
+.markdown-body .hljs-tag,
+.markdown-body .hljs-name,
+.markdown-body .hljs-selector-id,
+.markdown-body .hljs-selector-class {
+  color: var(--color-prettylights-syntax-entity-tag);
+}
+.markdown-body .hljs-meta,
+.markdown-body .hljs-meta-keyword {
+  color: var(--color-prettylights-syntax-storage-modifier-import);
+}
+.markdown-body .hljs-emphasis {
+  font-style: italic;
+}
+.markdown-body .hljs-strong {
+  font-weight: 600;
+}
+.markdown-body .hljs-deletion {
+  color: var(--color-prettylights-syntax-markup-deleted-text);
+  background-color: var(--color-prettylights-syntax-markup-deleted-bg);
+}
+.markdown-body .hljs-addition {
+  color: var(--color-prettylights-syntax-markup-inserted-text);
+  background-color: var(--color-prettylights-syntax-markup-inserted-bg);
 }
