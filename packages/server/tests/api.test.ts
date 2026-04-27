@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createDashboardApi, type DashboardApi } from "../src/api/server.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
 import type { Logger } from "@onenomad/cortex-core";
@@ -53,8 +56,26 @@ function fakeTaxonomy() {
 describe("dashboard API", () => {
   let api: DashboardApi;
   let baseUrl: string;
+  let tmpStateDir: string;
+  let prevStatePath: string | undefined;
 
   beforeAll(async () => {
+    // Phase 1b workspace bleed fix — when a test runs without a
+    // `?workspace=` query param, the API server falls back to
+    // `getActiveWorkspace()`, which reads `~/.cortex/state.json`. On
+    // a developer's machine that may resolve to a real workspace,
+    // and the post-fetch `filterByWorkspace` then drops every seeded
+    // row (the fakes don't carry a `metadata.workspace` stamp). Point
+    // CORTEX_STATE_PATH at an empty tmp file so getActiveWorkspace()
+    // resolves to undefined → ctx.workspace is undefined → filter
+    // becomes pass-through. Cleaner than stamping metadata on every
+    // row because it stays host-state-independent.
+    tmpStateDir = mkdtempSync(join(tmpdir(), "cortex-api-test-state-"));
+    const stateFile = join(tmpStateDir, "state.json");
+    writeFileSync(stateFile, JSON.stringify({ workspaces: {} }), "utf8");
+    prevStatePath = process.env.CORTEX_STATE_PATH;
+    process.env.CORTEX_STATE_PATH = stateFile;
+
     const now = new Date().toISOString();
     api = createDashboardApi({
       host: "127.0.0.1",
@@ -124,6 +145,9 @@ describe("dashboard API", () => {
 
   afterAll(async () => {
     await api.stop();
+    if (prevStatePath === undefined) delete process.env.CORTEX_STATE_PATH;
+    else process.env.CORTEX_STATE_PATH = prevStatePath;
+    try { rmSync(tmpStateDir, { recursive: true, force: true }); } catch { /* nothing */ }
   });
 
   it("serves /health", async () => {
