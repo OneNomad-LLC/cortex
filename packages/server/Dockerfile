@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1.7
 # Multi-stage build for @onenomad/cortex.
 #
-# Base image is node:20-slim (Debian/glibc). Alpine/musl was tried
+# Base image is node:22-slim (Debian/glibc). Alpine/musl was tried
 # first but LanceDB's musl binary hard-requires AVX-512 CPU
 # instructions that most consumer laptops lack — the glibc build
 # does runtime CPU detection and works on a broader baseline.
+# Node 22 is required because @onenomad/cortex-cache-sqlite imports
+# node:sqlite (stable in 22.16+).
 #
 # Stage 1 (deps): install the workspace with pnpm so the @onenomad/*
 #   links resolve through the monorepo root.
@@ -15,7 +17,7 @@
 # Build from the repo root:
 #   docker build -f packages/server/Dockerfile -t cortex:latest .
 
-FROM node:20-slim AS deps
+FROM node:22-slim AS deps
 WORKDIR /app
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -30,7 +32,7 @@ FROM deps AS build
 WORKDIR /app
 RUN pnpm -r run build
 
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
