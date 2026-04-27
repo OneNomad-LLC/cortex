@@ -63,6 +63,13 @@ services:
       # files. Add a line per module; point cortex.yaml's
       # `privateModules` list at the mounted paths.
       - ../cortex-career-automation:/root/cortex-career-automation:ro
+      # Obsidian vault — set OBSIDIAN_VAULT_HOST in .env to your vault
+      # path to enable the obsidian adapter + dashboard /notes route.
+      # When unset, the mount falls back to the cortex data dir as a
+      # safe no-op so docker compose doesn't error. Inside the
+      # container, set the obsidian adapter's vaultPath to
+      # /root/obsidian-vault.
+      - ${OBSIDIAN_VAULT_HOST:-./.cortex-data}:/root/obsidian-vault
     ports:
       # Publish on all interfaces so both IPv4 and IPv6 localhost work
       # (Docker Desktop on Windows forwards 127.0.0.1-only binds to IPv4
