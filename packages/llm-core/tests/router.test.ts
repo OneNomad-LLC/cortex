@@ -212,8 +212,25 @@ describe("LLMRouter", () => {
     });
   });
 
-  it("rejects config that references an unknown provider", () => {
+  it("warns (not throws) when a task references an unknown provider", () => {
+    // Behavior changed in router.ts:52-68 — the router now boots with
+    // task-bindings pointing at unconfigured providers and surfaces the
+    // mismatch at complete() time. Two legit reasons: (1) a fresh
+    // workspace ships a default task binding before any provider is
+    // enabled, and (2) a user hot-disables a provider while a task
+    // still references it. The test was last touching the throw shape;
+    // align it with the warn-don't-crash design.
     const ollama = makeProvider("ollama", () => "x");
+    const warnings: Array<Record<string, unknown>> = [];
+    const logger = {
+      debug: () => undefined,
+      info: () => undefined,
+      warn: (_msg: string, meta?: Record<string, unknown>) => {
+        if (meta) warnings.push(meta);
+      },
+      error: () => undefined,
+      child(): typeof logger { return this; },
+    };
     expect(
       () =>
         new LLMRouter({
@@ -223,7 +240,9 @@ describe("LLMRouter", () => {
             structural: { provider: "missing", model: "x" },
           },
           fallbackChain: [],
+          logger,
         }),
-    ).toThrow(/unknown provider 'missing'/);
+    ).not.toThrow();
+    expect(warnings.some((w) => w.provider === "missing")).toBe(true);
   });
 });
