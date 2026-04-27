@@ -39,6 +39,7 @@ import {
   resolveLayout,
 } from "./layout.js";
 import { buildWidgetRegistry } from "./widgets/index.js";
+import { handleWorkspaceDocs } from "./workspace-docs.js";
 import type { Widget, WidgetContext } from "./types.js";
 import type { HeartbeatWriter } from "../heartbeat.js";
 import { getSharedLogBus, type LogLine } from "../log-bus.js";
@@ -291,6 +292,14 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (pathname.startsWith("/api/workspace-files/")) {
       await handleWorkspaceFiles(req, res, pathname, opts, logger);
+      return;
+    }
+
+    if (
+      pathname === "/api/workspace-docs" ||
+      pathname.startsWith("/api/workspace-docs/")
+    ) {
+      await handleWorkspaceDocs(req, res, pathname, logger);
       return;
     }
 

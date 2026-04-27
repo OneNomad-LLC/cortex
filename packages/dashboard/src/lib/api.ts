@@ -67,6 +67,26 @@ export async function fetchLayoutServer<T>(): Promise<T> {
 }
 
 /**
+ * Server-side helper for the per-workspace docs API. The dashboard
+ * container can't read the host filesystem where workspace docs live,
+ * so we always go through the cortex sidecar.
+ */
+export async function fetchCortexJsonServer<T>(
+  apiPath: string,
+  init?: { signal?: AbortSignal },
+): Promise<T> {
+  const url = `${SERVER_BASE}${apiPath}`;
+  const res = await fetch(url, {
+    cache: "no-store",
+    ...(init?.signal ? { signal: init.signal } : {}),
+  });
+  if (!res.ok) {
+    throw new Error(`${apiPath}: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
+
+/**
  * Invoke a Cortex MCP tool from a client component. Posts to the
  * sidecar's tool endpoint via the same `/api/cortex/*` rewrite the
  * widget fetchers use, and unwraps the `{ result, error }` envelope

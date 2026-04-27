@@ -100,3 +100,27 @@ export async function readDoc(slug: string): Promise<string | undefined> {
     return undefined;
   }
 }
+
+export interface WorkspaceDocSummary {
+  slug: string;
+  title: string;
+  description?: string;
+  updatedAt: string;
+  sizeBytes: number;
+}
+
+export interface WorkspaceDocsList {
+  workspace: string | null;
+  path: string | null;
+  exists: boolean;
+  docs: WorkspaceDocSummary[];
+}
+
+export interface WorkspaceDocRead {
+  workspace: string;
+  slug: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+  path: string;
+}

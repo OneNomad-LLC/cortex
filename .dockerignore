@@ -12,7 +12,6 @@
 .vscode
 .idea
 *.log
-docs
 tests
 **/tests
 **/*.test.ts

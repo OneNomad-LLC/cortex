@@ -17,6 +17,11 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # Manifest-only pass so npm install is cacheable against package.json churn.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
+# `outputFileTracingIncludes` in next.config.ts pulls `../../docs/**/*.md`
+# into the standalone output so the /docs route can read them at runtime.
+# That trace fails silently if the source files aren't in the build
+# context — copy them in before the Next build runs.
+COPY docs ./docs
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
