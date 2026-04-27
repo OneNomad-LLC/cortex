@@ -139,6 +139,57 @@ export class SlackClient {
     return `https://${workspace}.slack.com/archives/${channel}/p${p}`;
   }
 
+  /**
+   * Send a message via `chat.postMessage`. Used by the notification
+   * pipeline (Prong B). `channel` accepts a channel id (e.g. `C…`),
+   * a DM channel id (`D…`), `@username`, or a self-DM via the user's
+   * own `U…` id (Slack auto-opens an `im` channel on send).
+   */
+  async postMessage(args: {
+    channel: string;
+    text: string;
+    /** Set to true if the text uses Slack's mrkdwn syntax. Default true. */
+    mrkdwn?: boolean;
+  }): Promise<{ ok: boolean; ts?: string; channel?: string; error?: string }> {
+    const url = `${this.baseUrl}/chat.postMessage`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const body = JSON.stringify({
+        channel: args.channel,
+        text: args.text,
+        mrkdwn: args.mrkdwn ?? true,
+      });
+      const res = await this.fetchImpl(url, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.opts.token}`,
+          "content-type": "application/json; charset=utf-8",
+          accept: "application/json",
+        },
+        body,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        return { ok: false, error: `http_${res.status}` };
+      }
+      const data = (await res.json()) as {
+        ok: boolean;
+        ts?: string;
+        channel?: string;
+        error?: string;
+      };
+      return data;
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async call<T extends { ok: boolean; error?: string }>(
     method: string,
     params: URLSearchParams,

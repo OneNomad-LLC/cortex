@@ -46,6 +46,7 @@
     "@onenomad/cortex-pipeline-conversation": "workspace:*",
     "@onenomad/cortex-pipeline-doc": "workspace:*",
     "@onenomad/cortex-pipeline-meeting": "workspace:*",
+    "@onenomad/cortex-pipeline-notification": "workspace:*",
     "@onenomad/cortex-pipeline-research": "workspace:*",
     "@onenomad/cortex-provider-ollama": "workspace:*",
     "@onenomad/cortex-provider-openrouter": "workspace:*",
