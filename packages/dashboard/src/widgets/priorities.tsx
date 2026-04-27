@@ -43,15 +43,18 @@ const REASON_CLASS: Record<PriorityRow["reason"], string> = {
 export async function PrioritiesWidget({
   owner,
   limit = 20,
+  workspace,
 }: {
   owner?: string;
   limit?: number;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: PrioritiesData | undefined;
   let error: string | undefined;
   try {
     const params: Record<string, string | number> = { limit };
     if (owner) params.owner = owner;
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<PrioritiesData>("priorities", params);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);

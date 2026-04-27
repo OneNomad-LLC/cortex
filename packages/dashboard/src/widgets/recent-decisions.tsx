@@ -24,16 +24,19 @@ export async function RecentDecisionsWidget({
   project,
   days = 7,
   limit = 15,
+  workspace,
 }: {
   project?: string;
   days?: number;
   limit?: number;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: RecentDecisionsData | undefined;
   let error: string | undefined;
   try {
     const params: Record<string, string | number> = { days, limit };
     if (project) params.project = project;
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<RecentDecisionsData>(
       "recent-decisions",
       params,

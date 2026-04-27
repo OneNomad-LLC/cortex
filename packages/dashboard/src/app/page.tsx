@@ -62,7 +62,7 @@ export default async function Home(): Promise<React.JSX.Element> {
       {layout && (
         <div className="grid gap-4 lg:grid-cols-2">
           {layout.widgets.map((w) => (
-            <div key={w.name}>{renderWidget(w)}</div>
+            <div key={w.name}>{renderWidget(w, layout.workspace)}</div>
           ))}
         </div>
       )}

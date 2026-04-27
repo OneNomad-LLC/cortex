@@ -23,14 +23,17 @@ export interface TodayMeetingsData {
 
 export async function TodayMeetingsWidget({
   calendars,
+  workspace,
 }: {
   calendars?: string;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: TodayMeetingsData | undefined;
   let error: string | undefined;
   try {
     const params: Record<string, string | number> = {};
     if (calendars) params.calendars = calendars;
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<TodayMeetingsData>(
       "today-meetings",
       params,

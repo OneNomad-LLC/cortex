@@ -24,17 +24,21 @@ export interface RecentActivityData {
 export async function RecentActivityWidget({
   days = 3,
   limit = 12,
+  workspace,
 }: {
   days?: number;
   limit?: number;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: RecentActivityData | undefined;
   let error: string | undefined;
   try {
-    data = await fetchWidgetServer<RecentActivityData>("recent-activity", {
-      days,
-      limit,
-    });
+    const params: Record<string, string | number> = { days, limit };
+    if (workspace) params.workspace = workspace;
+    data = await fetchWidgetServer<RecentActivityData>(
+      "recent-activity",
+      params,
+    );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }

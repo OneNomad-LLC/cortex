@@ -23,16 +23,19 @@ export async function WhoKnowsWidget({
   topic,
   days = 90,
   limit = 8,
+  workspace,
 }: {
   topic?: string;
   days?: number;
   limit?: number;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: WhoKnowsData | undefined;
   let error: string | undefined;
   try {
     const params: Record<string, string | number> = { days, limit };
     if (topic) params.topic = topic;
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<WhoKnowsData>("who-knows", params);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);

@@ -45,12 +45,14 @@ export async function MyActionItemsWidget({
   days = 30,
   limit = 25,
   includeDone = false,
+  workspace,
 }: {
   owner?: string;
   project?: string;
   days?: number;
   limit?: number;
   includeDone?: boolean;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: MyActionItemsData | undefined;
   let error: string | undefined;
@@ -59,6 +61,7 @@ export async function MyActionItemsWidget({
     if (owner) params.owner = owner;
     if (project) params.project = project;
     if (includeDone) params.includeDone = "true";
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<MyActionItemsData>(
       "my-action-items",
       params,

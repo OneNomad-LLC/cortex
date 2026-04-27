@@ -36,12 +36,14 @@ export async function UpcomingBriefsWidget({
   limit = 3,
   project,
   generateBrief = false,
+  workspace,
 }: {
   hoursAhead?: number;
   minutesThreshold?: number;
   limit?: number;
   project?: string;
   generateBrief?: boolean;
+  workspace?: string;
 }): Promise<React.JSX.Element> {
   let data: UpcomingBriefsData | undefined;
   let error: string | undefined;
@@ -53,6 +55,7 @@ export async function UpcomingBriefsWidget({
     };
     if (project) params.project = project;
     if (generateBrief) params.generateBrief = "true";
+    if (workspace) params.workspace = workspace;
     data = await fetchWidgetServer<UpcomingBriefsData>(
       "upcoming-briefs",
       params,

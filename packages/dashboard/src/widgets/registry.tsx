@@ -48,8 +48,16 @@ export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
   "who-knows": WhoKnowsWidget as WidgetComponent,
 };
 
-export function renderWidget(entry: LayoutWidget): React.ReactNode {
+export function renderWidget(
+  entry: LayoutWidget,
+  workspace?: string,
+): React.ReactNode {
   const Component = WIDGET_COMPONENTS[entry.name];
   if (!Component) return <PlaceholderWidget name={entry.name} />;
-  return Component(entry.props);
+  // Thread the resolved workspace into every widget. Widgets forward it as
+  // `?workspace=<slug>` on their fetch URL so server-side handlers can
+  // filter by workspace (1b — backend filtering still pending). 1a wire
+  // is purely additive: handlers that don't know `workspace` ignore it.
+  const props = workspace ? { ...entry.props, workspace } : entry.props;
+  return Component(props);
 }
