@@ -19,6 +19,10 @@ import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
 import { myActionItems } from "./my-action-items.js";
+import { noteCreate } from "./note-create.js";
+import { noteDelete } from "./note-delete.js";
+import { noteList } from "./note-list.js";
+import { noteUpdate } from "./note-update.js";
 import { readSessionHandoffs } from "./read-session-handoffs.js";
 import { research } from "./research.js";
 import { resolveSessionHandoff } from "./resolve-session-handoff.js";
@@ -73,6 +77,12 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   // On-demand ingest.
   ingestContent,
   ingestFile,
+  // Cortex-authored notes (Phase 1 — filesystem-backed via the
+  // obsidian adapter's vault).
+  noteCreate,
+  noteUpdate,
+  noteDelete,
+  noteList,
   // Browser control — routed through the Cortex bridge to the
   // extension. Claude gets eyes + hands in the user's real browser.
   ...ALL_BROWSER_TOOLS,

@@ -34,6 +34,16 @@ export const obsidianConfigSchema = z.object({
    * generated artifacts shouldn't land in memory. Default 1 MiB.
    */
   maxFileBytes: z.number().int().positive().default(1_048_576),
+  /**
+   * Subdirectory inside `vaultPath` where the cortex dashboard's
+   * note editor writes user-authored notes (Notes Phase 1). The
+   * existing obsidian adapter still walks the whole vault for
+   * ingest; this subdir is just the dashboard's write target so
+   * cortex-authored notes are filesystem-traceable + share the
+   * same engram indexing pipeline as any other markdown in the
+   * vault.
+   */
+  notesSubdir: z.string().default("cortex-notes"),
 });
 
 export type ObsidianConfig = z.infer<typeof obsidianConfigSchema>;
