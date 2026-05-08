@@ -1,19 +1,32 @@
 # Cortex
 
-A personal work-knowledge assistant that unifies meeting transcripts, docs, code,
-and personal notes into a searchable, context-aware system. Built as an
-orchestration layer on top of Engram (memory) and Persona (communication style).
+A universal memory + on-prem company knowledge engine for AI agents.
+Cortex is the **data plane**: storage, retrieval, ingestion adapters.
+It runs with zero LLM. The **compute plane** (LLM-backed enrichment
+— categorization, action extraction, summarization, entity tagging)
+is delegated to the connected MCP client (Pyre, Claude Desktop,
+custom agents) via the Cortex Enrichment Protocol, OR handled
+in-process when an LLM provider is installed.
+
+Built as an orchestration layer on top of Engram (memory) and
+Persona (communication style).
 
 ## What This Project Is
 
-Cortex ingests from Loom, Confluence, Bitbucket, and Obsidian. It runs meeting
-transcripts through a multi-pass extraction pipeline to produce digestible briefs.
-It generates pre-meeting briefs from calendar events. It tracks action items
-across projects. It exposes all of this through an MCP server that Claude Code
-and Claude.ai connect to.
+Cortex ingests from Loom, Confluence, Bitbucket, Obsidian, GitHub,
+Slack, Notion, Gmail, Google Calendar/Drive, Jira, Linear. It
+chunks content for retrieval and (optionally) runs it through
+enrichment pipelines to produce structured outputs (briefs,
+decisions, action items, references). It exposes all of this
+through an MCP server that any MCP-aware agent (Claude Code,
+Claude Desktop, Pyre) can query.
 
-It is explicitly designed around the author's ADHD — summarization, prioritization,
-and connection to existing context are first-class features, not afterthoughts.
+Cortex 0.2 dropped the personal-assistant framing. Time-relative
+tools (`todays_digest`, `catch_me_up`, etc.) were replaced with
+time-agnostic equivalents (`digest`, `summarize_recent`, etc.). The
+LLM dependency was stripped — Cortex Core works without one and
+delegates enrichment to the connected MCP client. See `MIGRATION.md`
+and `docs/enrichment-protocol.md`.
 
 ## What This Project Is NOT
 

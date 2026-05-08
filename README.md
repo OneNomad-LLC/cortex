@@ -1,9 +1,19 @@
 # Cortex
 
-Work-knowledge MCP server. Unifies docs (Confluence, Notion), tickets
-(Jira), personal notes (Obsidian) — and later meetings, code, email,
-and chat — into a single searchable layer Claude Code and Claude.ai
-can query.
+**Universal memory + on-prem company knowledge engine for AI agents.**
+
+Cortex unifies docs (Confluence, Notion), tickets (Jira), meetings
+(Loom), code (GitHub, Bitbucket), email (Gmail, Outlook), chat
+(Slack), notes (Obsidian) — and anything else with an adapter — into
+a single searchable layer that any MCP-aware agent can query.
+
+Cortex 0.2 is positioned as the **data plane**: it stores raw
+content and exposes retrieval. The **compute plane** (LLM-backed
+enrichment — categorization, action extraction, summarization,
+entity tagging) is delegated to the connected MCP client via the
+[Cortex Enrichment Protocol](docs/enrichment-protocol.md). Cortex
+runs with zero LLM. Bring your own — locally or via an MCP client
+like Pyre, Claude Desktop, or any custom agent.
 
 Built as an orchestration layer on top of two standalone MCP servers:
 
@@ -13,6 +23,33 @@ Built as an orchestration layer on top of two standalone MCP servers:
 Cortex adds domain-specific MCP tools (projects, meetings, briefs,
 action items, research) and modular source adapters. Every adapter
 and LLM provider is a standalone package — install only what you use.
+
+## Two install shapes
+
+```
+                     ┌──────────────────────────────────┐
+                     │  Cortex Core (data plane)        │
+                     │  storage + retrieval + adapters  │
+                     │  — runs with NO LLM —            │
+                     └──────────────────────────────────┘
+                                    │
+        ┌───────────────────────────┴──────────────────────────┐
+        ▼                                                      ▼
+┌─────────────────────────┐                ┌─────────────────────────────────┐
+│ Standalone with LLM     │                │ Connected to MCP client         │
+│                         │                │                                 │
+│ - install Ollama or     │                │ - any MCP client (Pyre, Claude  │
+│   OpenRouter provider   │                │   Desktop, custom agent)        │
+│ - in-process enrichment │                │ - enrichment via Cortex         │
+│                         │                │   Enrichment Protocol (queue)   │
+│ - good for self-hosted  │                │ - good for distributed setups   │
+│   single-node           │                │   and on-prem company use       │
+└─────────────────────────┘                └─────────────────────────────────┘
+```
+
+Without enrichment, search and retrieval still work against raw
+ingested content. Connect an enrichment provider later and re-run
+the adapter to backfill the structured layer.
 
 ## Documentation
 
@@ -30,9 +67,13 @@ and LLM provider is a standalone package — install only what you use.
 
 **MCP tool surface** (workspace-scoped unless noted):
 
-- *Knowledge:* `list_projects`, `get_project_context`, `catch_me_up`,
-  `catch_me_up_on_meeting`, `my_action_items`, `upcoming_briefs`,
-  `list_unclassified`, `todays_digest`, `search_related`
+- *Knowledge:* `list_projects`, `get_project_context`,
+  `summarize_recent`, `summarize_meeting`, `pending_action_items`,
+  `list_unclassified`, `digest`, `search_related`
+- *Enrichment protocol* (Cortex 0.2):
+  `pending_enrichment_requests`, `submit_enrichment_result` — for
+  connected MCP clients to act as Cortex's enrichment provider when
+  no local LLM is configured. See [docs/enrichment-protocol.md](docs/enrichment-protocol.md).
 - *Notes:* `note_create`, `note_update`, `note_delete`, `note_list` —
   markdown notes saved to your Obsidian vault under
   `<vault>/cortex-notes/`, ingested into Engram automatically
@@ -353,15 +394,18 @@ resolve_session_handoff({ id, note: "Shipped in PR #42" })
 Stored as regular Engram memories with `type: "session_handoff"` —
 searchable alongside everything else.
 
-## LLM providers
+## LLM providers (optional)
 
-Pluggable — toggle between local Ollama, OpenRouter, or BYOK direct
-providers (Anthropic/OpenAI/Google) per-task via
-`config/cortex.yaml > llm.tasks`. Task purposes: `default`,
-`structural`, `synthesis`, `brief`, `classify`, `embed`. See
-[ADR-010](docs/DECISIONS.md).
+Cortex 0.2 — provider packages are **optional**. Cortex Core runs
+without one; enrichment is delegated to the connected MCP client
+via the [Cortex Enrichment Protocol](docs/enrichment-protocol.md).
 
-Current provider packages:
+If you want in-process enrichment, install one or more providers
+and toggle them per-task in `config/cortex.yaml > llm.tasks`. Task
+purposes: `default`, `structural`, `synthesis`, `brief`, `classify`,
+`embed`. See [ADR-010](docs/DECISIONS.md).
+
+Provider packages (all optional):
 
 - `@onenomad/cortex-provider-ollama` — local (Ollama, any model it supports;
   `think: false` by default; `/api/embed` for embedding tasks)
@@ -369,6 +413,31 @@ Current provider packages:
 
 Future: `@onenomad/cortex-provider-anthropic`, `@onenomad/cortex-provider-openai`,
 `@onenomad/cortex-provider-google` for direct-provider BYOK.
+
+### Enrichment via MCP client (no local LLM)
+
+When no provider is installed Cortex boots in queue mode. A
+connected MCP client (Pyre, Claude Desktop, any agent that
+implements the protocol) drains the queue with
+`pending_enrichment_requests` and posts results back via
+`submit_enrichment_result`. See
+[`docs/enrichment-protocol.md`](docs/enrichment-protocol.md) for the
+wire-format spec.
+
+```
+Cortex pipelines                    Connected MCP client
+       │                                    │
+       │  enqueue request                   │
+       ▼                                    │
+  ┌────────────┐                            │
+  │  Queue     │ ◄─────── poll ─────────────┤
+  │            │ ─────── drain ────────────►│  (LLM call here)
+  │            │ ◄────── submit ────────────┤
+  └────────────┘                            │
+       │                                    │
+       ▼                                    │
+  resume ingestion                          │
+```
 
 ## Real-time ingestion
 
