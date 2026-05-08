@@ -3,6 +3,7 @@ import type { LoadedTaxonomy } from "../taxonomy.js";
 import type { Logger } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
+import type { EnrichmentQueue } from "../enrichment.js";
 import type { PersonaClient } from "../clients/persona.js";
 
 /**
@@ -17,6 +18,14 @@ export interface ToolContext {
   /** Optional — only present when an LLM is configured. Tools should
    *  handle its absence gracefully (fall back to non-LLM output). */
   llmRouter?: LLMRouter;
+  /**
+   * Optional — present when Cortex is running in queue-based
+   * enrichment mode (no local LLM, expects an MCP client to act as
+   * enrichment provider via the protocol tools in
+   * `mcp/tools/pending-enrichment-requests.ts` and
+   * `submit-enrichment-result.ts`).
+   */
+  enrichmentQueue?: EnrichmentQueue;
   /**
    * Per-call correlation id, generated at the MCP tool-call boundary.
    * Tools that persist memories should stamp it on metadata so audit

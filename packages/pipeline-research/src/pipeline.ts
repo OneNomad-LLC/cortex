@@ -28,39 +28,79 @@ export function createResearchPipeline(
       const topicSlug = normalizeTopic(input.topic);
       const baseMetadata = buildBaseMetadata(input, topicSlug, ctx.traceId);
 
-      // Pass 1: structural extraction from retrieved context.
-      const extractPrompt = buildExtractPrompt(input, maxItemChars);
-      const pass1Raw = await ctx.llm.complete({
-        task: "structural",
-        prompt: extractPrompt,
-        temperature: 0,
-        maxTokens: 2048,
-      });
-      const extracted = parseJsonLoose<ResearchExtracted>(pass1Raw) ?? {
-        summary: "",
-        findings: [],
-      };
+      let extracted: ResearchExtracted;
+      let brief: string;
 
-      // Pass 2: synthesize a brief.
-      const briefPrompt = buildBriefPrompt(input, extracted);
-      const brief = await ctx.llm.complete({
-        task: "brief",
-        prompt: briefPrompt,
-        temperature: 0.2,
-        maxTokens: 2048,
-      });
+      if (ctx.llm) {
+        // Pass 1: structural extraction from retrieved context.
+        const extractPrompt = buildExtractPrompt(input, maxItemChars);
+        const pass1Raw = await ctx.llm.complete({
+          task: "structural",
+          prompt: extractPrompt,
+          temperature: 0,
+          maxTokens: 2048,
+        });
+        extracted = parseJsonLoose<ResearchExtracted>(pass1Raw) ?? {
+          summary: "",
+          findings: [],
+        };
+
+        // Pass 2: synthesize a brief.
+        const briefPrompt = buildBriefPrompt(input, extracted);
+        brief = await ctx.llm.complete({
+          task: "brief",
+          prompt: briefPrompt,
+          temperature: 0.2,
+          maxTokens: 2048,
+        });
+      } else {
+        // Cortex 0.2 — no local LLM. Try the enrichment callback for
+        // a summary; we can't do structured findings extraction
+        // without a more elaborate protocol, so we degrade to a
+        // single brief memory plus the raw retrieved context.
+        const concatenated = input.retrievedContext
+          .map((c) => c.content)
+          .join("\n\n---\n\n");
+        const summary = await ctx.enrichment
+          ?.enrich({
+            type: "summarize",
+            payload: { content: concatenated, hint: input.topic },
+            context: {
+              topic: input.topic,
+              ...(ctx.traceId ? { trace_id: ctx.traceId } : {}),
+            },
+          })
+          .catch(() => null);
+        extracted = { summary: "", findings: [] };
+        if (summary && "summary" in summary) {
+          brief =
+            summary.key_points.length > 0
+              ? `${summary.summary}\n\n${summary.key_points
+                  .map((p) => `- ${p}`)
+                  .join("\n")}`
+              : summary.summary;
+        } else {
+          brief = "";
+          ctx.logger.info("pipeline-research.no_enrichment", {
+            hint: "no local LLM and no enrichment provider — research brief skipped",
+          });
+        }
+      }
 
       const memories: PipelineMemory[] = [];
 
-      // Brief memory.
-      memories.push({
-        content: brief.trim(),
-        metadata: {
-          ...baseMetadata,
-          source_id: `${baseMetadata.source_id}#brief`,
-          title: `Reference: ${input.topic}`,
-        },
-      });
+      // Brief memory — skip when there's nothing to write (no LLM
+      // and no enrichment provider answered).
+      if (brief.trim().length > 0) {
+        memories.push({
+          content: brief.trim(),
+          metadata: {
+            ...baseMetadata,
+            source_id: `${baseMetadata.source_id}#brief`,
+            title: `Reference: ${input.topic}`,
+          },
+        });
+      }
 
       // Finding memories (one each, capped).
       const findings = (extracted.findings ?? []).slice(0, maxFindings);

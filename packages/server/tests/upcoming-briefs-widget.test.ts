@@ -49,9 +49,8 @@ function mockCtx(rows: EngramMemory[]): WidgetContext {
   return {
     logger: nullLogger(),
     engram: fakeEngram(rows),
-    // llmRouter is non-optional on WidgetContext; upcoming-briefs'
-    // generateBrief defaults to false so no LLM call fires in these tests.
-    llmRouter: {} as never,
+    // Cortex 0.2 — llmRouter is optional. The widget gates LLM
+    // brief rendering on its presence + the generateBrief flag.
     taxonomy: {
       projects: [],
       people: [],

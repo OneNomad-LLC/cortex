@@ -75,7 +75,7 @@ interface Output {
 
 /**
  * Semantic-first retrieval with convenient filters. Lighter than
- * catch_me_up or get_project_context — intended for "give me the
+ * summarize_recent or get_project_context — intended for "give me the
  * 10 most relevant past decisions about X so I can weigh in on
  * this PR" or "what did we say about auth migration last quarter"
  * flows. Claude should call this before committing to a

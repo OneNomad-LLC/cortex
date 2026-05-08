@@ -148,7 +148,7 @@ export async function runBackfillCli(argv: readonly string[]): Promise<number> {
   const { router: llmRouter } = await buildLLMRouter({ cfg, env: process.env, logger });
   const memoryBoot = await createMemoryClient({
     memory: cfg.memory,
-    llmRouter,
+    ...(llmRouter ? { llmRouter } : {}),
     logger,
   });
   const engram = memoryBoot.client;

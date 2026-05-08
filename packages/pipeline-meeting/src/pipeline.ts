@@ -59,59 +59,133 @@ export function createMeetingPipeline(
         return {} as ExtractedSignals;
       });
 
-      // --- Pass 1: structural ---------------------------------------
-      const pass1Tmpl = await loadPrompt("pass1-structural.md");
-      const pass1Prompt = renderPrompt(pass1Tmpl, {
-        TRANSCRIPT: input.content,
-      });
-      const pass1Raw = await ctx.llm.complete({
-        task: "structural",
-        prompt: pass1Prompt,
-        temperature: 0,
-        maxTokens: 2048,
-      });
-      const structured = parseAndValidate(
-        pass1Raw,
-        ctx,
-        "pipeline-meeting.pass1.invalid_shape",
-      );
+      // Cortex 0.2 — when no local LLM is configured, the meeting
+      // pipeline can't do its 3-pass structured extraction in
+      // process. We fall back to the Cortex Enrichment Protocol:
+      // ask the connected MCP client (Pyre, Claude Desktop) to
+      // produce a summary + extracted actions, and stitch those
+      // into the same memory shape. If neither LLM nor enrichment
+      // callback is present, store raw transcript chunks only.
+      let structured: MeetingStructured;
+      let synthesized: MeetingStructured;
+      let brief: string;
 
-      // --- Pass 2: synthesis ----------------------------------------
-      const pass2Tmpl = await loadPrompt("pass2-synthesis.md");
-      const pass2Prompt = renderPrompt(pass2Tmpl, {
-        PEOPLE_CONTEXT: peopleContext,
-        PRIOR_DECISIONS: priorDecisions,
-        MEETING_DATE: input.updatedAt.toISOString(),
-        STRUCTURED_INPUT: JSON.stringify(structured, null, 2),
-      });
-      const pass2Raw = await ctx.llm.complete({
-        task: "synthesis",
-        prompt: pass2Prompt,
-        temperature: 0,
-        maxTokens: 2048,
-      });
-      const synthesized = parseAndValidate(
-        pass2Raw,
-        ctx,
-        "pipeline-meeting.pass2.invalid_shape",
-      );
+      if (ctx.llm) {
+        // --- Pass 1: structural -----------------------------------
+        const pass1Tmpl = await loadPrompt("pass1-structural.md");
+        const pass1Prompt = renderPrompt(pass1Tmpl, {
+          TRANSCRIPT: input.content,
+        });
+        const pass1Raw = await ctx.llm.complete({
+          task: "structural",
+          prompt: pass1Prompt,
+          temperature: 0,
+          maxTokens: 2048,
+        });
+        structured = parseAndValidate(
+          pass1Raw,
+          ctx,
+          "pipeline-meeting.pass1.invalid_shape",
+        );
 
-      // --- Pass 3: brief --------------------------------------------
-      const pass3Tmpl = await loadPrompt("pass3-brief.md");
-      const pass3Prompt = renderPrompt(pass3Tmpl, {
-        TITLE: input.title,
-        DATE: input.updatedAt.toISOString().slice(0, 10),
-        PARTICIPANTS: (synthesized.participants ?? [])
-          .map((p) => p.name)
-          .join(", ") || "unknown",
-        SYNTHESIZED_INPUT: JSON.stringify(synthesized, null, 2),
-      });
-      const brief = await ctx.llm.complete({
-        task: "brief",
-        prompt: pass3Prompt,
-        temperature: 0.2,
-        maxTokens: 2048,
-      });
+        // --- Pass 2: synthesis ------------------------------------
+        const pass2Tmpl = await loadPrompt("pass2-synthesis.md");
+        const pass2Prompt = renderPrompt(pass2Tmpl, {
+          PEOPLE_CONTEXT: peopleContext,
+          PRIOR_DECISIONS: priorDecisions,
+          MEETING_DATE: input.updatedAt.toISOString(),
+          STRUCTURED_INPUT: JSON.stringify(structured, null, 2),
+        });
+        const pass2Raw = await ctx.llm.complete({
+          task: "synthesis",
+          prompt: pass2Prompt,
+          temperature: 0,
+          maxTokens: 2048,
+        });
+        synthesized = parseAndValidate(
+          pass2Raw,
+          ctx,
+          "pipeline-meeting.pass2.invalid_shape",
+        );
+
+        // --- Pass 3: brief ----------------------------------------
+        const pass3Tmpl = await loadPrompt("pass3-brief.md");
+        const pass3Prompt = renderPrompt(pass3Tmpl, {
+          TITLE: input.title,
+          DATE: input.updatedAt.toISOString().slice(0, 10),
+          PARTICIPANTS:
+            (synthesized.participants ?? []).map((p) => p.name).join(", ") ||
+            "unknown",
+          SYNTHESIZED_INPUT: JSON.stringify(synthesized, null, 2),
+        });
+        brief = await ctx.llm.complete({
+          task: "brief",
+          prompt: pass3Prompt,
+          temperature: 0.2,
+          maxTokens: 2048,
+        });
+      } else {
+        // No local LLM. Ask the enrichment callback for a summary +
+        // action extraction in parallel; both are best-effort.
+        const summarizePromise = ctx.enrichment
+          ?.enrich({
+            type: "summarize",
+            payload: { content: input.content, hint: input.title },
+            context: {
+              source: input.sourceType,
+              source_id: input.sourceId,
+              ...(ctx.traceId ? { trace_id: ctx.traceId } : {}),
+            },
+          })
+          .catch(() => null);
+        const actionsPromise = ctx.enrichment
+          ?.enrich({
+            type: "extract_actions",
+            payload: { content: input.content, source: input.sourceId },
+            context: {
+              source: input.sourceType,
+              source_id: input.sourceId,
+              ...(ctx.traceId ? { trace_id: ctx.traceId } : {}),
+            },
+          })
+          .catch(() => null);
+
+        const [summary, actions] = await Promise.all([
+          summarizePromise ?? Promise.resolve(null),
+          actionsPromise ?? Promise.resolve(null),
+        ]);
+
+        const empty = meetingStructuredSchema.parse({});
+        structured = empty;
+        // Re-parse through the schema so the action_items shape matches
+        // exactly (zod fills nullable fields with null, etc.).
+        synthesized = meetingStructuredSchema.parse({
+          ...empty,
+          ...(actions && "actions" in actions
+            ? {
+                action_items: actions.actions.map((a) => ({
+                  description: a.description,
+                  owner: a.assignee ?? null,
+                  due_hint: null,
+                  due_date: a.due ?? null,
+                })),
+              }
+            : {}),
+        });
+        brief =
+          summary && "summary" in summary
+            ? summary.key_points.length > 0
+              ? `${summary.summary}\n\n${summary.key_points
+                  .map((p) => `- ${p}`)
+                  .join("\n")}`
+              : summary.summary
+            : ""; // empty brief when neither LLM nor enrichment gave us anything
+        if (!brief) {
+          ctx.logger.info("pipeline-meeting.no_enrichment", {
+            hint: "no local LLM and no enrichment provider — storing raw transcript chunks only",
+          });
+        }
+      }
 
       // Wait for the signal extractor (kicked off before Pass 1) and
       // merge its findings into baseMeta before emission so every
@@ -120,7 +194,9 @@ export function createMeetingPipeline(
       applySignals(baseMeta, signals);
 
       // --- Emit memories --------------------------------------------
-      if (includeBrief) {
+      // Empty brief = no LLM and no enrichment callback. Skip the
+      // brief memory rather than emitting an empty string.
+      if (includeBrief && brief.trim().length > 0) {
         memories.push({
           content: brief.trim(),
           metadata: {

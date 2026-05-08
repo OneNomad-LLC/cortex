@@ -97,11 +97,19 @@ export interface EngramDeleteInput {
 /**
  * Dependency bundle injected into every adapter at `init()`. Adapters never
  * reach for globals — everything external comes through this object.
+ *
+ * Cortex 0.2 — `llm` is now optional. Adapters that need LLM-backed
+ * classification or summarization must check for its presence and
+ * fall back to rule-based behavior (or skip enrichment) when it's
+ * absent. The connected MCP client can also satisfy enrichment
+ * needs via the Cortex Enrichment Protocol; pipelines route those
+ * through the runtime's `EnrichmentClient` rather than `ctx.llm`.
  */
 export interface AdapterContext {
   logger: Logger;
   taxonomy: TaxonomyReader;
-  llm: LLMAccess;
+  /** Optional — undefined when Cortex is running without a local LLM. */
+  llm?: LLMAccess;
   engram: EngramAccess;
   /** Adapter-scoped config, already validated against the adapter's schema. */
   config: Record<string, unknown>;

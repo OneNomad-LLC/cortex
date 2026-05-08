@@ -141,7 +141,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
   const widgetCtx: WidgetContext = {
     logger: opts.logger,
     engram: opts.engram,
-    llmRouter: opts.llmRouter,
+    ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
     taxonomy: opts.taxonomy,
   };
 
@@ -1133,7 +1133,7 @@ async function handleAdapterSync(
       adapter,
       engram: opts.engram,
       logger,
-      llmRouter: opts.llmRouter,
+      ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
       taxonomy: opts.taxonomy,
       opts: {
         ...(body.sinceIso ? { sinceIso: body.sinceIso } : {}),
@@ -1251,7 +1251,7 @@ async function handleMcpTools(
         }),
         engram: opts.engram,
         persona: opts.persona,
-        llmRouter: opts.llmRouter,
+        ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
         traceId: randomUUID(),
         sessionWorkspace: activeWs?.slug ?? null,
         ...(opts.taxonomyCache

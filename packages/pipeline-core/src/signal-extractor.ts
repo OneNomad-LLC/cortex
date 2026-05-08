@@ -84,6 +84,14 @@ export async function extractSignals(
     `Omit any field you aren't confident about.`,
   ].join("\n");
 
+  // Cortex 0.2 — signal extraction is LLM-only; without one it's
+  // a no-op. Pipelines that need temporal/owner signals from raw
+  // content will need a connected enrichment provider; the queue
+  // path doesn't currently flow through this extractor.
+  if (!ctx.llm) {
+    return {};
+  }
+
   let raw: string;
   try {
     raw = await ctx.llm.complete({

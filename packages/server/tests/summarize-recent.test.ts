@@ -2,8 +2,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { loadTaxonomy } from "../src/taxonomy.js";
-import { catchMeUp } from "../src/mcp/tools/catch-me-up.js";
-import { catchMeUpOnMeeting } from "../src/mcp/tools/catch-me-up-on-meeting.js";
+import { summarizeRecent } from "../src/mcp/tools/summarize-recent.js";
+import { summarizeMeeting } from "../src/mcp/tools/summarize-meeting.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
 
@@ -50,7 +50,7 @@ async function makeCtx(
   };
 }
 
-describe("catch_me_up", () => {
+describe("summarize_recent", () => {
   it("groups memories by type in deterministic order", async () => {
     const ctx = await makeCtx([
       {
@@ -74,8 +74,10 @@ describe("catch_me_up", () => {
       },
     ]);
 
-    const parsed = catchMeUp.inputSchema.parse({ project: "project-alpha" });
-    const res = (await catchMeUp.handler(parsed, ctx)) as {
+    const parsed = summarizeRecent.inputSchema.parse({
+      project: "project-alpha",
+    });
+    const res = (await summarizeRecent.handler(parsed, ctx)) as {
       buckets: Array<{ type: string; items: Array<{ title?: string }> }>;
       totalMemories: number;
     };
@@ -87,8 +89,10 @@ describe("catch_me_up", () => {
 
   it("returns a hint when project lookup fails", async () => {
     const ctx = await makeCtx();
-    const parsed = catchMeUp.inputSchema.parse({ project: "ghost" });
-    const res = (await catchMeUp.handler(parsed, ctx)) as { hint?: string };
+    const parsed = summarizeRecent.inputSchema.parse({ project: "ghost" });
+    const res = (await summarizeRecent.handler(parsed, ctx)) as {
+      hint?: string;
+    };
     expect(res.hint).toContain("ghost");
   });
 
@@ -98,10 +102,10 @@ describe("catch_me_up", () => {
       { id: "2", content: "b", metadata: { type: "doc" } },
       { id: "3", content: "c", metadata: { type: "brief" } },
     ]);
-    const parsed = catchMeUp.inputSchema.parse({
+    const parsed = summarizeRecent.inputSchema.parse({
       types: ["decision", "brief"],
     });
-    const res = (await catchMeUp.handler(parsed, ctx)) as {
+    const res = (await summarizeRecent.handler(parsed, ctx)) as {
       buckets: Array<{ type: string }>;
     };
     expect(res.buckets.map((b) => b.type).sort()).toEqual(["brief", "decision"]);
@@ -111,8 +115,8 @@ describe("catch_me_up", () => {
     const ctx = await makeCtx([
       { id: "1", content: "x", metadata: { type: "decision" } },
     ]);
-    const parsed = catchMeUp.inputSchema.parse({});
-    const res = (await catchMeUp.handler(parsed, ctx)) as {
+    const parsed = summarizeRecent.inputSchema.parse({});
+    const res = (await summarizeRecent.handler(parsed, ctx)) as {
       projectSlug: string;
     };
     expect(res.projectSlug).toBe("");
@@ -120,9 +124,21 @@ describe("catch_me_up", () => {
     const call = (ctx.engram.search as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(call?.project).toBeUndefined();
   });
+
+  it("respects an explicit `since` ISO timestamp", async () => {
+    const ctx = await makeCtx([]);
+    const sinceIso = "2026-04-01T00:00:00.000Z";
+    const parsed = summarizeRecent.inputSchema.parse({ since: sinceIso });
+    const res = (await summarizeRecent.handler(parsed, ctx)) as {
+      since: string;
+    };
+    expect(res.since).toBe(sinceIso);
+    const call = (ctx.engram.search as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(call?.sinceIso).toBe(sinceIso);
+  });
 });
 
-describe("catch_me_up_on_meeting", () => {
+describe("summarize_meeting", () => {
   it("returns brief + decisions + action items sharing a source_id root", async () => {
     const ctx = await makeCtx([
       {
@@ -165,15 +181,15 @@ describe("catch_me_up_on_meeting", () => {
       },
     ]);
 
-    const parsed = catchMeUpOnMeeting.inputSchema.parse({
-      sourceId: "loom:rec:xyz",
+    const parsed = summarizeMeeting.inputSchema.parse({
+      id: "loom:rec:xyz",
     });
-    const res = (await catchMeUpOnMeeting.handler(parsed, ctx)) as {
+    const res = (await summarizeMeeting.handler(parsed, ctx)) as {
       found: boolean;
       meeting?: { title?: string; url?: string };
       brief?: string;
-      decisions: Array<{ owner?: string }>;
-      action_items: Array<{ owner?: string; due?: string }>;
+      decisions: Array<{ assignee?: string }>;
+      action_items: Array<{ assignee?: string; due?: string }>;
     };
 
     expect(res.found).toBe(true);
@@ -181,18 +197,18 @@ describe("catch_me_up_on_meeting", () => {
     expect(res.meeting?.url).toBe("https://loom.example/xyz");
     expect(res.brief).toContain("Alpha planning brief");
     expect(res.decisions).toHaveLength(1);
-    expect(res.decisions[0]?.owner).toBe("alex");
+    expect(res.decisions[0]?.assignee).toBe("alex");
     expect(res.action_items).toHaveLength(1);
-    expect(res.action_items[0]?.owner).toBe("sarah");
+    expect(res.action_items[0]?.assignee).toBe("sarah");
     expect(res.action_items[0]?.due).toBe("2026-04-25");
   });
 
   it("returns found=false when no meeting matches", async () => {
     const ctx = await makeCtx([]);
-    const parsed = catchMeUpOnMeeting.inputSchema.parse({
-      query: "nope",
+    const parsed = summarizeMeeting.inputSchema.parse({
+      id: "nope",
     });
-    const res = (await catchMeUpOnMeeting.handler(parsed, ctx)) as {
+    const res = (await summarizeMeeting.handler(parsed, ctx)) as {
       found: boolean;
       hint?: string;
     };
@@ -200,14 +216,7 @@ describe("catch_me_up_on_meeting", () => {
     expect(res.hint).toContain("nope");
   });
 
-  it("asks for at least one input", async () => {
-    const ctx = await makeCtx();
-    const parsed = catchMeUpOnMeeting.inputSchema.parse({});
-    const res = (await catchMeUpOnMeeting.handler(parsed, ctx)) as {
-      found: boolean;
-      hint?: string;
-    };
-    expect(res.found).toBe(false);
-    expect(res.hint).toContain("sourceId");
+  it("rejects missing id at the schema layer", () => {
+    expect(() => summarizeMeeting.inputSchema.parse({})).toThrow();
   });
 });

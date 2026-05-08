@@ -9,6 +9,7 @@ import { connectConfiguredTransport } from "./transport.js";
 import { resolveConfigPath } from "../cli/config-path.js";
 import { loadCortexConfig } from "../config.js";
 import { createLogger } from "../logger.js";
+import { EnrichmentQueue } from "../enrichment.js";
 import { buildLLMRouter } from "../registry/providers.js";
 import { buildAdapterRegistry } from "../registry/adapters.js";
 import { createScheduler } from "../scheduler.js";
@@ -150,7 +151,7 @@ export async function startServer(): Promise<void> {
     people: taxonomy.people.length,
   });
 
-  const { router, providers } = await buildLLMRouter({
+  const { router, providers, hasLocalLlm } = await buildLLMRouter({
     cfg,
     env: process.env,
     logger,
@@ -158,7 +159,24 @@ export async function startServer(): Promise<void> {
   logger.info("llm.router.ready", {
     providerCount: Object.keys(providers).length,
     taskCount: Object.keys(cfg.llm.tasks).length,
+    hasLocalLlm,
   });
+
+  // Cortex Enrichment Protocol v1 — when no local LLM is present we
+  // expose an in-memory queue and let connected MCP clients (Pyre,
+  // Claude Desktop) act as the enrichment provider via the
+  // pending_enrichment_requests + submit_enrichment_result tools.
+  const enrichmentQueue = hasLocalLlm
+    ? undefined
+    : new EnrichmentQueue({
+        logger: logger.child({ component: "enrichment-queue" }),
+      });
+  if (enrichmentQueue) {
+    logger.info("enrichment.queue.ready", {
+      mode: "mcp-client-driven",
+      hint: "see docs/enrichment-protocol.md",
+    });
+  }
 
   // Memory backend — engram (primary) or pgvector (local Postgres fallback).
   // The factory handles health checks and falls back to the configured
@@ -167,7 +185,7 @@ export async function startServer(): Promise<void> {
   // backed by the MCP subprocess or a SQL store is opaque to the tools.
   const memoryBoot = await createMemoryClient({
     memory: cfg.memory,
-    llmRouter: router,
+    ...(router ? { llmRouter: router } : {}),
     logger,
   });
   const engram = memoryBoot.client;
@@ -188,7 +206,8 @@ export async function startServer(): Promise<void> {
 
   const scheduler = createScheduler({
     engram,
-    llmRouter: router,
+    ...(router ? { llmRouter: router } : {}),
+    ...(enrichmentQueue ? { enrichment: enrichmentQueue } : {}),
     taxonomy,
     heartbeat,
     logger,
@@ -211,22 +230,38 @@ export async function startServer(): Promise<void> {
         healthCheck: () => engram.healthCheck(),
       },
       taxonomy,
-      llm: {
-        raw: router,
-        complete: async ({ task, prompt, system, maxTokens, temperature, signal }) => {
-          const res = await router.complete({
-            task,
-            messages: [
-              ...(system ? [{ role: "system" as const, content: system }] : []),
-              { role: "user" as const, content: prompt },
-            ],
-            ...(maxTokens !== undefined ? { maxTokens } : {}),
-            ...(temperature !== undefined ? { temperature } : {}),
-            ...(signal ? { signal } : {}),
-          });
-          return res.content;
-        },
-      },
+      // Cortex 0.2 — `llm` is optional. When no provider is
+      // installed adapters either degrade to rule-based behavior
+      // or rely on the connected MCP client's enrichment callback.
+      ...(router
+        ? {
+            llm: {
+              raw: router,
+              complete: async ({
+                task,
+                prompt,
+                system,
+                maxTokens,
+                temperature,
+                signal,
+              }) => {
+                const res = await router.complete({
+                  task,
+                  messages: [
+                    ...(system
+                      ? [{ role: "system" as const, content: system }]
+                      : []),
+                    { role: "user" as const, content: prompt },
+                  ],
+                  ...(maxTokens !== undefined ? { maxTokens } : {}),
+                  ...(temperature !== undefined ? { temperature } : {}),
+                  ...(signal ? { signal } : {}),
+                });
+                return res.content;
+              },
+            },
+          }
+        : {}),
     }),
   });
   logger.info("adapters.ready", { count: Object.keys(adapterRegistry.adapters).length });
@@ -247,7 +282,7 @@ export async function startServer(): Promise<void> {
   const streamWorkers = startStreamWorkers({
     adapters: Object.values(adapterRegistry.adapters),
     engram,
-    llmRouter: router,
+    ...(router ? { llmRouter: router } : {}),
     heartbeat,
     logger,
   });
@@ -266,7 +301,7 @@ export async function startServer(): Promise<void> {
     ? createWebhookReceiver({
         adapters: Object.values(adapterRegistry.adapters),
         engram,
-        llmRouter: router,
+        ...(router ? { llmRouter: router } : {}),
         heartbeat,
         logger,
         host: cfg.webhooks.host,
@@ -319,7 +354,7 @@ export async function startServer(): Promise<void> {
   const dashboardApi = cfg.api.enabled
     ? createDashboardApi({
         engram,
-        llmRouter: router,
+        ...(router ? { llmRouter: router } : {}),
         taxonomy,
         heartbeat,
         persona,
@@ -347,7 +382,7 @@ export async function startServer(): Promise<void> {
       widgetContext: {
         logger: logger.child({ component: "notification-widget-ctx" }),
         engram,
-        llmRouter: router,
+        ...(router ? { llmRouter: router } : {}),
         taxonomy,
       },
     })
@@ -400,7 +435,8 @@ export async function startServer(): Promise<void> {
     logger,
     engram,
     persona,
-    llmRouter: router,
+    ...(router ? { llmRouter: router } : {}),
+    ...(enrichmentQueue ? { enrichmentQueue } : {}),
   };
 
   // Load private modules (job profile, personal playbooks, etc.) —

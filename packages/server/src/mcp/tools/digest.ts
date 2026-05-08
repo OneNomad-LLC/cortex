@@ -2,19 +2,27 @@ import { z } from "zod";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({
+  /**
+   * ISO-8601 lower bound for "recent activity" + open action items.
+   * Default: 24h before `until` (or before now if `until` is omitted).
+   */
+  since: z.string().datetime({ offset: true }).optional(),
+  /**
+   * ISO-8601 upper bound for "upcoming events" and the right edge of
+   * the recent window. Default: 24h ahead of now.
+   */
+  until: z.string().datetime({ offset: true }).optional(),
+  /** Optional project slug to scope the digest. */
+  project: z.string().default(""),
   /** Owner slug / name / email for action items. Empty = everyone. */
-  owner: z.string().default(""),
-  /** Hours of upcoming events to include. */
-  upcomingHours: z.number().int().min(0).max(168).default(24),
-  /** Hours of recent activity to include. */
-  lookbackHours: z.number().int().min(1).max(168).default(24),
+  assignee: z.string().default(""),
   /** Include classifier review-queue count in the summary. */
   includeUnclassified: z.boolean().default(true),
 });
 
 interface DigestAction {
   content: string;
-  owner?: string;
+  assignee?: string;
   due?: string;
   sourceId: string;
 }
@@ -36,7 +44,7 @@ interface DigestRecent {
 
 interface Output {
   generatedAt: string;
-  window: { recentSince: string; upcomingTo: string };
+  window: { since: string; until: string };
   upcoming: DigestEvent[];
   openActionItems: DigestAction[];
   overdueActionItems: DigestAction[];
@@ -55,55 +63,79 @@ interface Output {
   };
 }
 
-export const todaysDigest: McpTool<typeof inputSchema, Output> = {
-  name: "todays_digest",
+/**
+ * Time-agnostic activity digest. Caller passes an explicit
+ * `since` / `until` window; defaults give a 24-hour spread around
+ * "now" so unparameterized calls behave like the old `todays_digest`
+ * tool. Renamed and reshaped for Cortex 0.2 (universal-knowledge).
+ */
+export const digest: McpTool<typeof inputSchema, Output> = {
+  name: "digest",
   description:
-    "One-glance digest of today's work state: events coming up next " +
-    "N hours, open action items (with overdue highlighted), recent " +
-    "decisions / briefs, and unclassified-queue size. The morning-" +
-    "coffee tool — run once to orient, then dig into specific tools.",
+    "Activity digest across an arbitrary time window. Returns " +
+    "upcoming events, open + overdue action items, recent decisions / " +
+    "briefs / other activity, and the unclassified-queue size. " +
+    "`since` / `until` accept ISO-8601 timestamps; defaults to a 24h " +
+    "window centered on now. Optional `project` and `assignee` filters.",
   inputSchema,
 
   async handler(input, ctx) {
     const now = new Date();
-    const recentSince = new Date(
-      now.getTime() - input.lookbackHours * 3_600_000,
-    );
-    const upcomingTo = new Date(
-      now.getTime() + input.upcomingHours * 3_600_000,
-    );
+    // When the caller doesn't pass `until`, default to "now + 24h"
+    // so the upcoming-events half of the digest has a sensible
+    // forward-looking window. When they DO pass it, honor it
+    // verbatim — even if it's in the past (yields 0 upcoming events,
+    // which is the correct semantics for a backward-looking range).
+    const until = input.until
+      ? new Date(input.until)
+      : new Date(now.getTime() + 24 * 3_600_000);
+    const since = input.since
+      ? new Date(input.since)
+      : new Date(now.getTime() - 24 * 3_600_000);
+    const upcomingTo = until;
 
-    let ownerSlug: string | undefined;
-    if (input.owner.trim()) {
-      const person = ctx.taxonomy.findPerson(input.owner);
-      ownerSlug = person?.slug ?? input.owner;
+    let assigneeSlug: string | undefined;
+    if (input.assignee.trim()) {
+      const person = ctx.taxonomy.findPerson(input.assignee);
+      assigneeSlug = person?.slug ?? input.assignee;
+    }
+
+    let projectSlug: string | undefined;
+    if (input.project.trim().length > 0) {
+      const project = ctx.taxonomy.findProject(input.project);
+      if (project) projectSlug = project.slug;
     }
 
     const workspaceFilter = ctx.sessionWorkspace
       ? { workspace: ctx.sessionWorkspace }
       : {};
+    const projectFilter = projectSlug ? { project: projectSlug } : {};
 
     const [upcoming, actionMems, recentDecisions, recentBriefs, recentOther, unclassified] =
       await Promise.all([
-        input.upcomingHours > 0
-          ? ctx.engram
-              .search({
-                query: "upcoming calendar event",
-                type: "event",
-                sinceIso: now.toISOString(),
-                limit: 10,
-                domain: "work",
-                ...workspaceFilter,
-              })
-              .catch(() => [])
-          : Promise.resolve([]),
         ctx.engram
           .search({
-            query: ownerSlug ? `action_item owner:${ownerSlug}` : "action_item",
+            query: "upcoming calendar event",
+            type: "event",
+            sinceIso: now.toISOString(),
+            limit: 10,
+            domain: "work",
+            ...projectFilter,
+            ...workspaceFilter,
+          })
+          .catch(() => []),
+        ctx.engram
+          .search({
+            query: assigneeSlug
+              ? `action_item owner:${assigneeSlug}`
+              : "action_item",
             type: "action_item",
-            sinceIso: new Date(now.getTime() - 60 * 86_400_000).toISOString(),
+            sinceIso: new Date(
+              since.getTime() - 60 * 86_400_000,
+            ).toISOString(),
             limit: 60,
             domain: "work",
+            ...projectFilter,
             ...workspaceFilter,
           })
           .catch(() => []),
@@ -111,9 +143,10 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
           .search({
             query: "decision",
             type: "decision",
-            sinceIso: recentSince.toISOString(),
+            sinceIso: since.toISOString(),
             limit: 5,
             domain: "work",
+            ...projectFilter,
             ...workspaceFilter,
           })
           .catch(() => []),
@@ -121,18 +154,20 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
           .search({
             query: "brief",
             type: "brief",
-            sinceIso: recentSince.toISOString(),
+            sinceIso: since.toISOString(),
             limit: 5,
             domain: "work",
+            ...projectFilter,
             ...workspaceFilter,
           })
           .catch(() => []),
         ctx.engram
           .search({
             query: "recent activity",
-            sinceIso: recentSince.toISOString(),
+            sinceIso: since.toISOString(),
             limit: 20,
             domain: "work",
+            ...projectFilter,
             ...workspaceFilter,
           })
           .catch(() => []),
@@ -140,9 +175,12 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
           ? ctx.engram
               .search({
                 query: "unclassified",
-                sinceIso: new Date(now.getTime() - 14 * 86_400_000).toISOString(),
+                sinceIso: new Date(
+                  since.getTime() - 14 * 86_400_000,
+                ).toISOString(),
                 limit: 50,
                 domain: "work",
+                ...projectFilter,
                 ...workspaceFilter,
               })
               .catch(() => [])
@@ -157,9 +195,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
         const t = Date.parse(e.start);
         return t >= now.getTime() && t <= upcomingTo.getTime();
       })
-      .sort((a, b) =>
-        (a.start ?? "").localeCompare(b.start ?? ""),
-      )
+      .sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""))
       .slice(0, 10);
 
     const openActions: DigestAction[] = [];
@@ -169,16 +205,13 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
     for (const mem of actionMems) {
       const meta = (mem.metadata ?? {}) as Record<string, unknown>;
       const tags = Array.isArray(meta.tags) ? (meta.tags as string[]) : [];
-      if (
-        tags.includes("status:done") ||
-        tags.includes("status:dropped")
-      ) {
+      if (tags.includes("status:done") || tags.includes("status:dropped")) {
         continue;
       }
-      const owner = tags
+      const assignee = tags
         .find((t) => t.startsWith("owner:"))
         ?.slice("owner:".length);
-      if (ownerSlug && owner && owner !== ownerSlug) continue;
+      if (assigneeSlug && assignee && assignee !== assigneeSlug) continue;
 
       const due = tags
         .find((t) => t.startsWith("due:"))
@@ -186,7 +219,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
       const action: DigestAction = {
         content: mem.content,
         sourceId: (meta.source_id as string | undefined) ?? mem.id,
-        ...(owner ? { owner } : {}),
+        ...(assignee ? { assignee } : {}),
         ...(due ? { due } : {}),
       };
       if (due && due < todayIso) overdueActions.push(action);
@@ -209,8 +242,7 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
 
     const unclassifiedCount = unclassified.filter((mem) => {
       const meta = (mem.metadata ?? {}) as Record<string, unknown>;
-      const conf =
-        typeof meta.confidence === "number" ? meta.confidence : 0;
+      const conf = typeof meta.confidence === "number" ? meta.confidence : 0;
       const projects = normalizeProjects(meta.project);
       return projects.length === 0 || conf <= 0.5;
     }).length;
@@ -218,8 +250,8 @@ export const todaysDigest: McpTool<typeof inputSchema, Output> = {
     return {
       generatedAt: now.toISOString(),
       window: {
-        recentSince: recentSince.toISOString(),
-        upcomingTo: upcomingTo.toISOString(),
+        since: since.toISOString(),
+        until: upcomingTo.toISOString(),
       },
       upcoming: upcomingEvents,
       openActionItems: openActions.slice(0, 20),
@@ -282,7 +314,9 @@ function sortByDue(a: DigestAction, b: DigestAction): number {
 function normalizeProjects(raw: unknown): string[] {
   if (typeof raw === "string") return raw.length > 0 ? [raw] : [];
   if (Array.isArray(raw)) {
-    return raw.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return raw.filter(
+      (v): v is string => typeof v === "string" && v.length > 0,
+    );
   }
   return [];
 }

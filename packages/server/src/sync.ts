@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { Logger, RawSourceItem, SourceAdapter } from "@onenomad/cortex-core";
+import type {
+  EnrichmentClient,
+  Logger,
+  RawSourceItem,
+  SourceAdapter,
+} from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { Pipeline, PipelineContext } from "@onenomad/cortex-pipeline-core";
 import { createCodePipeline } from "@onenomad/cortex-pipeline-code";
@@ -64,13 +69,20 @@ export function buildPipelineContext(args: {
   signal: AbortSignal;
   llmRouter?: LLMRouter;
   /**
+   * Optional enrichment provider — used by pipelines when no local
+   * LLM is configured. Implemented in production by a queue that an
+   * MCP client (Pyre, Claude Desktop) drains via the Cortex
+   * Enrichment Protocol tools.
+   */
+  enrichment?: EnrichmentClient;
+  /**
    * Active taxonomy. When provided, the pipeline context is enriched
    * with `selfAliases` + `peopleByAlias` so the signal extractor can
    * flag `mentions_me` and canonicalize owner references.
    */
   taxonomy?: LoadedTaxonomy;
 }): PipelineContext {
-  const { logger, traceId, signal, llmRouter, taxonomy } = args;
+  const { logger, traceId, signal, llmRouter, enrichment, taxonomy } = args;
   const selfAliases: string[] = [];
   const peopleByAlias = new Map<string, string>();
   if (taxonomy) {
@@ -93,28 +105,35 @@ export function buildPipelineContext(args: {
     traceId,
     ...(selfAliases.length > 0 ? { selfAliases } : {}),
     ...(peopleByAlias.size > 0 ? { peopleByAlias } : {}),
-    llm: {
-      async complete(req) {
-        if (!llmRouter) {
-          throw new Error(
-            "processItem: pipeline asked for LLM but no router was provided.",
-          );
+    ...(enrichment ? { enrichment } : {}),
+    // Cortex 0.2 — `llm` is omitted entirely when no router is
+    // present so pipelines can detect "no local LLM" via a simple
+    // `if (ctx.llm)` check and fall back to the enrichment callback.
+    ...(llmRouter
+      ? {
+          llm: {
+            async complete(req) {
+              const res = await llmRouter.complete({
+                task: req.task,
+                messages: [
+                  ...(req.system
+                    ? [{ role: "system" as const, content: req.system }]
+                    : []),
+                  { role: "user" as const, content: req.prompt },
+                ],
+                ...(req.maxTokens !== undefined
+                  ? { maxTokens: req.maxTokens }
+                  : {}),
+                ...(req.temperature !== undefined
+                  ? { temperature: req.temperature }
+                  : {}),
+                ...(req.signal ? { signal: req.signal } : {}),
+              });
+              return res.content;
+            },
+          },
         }
-        const res = await llmRouter.complete({
-          task: req.task,
-          messages: [
-            ...(req.system ? [{ role: "system" as const, content: req.system }] : []),
-            { role: "user" as const, content: req.prompt },
-          ],
-          ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}),
-          ...(req.temperature !== undefined
-            ? { temperature: req.temperature }
-            : {}),
-          ...(req.signal ? { signal: req.signal } : {}),
-        });
-        return res.content;
-      },
-    },
+      : {}),
   };
 }
 
@@ -188,11 +207,17 @@ export async function runSync(args: {
   logger: Logger;
   /** Optional — pipelines that need LLM access require this. */
   llmRouter?: LLMRouter;
+  /**
+   * Optional — Cortex Enrichment Protocol callback. Pipelines call
+   * this when no local LLM is configured; the connected MCP client
+   * (Pyre, Claude Desktop) drains the queue and answers.
+   */
+  enrichment?: EnrichmentClient;
   /** Optional — pipelines that want mention/owner enrichment need this. */
   taxonomy?: LoadedTaxonomy;
   opts?: SyncOptions;
 }): Promise<SyncResult> {
-  const { adapter, engram, logger, llmRouter, taxonomy } = args;
+  const { adapter, engram, logger, llmRouter, enrichment, taxonomy } = args;
   const opts = args.opts ?? {};
   const limit = opts.limit ?? 0;
 
@@ -220,6 +245,7 @@ export async function runSync(args: {
     traceId,
     signal: new AbortController().signal,
     ...(llmRouter ? { llmRouter } : {}),
+    ...(enrichment ? { enrichment } : {}),
     ...(taxonomy ? { taxonomy } : {}),
   });
 

@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { loadTaxonomy } from "../src/taxonomy.js";
-import { myActionItems } from "../src/mcp/tools/my-action-items.js";
+import { pendingActionItems } from "../src/mcp/tools/pending-action-items.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
 
@@ -47,8 +47,8 @@ async function makeCtx(memories: EngramMemory[] = []): Promise<ToolContext> {
   };
 }
 
-describe("my_action_items", () => {
-  it("filters by owner tag and sorts by due date (undated last)", async () => {
+describe("pending_action_items", () => {
+  it("filters by assignee tag and sorts by due date (undated last)", async () => {
     const ctx = await makeCtx([
       {
         id: "a",
@@ -88,9 +88,9 @@ describe("my_action_items", () => {
       },
     ]);
 
-    const parsed = myActionItems.inputSchema.parse({ owner: "alex" });
-    const res = (await myActionItems.handler(parsed, ctx)) as {
-      open: Array<{ content: string; due?: string }>;
+    const parsed = pendingActionItems.inputSchema.parse({ assignee: "alex" });
+    const res = (await pendingActionItems.handler(parsed, ctx)) as {
+      open: Array<{ content: string; due?: string; assignee?: string }>;
     };
 
     expect(res.open).toHaveLength(3);
@@ -99,6 +99,8 @@ describe("my_action_items", () => {
     expect(res.open[1]?.due).toBe("2026-04-25");
     // Undated last.
     expect(res.open[2]?.due).toBeUndefined();
+    // assignee field surfaces from owner tag (renamed in 0.2).
+    expect(res.open[0]?.assignee).toBe("alex");
   });
 
   it("treats status:done as closed and excludes by default", async () => {
@@ -123,22 +125,25 @@ describe("my_action_items", () => {
       },
     ]);
 
-    const parsed = myActionItems.inputSchema.parse({ owner: "alex" });
-    const res = (await myActionItems.handler(parsed, ctx)) as {
+    const parsed = pendingActionItems.inputSchema.parse({ assignee: "alex" });
+    const res = (await pendingActionItems.handler(parsed, ctx)) as {
       open: unknown[];
       done?: unknown[];
     };
     expect(res.open).toHaveLength(1);
     expect(res.done).toBeUndefined();
 
-    const withDone = (await myActionItems.handler(
-      myActionItems.inputSchema.parse({ owner: "alex", includeDone: true }),
+    const withDone = (await pendingActionItems.handler(
+      pendingActionItems.inputSchema.parse({
+        assignee: "alex",
+        includeDone: true,
+      }),
       ctx,
     )) as { open: unknown[]; done?: unknown[] };
     expect(withDone.done).toHaveLength(1);
   });
 
-  it("resolves owner aliases / name via taxonomy", async () => {
+  it("resolves assignee aliases / name via taxonomy", async () => {
     const ctx = await makeCtx([
       {
         id: "a",
@@ -153,19 +158,33 @@ describe("my_action_items", () => {
 
     // "Alex Example" is the fixture's canonical name for slug "alex"
     // with alias "Alexander" — findPerson should map either back to "alex".
-    const parsed = myActionItems.inputSchema.parse({ owner: "Alexander" });
-    const res = (await myActionItems.handler(parsed, ctx)) as {
-      owner?: string;
+    const parsed = pendingActionItems.inputSchema.parse({
+      assignee: "Alexander",
+    });
+    const res = (await pendingActionItems.handler(parsed, ctx)) as {
+      assignee?: string;
       open: unknown[];
     };
-    expect(res.owner).toBe("alex");
+    expect(res.assignee).toBe("alex");
     expect(res.open).toHaveLength(1);
   });
 
   it("returns hint when project lookup fails", async () => {
     const ctx = await makeCtx();
-    const parsed = myActionItems.inputSchema.parse({ project: "ghost" });
-    const res = (await myActionItems.handler(parsed, ctx)) as { hint?: string };
+    const parsed = pendingActionItems.inputSchema.parse({ project: "ghost" });
+    const res = (await pendingActionItems.handler(parsed, ctx)) as {
+      hint?: string;
+    };
     expect(res.hint).toContain("ghost");
+  });
+
+  it("respects an explicit `since` ISO timestamp", async () => {
+    const ctx = await makeCtx([]);
+    const sinceIso = "2026-03-01T00:00:00.000Z";
+    const parsed = pendingActionItems.inputSchema.parse({ since: sinceIso });
+    const res = (await pendingActionItems.handler(parsed, ctx)) as {
+      since: string;
+    };
+    expect(res.since).toBe(sinceIso);
   });
 });

@@ -1,4 +1,8 @@
-import type { ClassifiedItem, MemoryMetadata } from "@onenomad/cortex-core";
+import type {
+  ClassifiedItem,
+  EnrichmentClient,
+  MemoryMetadata,
+} from "@onenomad/cortex-core";
 
 /**
  * Pipelines take classified items and emit one or more memories to ingest
@@ -29,7 +33,13 @@ export interface PipelineContext {
     warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
-  llm: {
+  /**
+   * Optional — undefined when Cortex is running without a local
+   * LLM. Pipelines that need enrichment must check for presence and
+   * fall back through `enrichment` (the Cortex Enrichment Protocol)
+   * or store raw content with no enrichment.
+   */
+  llm?: {
     complete(args: {
       task: string;
       prompt: string;
@@ -39,6 +49,14 @@ export interface PipelineContext {
       signal?: AbortSignal;
     }): Promise<string>;
   };
+  /**
+   * Optional callback to a connected MCP client when no local LLM
+   * is configured. Pipelines call this to request structured
+   * enrichment (categorize / extract_actions / summarize /
+   * tag_entities). Returns `null` when no provider is available —
+   * pipelines treat that as "store raw, no enrichment".
+   */
+  enrichment?: EnrichmentClient;
   signal: AbortSignal;
   /**
    * Correlation id for the operation that invoked this pipeline. Pipelines

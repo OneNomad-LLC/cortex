@@ -4,8 +4,12 @@ import type { McpTool } from "../tool.js";
 const inputSchema = z.object({
   /** Slug or alias. Empty = unscoped / cross-project recent activity. */
   project: z.string().default(""),
-  /** Days to look back. */
-  days: z.number().int().min(1).max(180).default(7),
+  /**
+   * ISO-8601 lower bound. Default: 7 days before now. Caller passes
+   * an explicit value when they want a specific window (e.g. "last
+   * sprint", "since 2026-04-01").
+   */
+  since: z.string().datetime({ offset: true }).optional(),
   /** Cap on memories pulled. */
   limit: z.number().int().min(1).max(200).default(40),
   /** Restrict to specific memory types. Empty = all types. */
@@ -33,17 +37,26 @@ interface Output {
   hint?: string;
 }
 
-export const catchMeUp: McpTool<typeof inputSchema, Output> = {
-  name: "catch_me_up",
+/**
+ * Time-agnostic recent-activity summarizer. Replaces the old
+ * personal-assistant-flavored `catch_me_up` with a generic surface
+ * suitable for any agent that needs "what's happened in this
+ * project since <X>".
+ */
+export const summarizeRecent: McpTool<typeof inputSchema, Output> = {
+  name: "summarize_recent",
   description:
     "Return recent activity for a project (or across all projects if " +
-    "`project` is blank), grouped by memory type. Great first tool to " +
-    "run when coming back to work — shows decisions, meetings, docs, " +
-    "and action items from the last N days.",
+    "`project` is blank), grouped by memory type. Pass an explicit " +
+    "`since` ISO timestamp for an arbitrary window; defaults to the " +
+    "last 7 days. Generic surface — works for any agent that wants " +
+    "'what's happened lately'.",
   inputSchema,
 
   async handler(input, ctx) {
-    const since = new Date(Date.now() - input.days * 86_400_000);
+    const since = input.since
+      ? new Date(input.since)
+      : new Date(Date.now() - 7 * 86_400_000);
 
     let projectSlug = "";
     let projectName: string | undefined;
@@ -74,7 +87,7 @@ export const catchMeUp: McpTool<typeof inputSchema, Output> = {
           : {}),
       })
       .catch((err) => {
-        ctx.logger.warn("catch_me_up.engram_failed", {
+        ctx.logger.warn("summarize_recent.engram_failed", {
           error: err instanceof Error ? err.message : String(err),
         });
         return [];

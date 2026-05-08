@@ -19,7 +19,9 @@ import type { Workspace } from "../cli/workspace/manager.js";
 export interface WidgetContext {
   logger: Logger;
   engram: EngramClient;
-  llmRouter: LLMRouter;
+  /** Optional in Cortex 0.2 — undefined when no LLM provider is
+   *  installed. Widgets that need it must check before calling. */
+  llmRouter?: LLMRouter;
   taxonomy: LoadedTaxonomy;
   workspace?: Workspace;
 }

@@ -107,9 +107,15 @@ titles — so the user doesn't have to dictate it.
 
 # Retrieval
 
-\`catch_me_up\`, \`get_project_context\`, \`my_action_items\`,
-\`upcoming_briefs\`, \`todays_digest\` are your primary retrieval
-surface. Prefer them over re-deriving answers from chat history.
+\`summarize_recent\`, \`get_project_context\`, \`pending_action_items\`,
+\`digest\`, \`summarize_meeting\`, \`search_related\` are your primary
+retrieval surface. Prefer them over re-deriving answers from chat
+history.
+
+All time-bounded tools accept ISO-8601 \`since\` (and \`until\` on
+\`digest\`) for arbitrary windows. Defaults are sensible: 24h for
+\`digest\`, 7d for \`summarize_recent\`, 30d for
+\`pending_action_items\`.
 
 # Browser control (when the user has the Cortex extension connected)
 
@@ -161,7 +167,7 @@ decisions, or meetings:
 
 - **One ingest_content call per item, not one big markdown doc.**
 - **Action items**: \`type: "action_item"\`. Include these tags so
-  the priorities + my_action_items widgets pick them up:
+  the priorities + pending_action_items tools/widgets pick them up:
   - \`owner:<slug>\` — the person responsible (use their taxonomy
     slug, not display name)
   - \`due:<YYYY-MM-DD>\` — ISO date if they gave one (required for

@@ -28,7 +28,9 @@ export interface LiveState {
   // Mutable — reload() rewrites these.
   adapters: Record<string, SourceAdapter>;
   adapterRegistry: AdapterRegistry;
-  router: { current: LLMRouter };
+  /** Cortex 0.2 — `current` may be undefined when no LLM provider
+   *  is configured (queue-based enrichment via MCP client). */
+  router: { current: LLMRouter | undefined };
   taxonomy: { current: LoadedTaxonomy };
   scheduler: Scheduler;
 }
@@ -98,22 +100,38 @@ export async function hotReload(state: LiveState): Promise<ReloadResult> {
         healthCheck: () => state.engram.healthCheck(),
       },
       taxonomy,
-      llm: {
-        raw: newRouter,
-        complete: async ({ task, prompt, system, maxTokens, temperature, signal }) => {
-          const res = await newRouter.complete({
-            task,
-            messages: [
-              ...(system ? [{ role: "system" as const, content: system }] : []),
-              { role: "user" as const, content: prompt },
-            ],
-            ...(maxTokens !== undefined ? { maxTokens } : {}),
-            ...(temperature !== undefined ? { temperature } : {}),
-            ...(signal ? { signal } : {}),
-          });
-          return res.content;
-        },
-      },
+      // Cortex 0.2 — `llm` is optional. When the reload landed on a
+      // config without LLM providers, omit it entirely so adapters
+      // see "no LLM" and degrade or use the enrichment callback.
+      ...(newRouter
+        ? {
+            llm: {
+              raw: newRouter,
+              complete: async ({
+                task,
+                prompt,
+                system,
+                maxTokens,
+                temperature,
+                signal,
+              }) => {
+                const res = await newRouter.complete({
+                  task,
+                  messages: [
+                    ...(system
+                      ? [{ role: "system" as const, content: system }]
+                      : []),
+                    { role: "user" as const, content: prompt },
+                  ],
+                  ...(maxTokens !== undefined ? { maxTokens } : {}),
+                  ...(temperature !== undefined ? { temperature } : {}),
+                  ...(signal ? { signal } : {}),
+                });
+                return res.content;
+              },
+            },
+          }
+        : {}),
     }),
   });
 

@@ -81,7 +81,7 @@ export async function runSyncCli(argv: readonly string[]): Promise<number> {
 
   const memoryBoot = await createMemoryClient({
     memory: cfg.memory,
-    llmRouter,
+    ...(llmRouter ? { llmRouter } : {}),
     logger,
   });
   const engram = memoryBoot.client;
@@ -100,22 +100,36 @@ export async function runSyncCli(argv: readonly string[]): Promise<number> {
         healthCheck: () => engram.healthCheck(),
       },
       taxonomy: emptyTaxonomyReader(),
-      llm: {
-        raw: llmRouter,
-        complete: async ({ task, prompt, system, maxTokens, temperature, signal }) => {
-          const res = await llmRouter.complete({
-            task,
-            messages: [
-              ...(system ? [{ role: "system" as const, content: system }] : []),
-              { role: "user" as const, content: prompt },
-            ],
-            ...(maxTokens !== undefined ? { maxTokens } : {}),
-            ...(temperature !== undefined ? { temperature } : {}),
-            ...(signal ? { signal } : {}),
-          });
-          return res.content;
-        },
-      },
+      // Cortex 0.2 — `llm` is omitted when no provider is installed.
+      ...(llmRouter
+        ? {
+            llm: {
+              raw: llmRouter,
+              complete: async ({
+                task,
+                prompt,
+                system,
+                maxTokens,
+                temperature,
+                signal,
+              }) => {
+                const res = await llmRouter.complete({
+                  task,
+                  messages: [
+                    ...(system
+                      ? [{ role: "system" as const, content: system }]
+                      : []),
+                    { role: "user" as const, content: prompt },
+                  ],
+                  ...(maxTokens !== undefined ? { maxTokens } : {}),
+                  ...(temperature !== undefined ? { temperature } : {}),
+                  ...(signal ? { signal } : {}),
+                });
+                return res.content;
+              },
+            },
+          }
+        : {}),
     }),
   });
 
@@ -133,7 +147,7 @@ export async function runSyncCli(argv: readonly string[]): Promise<number> {
       adapter,
       engram,
       logger,
-      llmRouter,
+      ...(llmRouter ? { llmRouter } : {}),
       opts: {
         ...(parsed.sinceIso ? { sinceIso: parsed.sinceIso } : {}),
         ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),

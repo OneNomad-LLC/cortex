@@ -33,7 +33,8 @@ export interface MemoryBootResult {
  */
 export async function createMemoryClient(args: {
   memory: MemoryConfig;
-  llmRouter: LLMRouter;
+  /** Optional in Cortex 0.2 — pgvector embeddings need it; engram doesn't. */
+  llmRouter?: LLMRouter;
   logger: Logger;
 }): Promise<MemoryBootResult> {
   const { memory, llmRouter, logger } = args;
@@ -92,7 +93,7 @@ export async function createMemoryClient(args: {
 async function build(
   backend: "engram" | "pgvector",
   memory: MemoryConfig,
-  llmRouter: LLMRouter,
+  llmRouter: LLMRouter | undefined,
   logger: Logger,
 ): Promise<EngramClient> {
   if (backend === "engram") {
@@ -111,6 +112,13 @@ async function build(
       throw new Error(
         "memory.pgvector.connectionString is not set. Point it at a Postgres " +
           "instance with pgvector installed (or use ${POSTGRES_URL} in cortex.yaml).",
+      );
+    }
+    if (!llmRouter) {
+      throw new Error(
+        "memory: pgvector backend needs an LLM provider for embeddings. " +
+          "Either enable a provider in cortex.yaml > llm.providers, or " +
+          "switch to the engram backend (which does not require one).",
       );
     }
     return createPgVectorClient({

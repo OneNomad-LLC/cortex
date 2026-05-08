@@ -1,4 +1,8 @@
-import type { Logger, SourceAdapter } from "@onenomad/cortex-core";
+import type {
+  EnrichmentClient,
+  Logger,
+  SourceAdapter,
+} from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import { parseCron, nextFireAfter, type CronSchedule } from "./cron.js";
@@ -8,7 +12,12 @@ import type { LoadedTaxonomy } from "./taxonomy.js";
 
 export interface SchedulerOptions {
   engram: EngramClient;
-  llmRouter: LLMRouter;
+  /** Optional in Cortex 0.2 — adapters that don't need LLM enrichment
+   *  still run on schedule when this is undefined. */
+  llmRouter?: LLMRouter;
+  /** Optional — Cortex Enrichment Protocol callback for pipelines
+   *  when there's no local LLM. */
+  enrichment?: EnrichmentClient;
   /** Optional — pipelines use this for mention/owner enrichment. */
   taxonomy?: LoadedTaxonomy;
   logger: Logger;
@@ -98,7 +107,8 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
         adapter: entry.adapter,
         engram: opts.engram,
         logger: opts.logger,
-        llmRouter: opts.llmRouter,
+        ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
+        ...(opts.enrichment ? { enrichment: opts.enrichment } : {}),
         ...(opts.taxonomy ? { taxonomy: opts.taxonomy } : {}),
         opts: {
           ...(sinceIso ? { sinceIso } : {}),

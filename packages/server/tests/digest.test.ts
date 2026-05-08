@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { loadTaxonomy } from "../src/taxonomy.js";
-import { todaysDigest } from "../src/mcp/tools/todays-digest.js";
+import { digest } from "../src/mcp/tools/digest.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
 
@@ -12,9 +12,9 @@ const fixturesDir = path.join(
 );
 
 /**
- * todays_digest makes ~6 parallel Engram search calls. This stub
- * returns a different response for each call based on the `type`
- * filter — makes the test self-explanatory.
+ * digest makes ~6 parallel Engram search calls. This stub returns a
+ * different response for each call based on the `type` filter — makes
+ * the test self-explanatory.
  */
 function routedEngram(responses: {
   events?: EngramMemory[];
@@ -69,7 +69,7 @@ async function makeCtx(
   };
 }
 
-describe("todays_digest", () => {
+describe("digest", () => {
   it("composes upcoming events, action items (split overdue), and recent activity", async () => {
     const now = new Date();
     const in2h = new Date(now.getTime() + 2 * 3_600_000);
@@ -145,10 +145,10 @@ describe("todays_digest", () => {
       ],
     });
 
-    const parsed = todaysDigest.inputSchema.parse({ owner: "alex" });
-    const res = (await todaysDigest.handler(parsed, ctx)) as {
+    const parsed = digest.inputSchema.parse({ assignee: "alex" });
+    const res = (await digest.handler(parsed, ctx)) as {
       upcoming: Array<{ title?: string }>;
-      openActionItems: Array<{ content: string }>;
+      openActionItems: Array<{ content: string; assignee?: string }>;
       overdueActionItems: Array<{ content: string }>;
       recent: { decisions: unknown[]; briefs: unknown[] };
       unclassifiedQueueSize?: number;
@@ -161,6 +161,7 @@ describe("todays_digest", () => {
 
     expect(res.upcoming.map((e) => e.title)).toEqual(["Alpha standup"]);
     expect(res.openActionItems.map((a) => a.content)).toEqual(["Upcoming task"]);
+    expect(res.openActionItems[0]?.assignee).toBe("alex");
     expect(res.overdueActionItems.map((a) => a.content)).toEqual(["Overdue task"]);
     expect(res.recent.decisions).toHaveLength(1);
     expect(res.recent.briefs).toHaveLength(1);
@@ -170,7 +171,7 @@ describe("todays_digest", () => {
     expect(res.summary.actionItemsOverdue).toBe(1);
   });
 
-  it("owner resolves via taxonomy aliases and filters action items accordingly", async () => {
+  it("assignee resolves via taxonomy aliases and filters action items accordingly", async () => {
     const ctx = await makeCtx({
       actionItems: [
         {
@@ -195,8 +196,8 @@ describe("todays_digest", () => {
     });
 
     // "Alexander" is an alias for alex in the fixture.
-    const parsed = todaysDigest.inputSchema.parse({ owner: "Alexander" });
-    const res = (await todaysDigest.handler(parsed, ctx)) as {
+    const parsed = digest.inputSchema.parse({ assignee: "Alexander" });
+    const res = (await digest.handler(parsed, ctx)) as {
       openActionItems: Array<{ content: string }>;
     };
     expect(res.openActionItems.map((a) => a.content)).toEqual(["Alex thing"]);
@@ -204,12 +205,24 @@ describe("todays_digest", () => {
 
   it("includeUnclassified:false omits the queue count", async () => {
     const ctx = await makeCtx({ unclassified: [] });
-    const parsed = todaysDigest.inputSchema.parse({
+    const parsed = digest.inputSchema.parse({
       includeUnclassified: false,
     });
-    const res = (await todaysDigest.handler(parsed, ctx)) as {
+    const res = (await digest.handler(parsed, ctx)) as {
       unclassifiedQueueSize?: number;
     };
     expect(res.unclassifiedQueueSize).toBeUndefined();
+  });
+
+  it("respects an explicit since/until window in the response", async () => {
+    const ctx = await makeCtx({});
+    const since = "2026-04-01T00:00:00.000Z";
+    const until = "2026-05-01T00:00:00.000Z";
+    const parsed = digest.inputSchema.parse({ since, until });
+    const res = (await digest.handler(parsed, ctx)) as {
+      window: { since: string; until: string };
+    };
+    expect(res.window.since).toBe(since);
+    expect(res.window.until).toBe(until);
   });
 });

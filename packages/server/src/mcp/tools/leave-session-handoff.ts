@@ -18,7 +18,7 @@ const inputSchema = z.object({
   platform: z.string().default("unknown"),
   /**
    * Project slug if this handoff is tied to a specific project. The
-   * next session's `catch_me_up` call will surface the handoff when
+   * next session's `summarize_recent` call will surface the handoff when
    * the same project is asked about.
    */
   project: z.string().default(""),

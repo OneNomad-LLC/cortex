@@ -154,7 +154,7 @@ export async function runImportMeeting(args: readonly string[]): Promise<number>
   });
   const memoryBoot = await createMemoryClient({
     memory: cfg.memory,
-    llmRouter,
+    ...(llmRouter ? { llmRouter } : {}),
     logger,
   });
   const engram = memoryBoot.client;
@@ -165,7 +165,7 @@ export async function runImportMeeting(args: readonly string[]): Promise<number>
     logger,
     traceId,
     signal: abortController.signal,
-    llmRouter,
+    ...(llmRouter ? { llmRouter } : {}),
   });
 
   // 5. Run pipeline
@@ -222,7 +222,7 @@ export async function runImportMeeting(args: readonly string[]): Promise<number>
   process.stdout.write(
     `\nIngested ${ingested} memor${ingested === 1 ? "y" : "ies"} to Engram.\n` +
       (projectSlug
-        ? `Try \`my_action_items\` or \`catch_me_up_on_meeting\` in Claude to see it.\n`
+        ? `Try \`pending_action_items\` or \`summarize_meeting\` in Claude to see it.\n`
         : `Warning: no project tag. Run \`cortex add projects\` then re-import with --project.\n`),
   );
   return 0;

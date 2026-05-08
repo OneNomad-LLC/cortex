@@ -2,24 +2,24 @@ import { z } from "zod";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({
-  /** Meeting source_id (e.g. "loom:rec:abc" or the thread root). */
-  sourceId: z.string().default(""),
-  /** Or a URL — used to look up the meeting in Engram by source_url. */
-  url: z.string().default(""),
-  /** Or a search query to find a recent meeting by title. */
-  query: z.string().default(""),
+  /**
+   * Meeting identifier. Accepts the source_id (e.g.
+   * "loom:rec:abc"), the source_url (a Loom/Meet link), or a fuzzy
+   * search string. Required — entity-keyed, not time-keyed.
+   */
+  id: z.string().min(1),
 });
 
 interface ActionItem {
   content: string;
-  owner?: string;
+  assignee?: string;
   due?: string;
   source_id: string;
 }
 
 interface Decision {
   content: string;
-  owner?: string;
+  assignee?: string;
   source_id: string;
 }
 
@@ -37,40 +37,43 @@ interface Output {
   hint?: string;
 }
 
-export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
-  name: "catch_me_up_on_meeting",
+/**
+ * Entity-keyed meeting lookup. Replaces `catch_me_up_on_meeting`
+ * with a single required `id` parameter that accepts source_id,
+ * url, or query — no time-relative implication. Returns the brief,
+ * decisions, and action items extracted from the meeting.
+ */
+export const summarizeMeeting: McpTool<typeof inputSchema, Output> = {
+  name: "summarize_meeting",
   description:
     "Pull a meeting's brief, decisions, and action items from Engram. " +
-    "Specify by `sourceId` (most precise), `url` (Loom/Meet link), or " +
-    "`query` (fuzzy search). Returns the whole meeting packet so you " +
-    "can read a brief without leaving your editor.",
+    "`id` is the meeting identifier — accepts a source_id (most " +
+    "precise), a source_url (Loom/Meet link), or a fuzzy title query. " +
+    "Returns the whole meeting packet so the caller can read a brief " +
+    "without leaving its agent loop.",
   inputSchema,
 
   async handler(input, ctx) {
-    if (!input.sourceId && !input.url && !input.query) {
+    const id = input.id.trim();
+    if (!id) {
       return {
         found: false,
         decisions: [],
         action_items: [],
-        hint: "Pass at least one of: sourceId, url, query.",
+        hint: "id is required (source_id, url, or search query).",
       };
     }
 
-    const effectiveQuery =
-      input.query.trim() ||
-      input.url.trim() ||
-      input.sourceId.trim();
-
     const memories = await ctx.engram
       .search({
-        query: effectiveQuery,
+        query: id,
         type: "meeting",
         limit: 5,
         domain: "work",
         ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
       })
       .catch((err) => {
-        ctx.logger.warn("catch_me_up_on_meeting.engram_failed", {
+        ctx.logger.warn("summarize_meeting.engram_failed", {
           error: err instanceof Error ? err.message : String(err),
         });
         return [];
@@ -80,10 +83,7 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
     const matchedMeeting =
       memories.find((m) => {
         const meta = (m.metadata ?? {}) as Record<string, unknown>;
-        return (
-          (input.sourceId && meta.source_id === input.sourceId) ||
-          (input.url && meta.source_url === input.url)
-        );
+        return meta.source_id === id || meta.source_url === id;
       }) ?? memories[0];
 
     if (!matchedMeeting) {
@@ -91,7 +91,7 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
         found: false,
         decisions: [],
         action_items: [],
-        hint: `No meeting found for '${effectiveQuery}'. Make sure the meeting has been ingested.`,
+        hint: `No meeting found for '${id}'. Make sure the meeting has been ingested.`,
       };
     }
 
@@ -123,15 +123,23 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
     });
 
     const decisions: Decision[] = sameRoot
-      .filter((m) => ((m.metadata ?? {}) as Record<string, unknown>).type === "decision")
+      .filter(
+        (m) =>
+          ((m.metadata ?? {}) as Record<string, unknown>).type === "decision",
+      )
       .map((m) => ({
         content: m.content,
-        source_id: ((m.metadata ?? {}) as Record<string, unknown>).source_id as string,
-        ...extractOwner(m.metadata),
+        source_id: ((m.metadata ?? {}) as Record<string, unknown>)
+          .source_id as string,
+        ...extractAssignee(m.metadata),
       }));
 
     const action_items: ActionItem[] = sameRoot
-      .filter((m) => ((m.metadata ?? {}) as Record<string, unknown>).type === "action_item")
+      .filter(
+        (m) =>
+          ((m.metadata ?? {}) as Record<string, unknown>).type ===
+          "action_item",
+      )
       .map((m) => {
         const mm = (m.metadata ?? {}) as Record<string, unknown>;
         const tags = Array.isArray(mm.tags) ? (mm.tags as string[]) : [];
@@ -140,7 +148,7 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
           content: m.content,
           source_id: mm.source_id as string,
           ...(due ? { due } : {}),
-          ...extractOwner(m.metadata),
+          ...extractAssignee(m.metadata),
         };
       });
 
@@ -150,7 +158,9 @@ export const catchMeUpOnMeeting: McpTool<typeof inputSchema, Output> = {
         ...(typeof meta.title === "string" ? { title: meta.title } : {}),
         ...(typeof meta.date === "string" ? { date: meta.date } : {}),
         ...(typeof meta.source === "string" ? { source: meta.source } : {}),
-        ...(typeof meta.source_url === "string" ? { url: meta.source_url } : {}),
+        ...(typeof meta.source_url === "string"
+          ? { url: meta.source_url }
+          : {}),
       },
       ...(brief ? { brief: brief.content } : {}),
       decisions,
@@ -175,13 +185,13 @@ function pickRootId(
   return fallback;
 }
 
-function extractOwner(
+function extractAssignee(
   metadata: Record<string, unknown> | undefined,
-): { owner?: string } {
+): { assignee?: string } {
   const tags = (metadata ?? {}).tags;
   if (!Array.isArray(tags)) return {};
   const ownerTag = (tags as unknown[]).find(
     (t): t is string => typeof t === "string" && t.startsWith("owner:"),
   );
-  return ownerTag ? { owner: ownerTag.slice("owner:".length) } : {};
+  return ownerTag ? { assignee: ownerTag.slice("owner:".length) } : {};
 }
