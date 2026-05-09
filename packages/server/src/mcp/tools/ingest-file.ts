@@ -83,8 +83,21 @@ export const ingestFile: McpTool<typeof inputSchema, Output> = {
       );
     }
 
-    const content = await readFile(abs, "utf8");
     const ext = path.extname(abs).toLowerCase();
+
+    // Binary-doc extensions are surfaced with a clear "not yet
+    // supported" error rather than reading the bytes as UTF-8 (which
+    // would produce garbage chunks that pollute the KB). When a parser
+    // dep lands, route from here into a per-extension extractor.
+    if (BINARY_DOC_EXTS.has(ext)) {
+      throw new Error(
+        `ingest_file: ${ext} files require a parser Cortex doesn't yet ship. ` +
+        `Convert to .md / .txt first (e.g. via pandoc) or wait for the binary-doc support follow-up. ` +
+        `Tracked: cortex/docs/MIGRATION-knowledge-engine.md (Phase 2 deferred items).`,
+      );
+    }
+
+    const content = await readFile(abs, "utf8");
     const inferredType = input.type ?? inferType(ext);
     const inferredLanguage = LANGUAGE_BY_EXT[ext];
 
@@ -113,6 +126,24 @@ export const ingestFile: McpTool<typeof inputSchema, Output> = {
     return { ...inner, bytes: info.size };
   },
 };
+
+/**
+ * Extensions whose contents are binary and need a parser to extract
+ * text. Detected up front so we error cleanly instead of reading
+ * binary bytes as UTF-8 and producing junk chunks. Wire a parser
+ * (pdf-parse, mammoth, etc.) per-extension here when ready.
+ */
+const BINARY_DOC_EXTS = new Set<string>([
+  ".pdf",
+  ".docx",
+  ".doc",
+  ".pptx",
+  ".ppt",
+  ".xlsx",
+  ".xls",
+  ".odt",
+  ".epub",
+]);
 
 const EXT_TO_TYPE: Record<string, z.infer<typeof inputSchema>["type"]> = {
   ".md": "doc",
