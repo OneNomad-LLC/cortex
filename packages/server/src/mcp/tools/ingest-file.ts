@@ -4,6 +4,23 @@ import path from "node:path";
 import { ingestContent } from "./ingest-content.js";
 import type { McpTool } from "../tool.js";
 
+/**
+ * Lazy import of pdf-parse so the heavy parser only loads when a PDF
+ * actually shows up. Keeps cold-start lean for the common .md / .txt
+ * path; the dynamic import is cached after the first call.
+ */
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const mod = await import("pdf-parse");
+  // pdf-parse exports differ across releases (CJS default vs named).
+  // The legacy CJS shape is the default export. Newer ESM shape exposes
+  // it under .default too; either way `.default` is the call target.
+  type PdfParse = (b: Buffer) => Promise<{ text?: string }>;
+  const pdfParse = ((mod as { default?: PdfParse }).default
+    ?? (mod as unknown as PdfParse));
+  const result = await pdfParse(buffer);
+  return result.text ?? "";
+}
+
 const inputSchema = z.object({
   path: z.string().min(1),
   /** Project slug. Optional — defaults to the sentinel "default" project,
@@ -27,8 +44,11 @@ const inputSchema = z.object({
     .optional(),
   title: z.string().default(""),
   tags: z.array(z.string()).default([]),
-  /** Fail fast if the file is bigger than this many bytes. Default 1 MiB. */
-  maxBytes: z.number().int().positive().default(1_048_576),
+  /** Fail fast if the file is bigger than this many bytes. Default 5 MiB
+   *  — covers most text files comfortably and is large enough for typical
+   *  PDFs (technical docs, contracts) without forcing the caller to
+   *  override. Bump explicitly for large PDFs / books. */
+  maxBytes: z.number().int().positive().default(5 * 1024 * 1024),
 });
 
 interface Output {
@@ -87,19 +107,27 @@ export const ingestFile: McpTool<typeof inputSchema, Output> = {
 
     const ext = path.extname(abs).toLowerCase();
 
-    // Binary-doc extensions are surfaced with a clear "not yet
-    // supported" error rather than reading the bytes as UTF-8 (which
-    // would produce garbage chunks that pollute the KB). When a parser
-    // dep lands, route from here into a per-extension extractor.
-    if (BINARY_DOC_EXTS.has(ext)) {
+    // PDF support via lazy-loaded pdf-parse. Other binary doc formats
+    // (.docx, .pptx, .xlsx, .odt, .epub) still error cleanly until a
+    // per-format extractor lands.
+    let content: string;
+    if (ext === ".pdf") {
+      const buf = await readFile(abs);
+      content = await extractPdfText(buf);
+      if (!content || content.trim().length === 0) {
+        throw new Error(
+          `ingest_file: extracted text from ${abs} is empty — the PDF may be scanned (image-only) or use unsupported encoding. Convert to .md / .txt first if you need this content.`,
+        );
+      }
+    } else if (BINARY_DOC_EXTS.has(ext)) {
       throw new Error(
         `ingest_file: ${ext} files require a parser Cortex doesn't yet ship. ` +
         `Convert to .md / .txt first (e.g. via pandoc) or wait for the binary-doc support follow-up. ` +
         `Tracked: cortex/docs/MIGRATION-knowledge-engine.md (Phase 2 deferred items).`,
       );
+    } else {
+      content = await readFile(abs, "utf8");
     }
-
-    const content = await readFile(abs, "utf8");
     const inferredType = input.type ?? inferType(ext);
     const inferredLanguage = LANGUAGE_BY_EXT[ext];
 
@@ -136,7 +164,9 @@ export const ingestFile: McpTool<typeof inputSchema, Output> = {
  * (pdf-parse, mammoth, etc.) per-extension here when ready.
  */
 const BINARY_DOC_EXTS = new Set<string>([
-  ".pdf",
+  // .pdf removed — handled via lazy pdf-parse import above. Other
+  // formats still error cleanly with a "not yet supported" message
+  // until a per-format extractor lands (mammoth for .docx, etc.).
   ".docx",
   ".doc",
   ".pptx",
@@ -154,6 +184,7 @@ const EXT_TO_TYPE: Record<string, z.infer<typeof inputSchema>["type"]> = {
   ".rst": "doc",
   ".adoc": "doc",
   ".org": "doc",
+  ".pdf": "doc",
   ".ts": "code",
   ".tsx": "code",
   ".js": "code",
