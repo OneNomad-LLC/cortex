@@ -48,7 +48,9 @@ export const ROLE_PRESETS: Record<Exclude<Role, "custom">, LayoutWidget[]> = {
   delivery: [
     { name: "priorities", props: { limit: 20 } },
     { name: "today-meetings", props: {} },
-    { name: "upcoming-briefs", props: { hoursAhead: 24, limit: 3 } },
+    // upcoming-briefs removed in Phase 1B (2026-05-09). Dashboard
+    // renders a placeholder for unknown widget names so this preset
+    // would still load even if a stale config referenced it.
     { name: "my-action-items", props: { limit: 25 } },
     { name: "recent-decisions", props: { days: 7, limit: 15 } },
     { name: "recent-activity", props: { days: 3 } },

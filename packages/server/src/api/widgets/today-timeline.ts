@@ -5,7 +5,11 @@ import {
   type PriorityRow,
   type PrioritiesOutput,
 } from "./priorities.js";
-import { upcomingBriefsWidget } from "./upcoming-briefs.js";
+// upcomingBriefsWidget removed in Phase 1B (2026-05-09) — its
+// briefReady annotation degraded to false on every meeting row.
+// today-timeline itself is slated for removal in a follow-up Phase 1B
+// slice; this targeted edit lets the cascade unblock without taking
+// the whole timeline down in the same commit.
 
 export type TimelineBucket = "overdue" | "now" | "today";
 export type TimelineUrgency = "high" | "medium" | "low";
@@ -18,7 +22,9 @@ export interface TimelineRow {
   type: TimelineRowType;
   title: string;
   urgency: TimelineUrgency;
-  /** Meetings only: does upcoming-briefs have a synth-able brief in cache. */
+  /** Meetings only: does upcoming-briefs have a synth-able brief in
+   *  cache. Always false post-Phase-1B until briefs come back through
+   *  a non-personal-flow surface. */
   briefReady?: boolean;
   /** Action items: due ISO. */
   due?: string;
@@ -41,10 +47,6 @@ export interface TodayTimelineOutput {
     reason: "soon" | "now";
     openCommitments: number;
   };
-}
-
-interface UpcomingBriefsOutput {
-  events?: Array<{ eventId?: string; brief?: string }>;
 }
 
 /**
@@ -89,13 +91,8 @@ export const todayTimelineWidget: Widget<TodayTimelineOutput> = {
     // absent.
     const meetingsQuery = passthrough(query, ["calendars", "tz"]);
     const prioritiesQuery = passthrough(query, ["owner", "limit", "days"]);
-    const briefsQuery = passthrough(query, ["hoursAhead", "limit", "project"]);
-    // Briefs widget: cheaper if we don't generate the LLM brief — we only
-    // need eventId presence to set briefReady. Hard-set generateBrief=false
-    // unless caller explicitly requested it.
-    if (!briefsQuery.has("generateBrief")) briefsQuery.set("generateBrief", "false");
 
-    const [meetings, priorities, briefs] = await Promise.all([
+    const [meetings, priorities] = await Promise.all([
       todayMeetingsWidget.handler(meetingsQuery, ctx).catch((err) => {
         ctx.logger.warn("widget.today_timeline.meetings_failed", {
           error: err instanceof Error ? err.message : String(err),
@@ -108,18 +105,11 @@ export const todayTimelineWidget: Widget<TodayTimelineOutput> = {
         });
         return { rows: [] as PriorityRow[], generatedAt } as PrioritiesOutput;
       }),
-      (upcomingBriefsWidget.handler(briefsQuery, ctx) as Promise<UpcomingBriefsOutput>).catch((err) => {
-        ctx.logger.warn("widget.today_timeline.briefs_failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return { events: [] };
-      }),
     ]);
 
+    // briefByEventId is permanently empty post-Phase-1B until a
+    // non-personal-flow brief source replaces upcoming-briefs.
     const briefByEventId = new Map<string, boolean>();
-    for (const e of briefs.events ?? []) {
-      if (e.eventId) briefByEventId.set(e.eventId, true);
-    }
 
     const rows: TimelineRow[] = [];
     for (const m of meetings.rows ?? []) {

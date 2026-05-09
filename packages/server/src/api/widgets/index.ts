@@ -8,7 +8,6 @@ import { recentActivityWidget } from "./recent-activity.js";
 import { recentDecisionsWidget } from "./recent-decisions.js";
 import { todayMeetingsWidget } from "./today-meetings.js";
 import { todayTimelineWidget } from "./today-timeline.js";
-import { upcomingBriefsWidget } from "./upcoming-briefs.js";
 import { whoKnowsWidget } from "./who-knows.js";
 
 /**
@@ -36,7 +35,6 @@ const WIDGET_CACHE_PROFILES: Record<string, WithCacheOptions> = {
   "recent-decisions": { ttlSeconds: 120 },
   "recent-activity": { ttlSeconds: 120 },
   "today-meetings": { ttlSeconds: 300 },
-  "upcoming-briefs": { ttlSeconds: 300 },
   "code-activity": { ttlSeconds: 180 },
   "who-knows": { ttlSeconds: 300 },
 };
@@ -66,7 +64,6 @@ export function buildWidgetRegistry(cache?: CacheStorage): readonly Widget[] {
     maybeCache(recentDecisionsWidget),
     maybeCache(recentActivityWidget),
     maybeCache(todayMeetingsWidget),
-    maybeCache(upcomingBriefsWidget),
     maybeCache(codeActivityWidget),
     maybeCache(whoKnowsWidget),
   ];

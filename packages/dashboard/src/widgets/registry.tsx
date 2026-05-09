@@ -5,7 +5,6 @@ import { PrioritiesWidget } from "./priorities";
 import { RecentActivityWidget } from "./recent-activity";
 import { RecentDecisionsWidget } from "./recent-decisions";
 import { TodayMeetingsWidget } from "./today-meetings";
-import { UpcomingBriefsWidget } from "./upcoming-briefs";
 import { WhoKnowsWidget } from "./who-knows";
 
 /**
@@ -43,7 +42,9 @@ export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
   "recent-decisions": RecentDecisionsWidget as WidgetComponent,
   "recent-activity": RecentActivityWidget as WidgetComponent,
   "today-meetings": TodayMeetingsWidget as WidgetComponent,
-  "upcoming-briefs": UpcomingBriefsWidget as WidgetComponent,
+  // upcoming-briefs removed in Phase 1B (2026-05-09). Stale presets
+  // referencing it fall back to PlaceholderWidget via the `if
+  // (!Component)` branch below.
   "code-activity": CodeActivityWidget as WidgetComponent,
   "who-knows": WhoKnowsWidget as WidgetComponent,
 };
