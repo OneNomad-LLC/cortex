@@ -2,7 +2,6 @@ import type { CacheStorage } from "@onenomad/cortex-cache-sqlite";
 import type { Widget } from "../types.js";
 import { withCache, type WithCacheOptions } from "../cache/wrap.js";
 import { codeActivityWidget } from "./code-activity.js";
-import { myActionItemsWidget } from "./my-action-items.js";
 import { prioritiesWidget } from "./priorities.js";
 import { recentActivityWidget } from "./recent-activity.js";
 import { recentDecisionsWidget } from "./recent-decisions.js";
@@ -31,7 +30,6 @@ import { whoKnowsWidget } from "./who-knows.js";
  */
 const WIDGET_CACHE_PROFILES: Record<string, WithCacheOptions> = {
   priorities: { ttlSeconds: 60 },
-  "my-action-items": { ttlSeconds: 60 },
   "recent-decisions": { ttlSeconds: 120 },
   "recent-activity": { ttlSeconds: 120 },
   "today-meetings": { ttlSeconds: 300 },
@@ -60,7 +58,6 @@ export function buildWidgetRegistry(cache?: CacheStorage): readonly Widget[] {
   return [
     todayTimelineWidget,
     maybeCache(prioritiesWidget),
-    maybeCache(myActionItemsWidget),
     maybeCache(recentDecisionsWidget),
     maybeCache(recentActivityWidget),
     maybeCache(todayMeetingsWidget),
