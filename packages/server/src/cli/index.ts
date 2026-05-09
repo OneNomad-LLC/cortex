@@ -1,6 +1,5 @@
 import { runBackfillCli } from "./backfill.js";
 import { runDashboard } from "./dashboard.js";
-import { runNotifyCli } from "./notify.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
@@ -74,14 +73,6 @@ Commands:
                              --limit=N (default 1000), --query=<text>,
                              --dry-run. Audit-only today; the write path
                              requires an engram-side memory_add_tag follow-up.
-
-  notify <flavor> [--dry-run] [--channel=@user]
-                             Manually fire a Prong B push notification —
-                             flavor is morning|pre-meeting|eod. Slack DM
-                             via SLACK_TOKEN env. Idempotency keyed per
-                             day (or per minute for pre-meeting manual
-                             triggers). Cron integration is a separate
-                             follow-up; this is the foundation.
 
   github-login [--scopes <csv>]
                              Device-flow OAuth with GitHub. No PAT paste needed.
@@ -165,9 +156,6 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "backfill":
       return runBackfillCli(rest);
-
-    case "notify":
-      return runNotifyCli(rest);
 
     case "start":
       await startServer();
