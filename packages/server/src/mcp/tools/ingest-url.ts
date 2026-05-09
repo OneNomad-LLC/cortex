@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ingestContent } from "./ingest-content.js";
+import { jobs } from "../jobs.js";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({
@@ -42,6 +43,15 @@ const inputSchema = z.object({
    * same-host URL.
    */
   samePathPrefixOnly: z.boolean().default(true),
+  /**
+   * Run the crawl in the background and return a jobId immediately.
+   * Default false (preserves the existing synchronous shape). When
+   * true, the response is `{ jobId, queued: true }` and the caller
+   * polls `kb_job_status({ jobId })` for the eventual result. Useful
+   * when crawlDepth >= 1 with a large maxPages — synchronous crawls
+   * past ~20 pages start to feel slow over the MCP transport.
+   */
+  async: z.boolean().default(false),
 });
 
 interface PageResult {
@@ -103,6 +113,43 @@ export const ingestUrl: McpTool<typeof inputSchema, Output> = {
   inputSchema,
 
   async handler(input, ctx) {
+    if (input.async) {
+      const job = jobs.create({ kind: "ingest_url" });
+      void runIngestUrl(input, ctx)
+        .then((result) => jobs.complete(job.id, result))
+        .catch((err) => jobs.fail(job.id, err));
+      jobs.start(job.id);
+      const seedNorm = normalizeUrl(input.url);
+      return {
+        // Match Output's required fields with safe placeholders. Renderers
+        // that already handle the sync shape can ignore unknown jobId/queued;
+        // renderers that opt into async use them to start polling.
+        ingested: 0,
+        project: input.project,
+        url: seedNorm,
+        title: input.title || seedNorm,
+        bytes: 0,
+        pages: [],
+        pagesIngested: 0,
+        pagesSkipped: 0,
+        truncated: false,
+        errors: [],
+        jobId: job.id,
+        queued: true,
+      } as Output & { jobId: string; queued: boolean };
+    }
+    return runIngestUrl(input, ctx);
+  },
+};
+
+/**
+ * Synchronous ingest_url body, extracted so the async opt-in can run
+ * the same code path without duplicating the BFS crawler.
+ */
+async function runIngestUrl(
+  input: z.infer<typeof inputSchema>,
+  ctx: Parameters<typeof ingestContent.handler>[1],
+): Promise<Output> {
     const seedUrl = normalizeUrl(input.url);
     const seedParsed = new URL(seedUrl);
     const pathPrefix = input.samePathPrefixOnly
@@ -225,8 +272,7 @@ export const ingestUrl: McpTool<typeof inputSchema, Output> = {
       truncated,
       errors,
     };
-  },
-};
+}
 
 interface FetchOptions {
   maxBytes: number;
