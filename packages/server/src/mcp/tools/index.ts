@@ -1,13 +1,10 @@
 import type { AnyMcpTool } from "../tool.js";
 import { ALL_BROWSER_TOOLS } from "./browser.js";
-import { addProject } from "./add-project.js";
 import { addWorkspaceTool } from "./add-workspace.js";
 import { approveResearch } from "./approve-research.js";
 import { currentWorkspaceTool } from "./current-workspace.js";
 import { fetchPr } from "./fetch-pr.js";
 import { fetchTicket } from "./fetch-ticket.js";
-import { getProjectContext } from "./get-project-context.js";
-import { getTaxonomyGaps } from "./get-taxonomy-gaps.js";
 import { ingestContent } from "./ingest-content.js";
 import { ingestFile } from "./ingest-file.js";
 import { ingestRepo } from "./ingest-repo.js";
@@ -15,7 +12,6 @@ import { ingestUrl } from "./ingest-url.js";
 import { kbDossier } from "./kb-dossier.js";
 import { kbSearch } from "./kb-search.js";
 import { kbStats } from "./kb-stats.js";
-import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
 import { noteCreate } from "./note-create.js";
@@ -38,29 +34,32 @@ import { switchWorkspaceTool } from "./switch-workspace.js";
  * Every MCP tool Cortex advertises. Add new tools here; the server will
  * pick them up automatically.
  *
- * Knowledge-engine repositioning (2026-05-09): personal-priority tools
- * removed — `digest`, `pending_action_items`, `summarize_recent`,
- * `summarize_meeting`, `leave_session_handoff` / `read_session_handoffs`
- * / `resolve_session_handoff`, `add_person`, `get_user_identity`,
- * `update_user_identity`. Cortex is now the multi-tenant knowledge
- * engine for Pyre; per-user identity + session continuity belong in
- * Pyre's Engram (per-user memory) layer, not here. See
- * docs/MIGRATION-knowledge-engine.md (Phase 1C).
+ * Knowledge-engine repositioning history:
+ *  - 2026-05-09 Phase 1C: removed personal-priority tools — `digest`,
+ *    `pending_action_items`, `summarize_recent`, `summarize_meeting`,
+ *    session-handoff×3, `add_person`, `get_user_identity`,
+ *    `update_user_identity`. Per-user identity + session continuity
+ *    belong in Pyre's Engram (per-user memory) layer.
+ *  - 2026-05-09 Phase 1D step 1: `project` is now optional on the four
+ *    ingest_* tools (defaults to a sentinel "default" project).
+ *  - 2026-05-09 Phase 1D step 2: removed the project-management MCP
+ *    tools — `add_project`, `list_projects`, `get_project_context`,
+ *    `get_taxonomy_gaps`. The project model is on its way out; no
+ *    external client should be programmatically managing the project
+ *    list any more. The CLI wizard at `cortex add projects` still
+ *    works for users who want manual taxonomy curation.
+ *    `get_project_context` lives on as an internal helper imported
+ *    by `kb_dossier`'s project entity-type path.
+ *
+ * See docs/MIGRATION-knowledge-engine.md.
  */
 export const ALL_TOOLS: AnyMcpTool[] = [
-  // Taxonomy + project surface (Phase 1D will flatten this further).
-  getTaxonomyGaps,
-  addProject,
-  // Retrieval.
-  // Phase 4 of the repositioning added kb_search and kb_dossier as the
-  // canonical retrieval surface for Pyre / external MCP clients. The
-  // older search_related + get_project_context stay registered for
-  // back-compat with any pre-0.3 consumer that calls them by name.
+  // Retrieval — the canonical surface for Pyre and other MCP clients.
+  // search_related stays registered for back-compat with any pre-0.3
+  // consumer that calls it by name.
   kbSearch,
   kbDossier,
   kbStats,
-  listProjects,
-  getProjectContext,
   research,
   approveResearch,
   listUnclassified,

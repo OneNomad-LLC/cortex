@@ -2,7 +2,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { loadTaxonomy, type LoadedTaxonomy } from "../src/taxonomy.js";
-import { listProjects } from "../src/mcp/tools/list-projects.js";
+// list_projects tool removed in Phase 1D step 2 (2026-05-09); the
+// taxonomy module's listProjects() still works for any internal
+// caller. get_project_context lives on as an internal helper used
+// by kb_dossier even though it's no longer registered as an MCP
+// tool, so the tests below still exercise it.
 import { getProjectContext } from "../src/mcp/tools/get-project-context.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
@@ -54,30 +58,6 @@ async function makeCtx(
     persona: fakePersona(),
   };
 }
-
-describe("list_projects tool", () => {
-  it("returns only active projects by default", async () => {
-    const ctx = await makeCtx();
-    const parsed = listProjects.inputSchema.parse({});
-    const res = (await listProjects.handler(parsed, ctx)) as {
-      projects: Array<{ slug: string }>;
-    };
-    expect(res.projects.map((p) => p.slug)).toEqual([
-      "project-alpha",
-      "project-beta",
-    ]);
-  });
-
-  it("includes inactive when activeOnly=false", async () => {
-    const ctx = await makeCtx();
-    const parsed = listProjects.inputSchema.parse({ activeOnly: false });
-    const res = (await listProjects.handler(parsed, ctx)) as {
-      projects: Array<{ slug: string }>;
-    };
-    expect(res.projects).toHaveLength(3);
-    expect(res.projects.map((p) => p.slug)).toContain("project-legacy");
-  });
-});
 
 describe("get_project_context tool", () => {
   it("resolves by slug and returns people", async () => {
