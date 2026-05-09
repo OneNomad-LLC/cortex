@@ -107,13 +107,6 @@ async function build(
     });
   }
   if (backend === "pgvector") {
-    const conn = memory.pgvector.connectionString;
-    if (!conn) {
-      throw new Error(
-        "memory.pgvector.connectionString is not set. Point it at a Postgres " +
-          "instance with pgvector installed (or use ${POSTGRES_URL} in cortex.yaml).",
-      );
-    }
     if (!llmRouter) {
       throw new Error(
         "memory: pgvector backend needs an LLM provider for embeddings. " +
@@ -121,7 +114,34 @@ async function build(
           "switch to the engram backend (which does not require one).",
       );
     }
+    const mode = memory.pgvector.mode;
+    if (mode === "embedded") {
+      const dataDir = memory.pgvector.dataDir;
+      if (!dataDir) {
+        throw new Error(
+          "memory.pgvector.dataDir is not set but mode='embedded'. Set it to a writable directory for the in-process PGlite database (e.g. './data/pglite').",
+        );
+      }
+      return createPgVectorClient({
+        mode: "embedded",
+        dataDir,
+        table: memory.pgvector.table,
+        embeddingDim: memory.pgvector.embeddingDim,
+        embedTask: memory.pgvector.embedTask,
+        llmRouter,
+        logger,
+      });
+    }
+    const conn = memory.pgvector.connectionString;
+    if (!conn) {
+      throw new Error(
+        "memory.pgvector.connectionString is not set. Point it at a Postgres " +
+          "instance with pgvector installed (or use ${POSTGRES_URL} in cortex.yaml). " +
+          "For a zero-config option, set mode='embedded' and dataDir to use PGlite.",
+      );
+    }
     return createPgVectorClient({
+      mode: "external",
       connectionString: conn,
       table: memory.pgvector.table,
       embeddingDim: memory.pgvector.embeddingDim,

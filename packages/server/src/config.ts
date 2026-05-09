@@ -38,7 +38,21 @@ export const memoryConfigSchema = z
       .default({}),
     pgvector: z
       .object({
+        /**
+         * 'external' (default) connects to a real Postgres server via
+         * connectionString. 'embedded' spawns PGlite in-process — no
+         * Docker, no system PG, no port. The Pyre 'Install Cortex'
+         * flow defaults to embedded so the user gets a working KB
+         * with zero external setup.
+         */
+        mode: z.enum(["external", "embedded"]).default("external"),
         connectionString: z.string().optional(),
+        /**
+         * Filesystem path for the embedded PGlite database. Required
+         * when mode='embedded'; ignored otherwise. Path can be relative
+         * (resolved against cwd at boot) or absolute.
+         */
+        dataDir: z.string().optional(),
         table: z.string().default("cortex_memories"),
         embeddingDim: z.number().int().positive().default(768),
         /** Task id to use when calling router.embed(). Default: 'embed'. */

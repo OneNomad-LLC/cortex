@@ -2,6 +2,7 @@ import type { EngramAccess, HealthStatus, Logger } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import {
   createPgPool,
+  createPglitePool,
   createPgVectorBackend,
   type MemoryBackend,
 } from "@onenomad/cortex-memory-pgvector";
@@ -12,7 +13,16 @@ import type {
 } from "./engram.js";
 
 export interface PgVectorClientOptions {
-  connectionString: string;
+  /**
+   * Connection mode. 'external' uses node-postgres against the supplied
+   * connectionString. 'embedded' spins up PGlite in-process at dataDir
+   * — no Docker, no system PG, no port.
+   */
+  mode: "external" | "embedded";
+  /** Required when mode='external'. */
+  connectionString?: string;
+  /** Required when mode='embedded'. Absolute filesystem path. */
+  dataDir?: string;
   table: string;
   embeddingDim: number;
   embedTask: string;
@@ -33,10 +43,28 @@ export interface PgVectorClientOptions {
 export async function createPgVectorClient(
   opts: PgVectorClientOptions,
 ): Promise<EngramClient> {
-  const pool = createPgPool(
-    { connectionString: opts.connectionString },
-    { logger: opts.logger },
-  );
+  let pool;
+  if (opts.mode === "embedded") {
+    if (!opts.dataDir) {
+      throw new Error(
+        "memory.pgvector: dataDir is required when mode='embedded' — point it at a writable directory for the PGlite database",
+      );
+    }
+    pool = await createPglitePool({
+      dataDir: opts.dataDir,
+      logger: opts.logger,
+    });
+  } else {
+    if (!opts.connectionString) {
+      throw new Error(
+        "memory.pgvector: connectionString is required when mode='external' — use mode='embedded' for a zero-config PGlite database instead",
+      );
+    }
+    pool = createPgPool(
+      { connectionString: opts.connectionString },
+      { logger: opts.logger },
+    );
+  }
   const backend: MemoryBackend = createPgVectorBackend({
     pool,
     embed: async (text) => {
