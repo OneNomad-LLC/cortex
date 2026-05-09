@@ -331,12 +331,20 @@ function passthroughMetadata(
   classified: ClassifiedItem,
   traceId: string,
 ): MemoryMetadata {
+  // Phase 1D residual: omit the project metadata stamp when the
+  // sentinel "default" project is in use. Multi-tenant knowledge-
+  // engine chunks belong to the workspace, not a sub-project; the
+  // workspace tag is the actual scope. Explicit-project ingests
+  // (a caller passed a real project slug from the taxonomy) still
+  // get stamped so kb_search's project filter and any taxonomy-aware
+  // retrieval keep working.
+  const stampProject = input.project !== "default";
   return {
     domain: "work",
     source: input.source,
     source_id: input.sourceId,
     source_url: input.sourceUrl || "",
-    project: input.project,
+    ...(stampProject ? { project: input.project } : {}),
     type: classified.contentType,
     people: input.authors,
     date: classified.updatedAt.toISOString(),

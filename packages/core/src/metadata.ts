@@ -30,8 +30,12 @@ export const memoryMetadataSchema = z.object({
   /** Stable identifier from the source. Used for idempotent ingestion. */
   source_id: z.string().min(1),
   source_url: z.string().url(),
-  /** Project slug or list of slugs from config/projects.yaml. */
-  project: z.union([z.string().min(1), z.array(z.string().min(1))]),
+  /** Project slug or list of slugs from config/projects.yaml.
+   *  Phase 1D (2026-05-09): now optional. Multi-tenant knowledge-engine
+   *  chunks live in the workspace; project is just an optional sub-tag
+   *  for callers who curate their own taxonomy. ingest_content omits
+   *  it when the sentinel "default" project is in use. */
+  project: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
   type: z.enum([
     "meeting",
     "decision",
