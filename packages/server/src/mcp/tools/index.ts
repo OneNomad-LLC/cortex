@@ -11,6 +11,7 @@ import { ingestRepo } from "./ingest-repo.js";
 import { ingestUrl } from "./ingest-url.js";
 import { kbDelete } from "./kb-delete.js";
 import { kbDossier } from "./kb-dossier.js";
+import { kbRecent } from "./kb-recent.js";
 import { kbSearch } from "./kb-search.js";
 import { kbStats } from "./kb-stats.js";
 import { listUnclassified } from "./list-unclassified.js";
@@ -62,6 +63,7 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   kbDossier,
   kbStats,
   kbDelete,
+  kbRecent,
   research,
   approveResearch,
   listUnclassified,
