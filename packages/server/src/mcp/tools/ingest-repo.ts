@@ -1,14 +1,35 @@
 import { z } from "zod";
-import { readdir, stat, readFile } from "node:fs/promises";
+import { readdir, stat, readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { ingestContent } from "./ingest-content.js";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({
-  /** Local repo path. Phase 2 = local only; remote clone is a follow-up. */
+  /**
+   * Repo source. Either:
+   *   - Local path (relative or absolute) → walk in place.
+   *   - Git URL (https://host/path[.git], git@host:path, ssh://...)
+   *     → shallow-clone to a tmpdir, walk, cleanup. Requires `git`
+   *     on PATH.
+   * Detection is by isGitUrl(); when ambiguous (e.g. a path that
+   * happens to look like a URL), local-path interpretation wins.
+   */
   path: z.string().min(1),
   project: z.string().min(1),
   tags: z.array(z.string()).default([]),
+  /**
+   * Branch / ref to clone. Only honored for git-URL inputs. Default
+   * = the repo's HEAD (whatever the remote points at).
+   */
+  branch: z.string().optional(),
+  /**
+   * Per-clone timeout in milliseconds. Aborts a slow clone. Default
+   * 5 minutes — generous for a shallow clone of a typical repo;
+   * pathological repos with binary blobs in history get killed.
+   */
+  cloneTimeoutMs: z.number().int().positive().default(5 * 60 * 1000),
   /**
    * Per-file size cap. Files larger than this get skipped (recorded in
    * `errors`). Default 256 KiB — enough for almost any source file,
@@ -36,6 +57,15 @@ interface FileResult {
 }
 
 interface Output {
+  /** Resolved local path the walk ran against. For git-URL inputs this
+   *  is the tmpdir clone destination (already cleaned up by the time
+   *  the result is returned). */
+  resolvedPath: string;
+  /** True when the input was detected as a git URL and shallow-cloned. */
+  cloned: boolean;
+  /** When cloned: the URL that was cloned. Useful for the renderer's
+   *  "ingested github.com/foo/bar" display. */
+  source?: string;
   /** Number of source files that produced at least one chunk. */
   filesIngested: number;
   /** Sum of chunks across every file. */
@@ -113,11 +143,73 @@ const LANGUAGE_BY_EXT: Record<string, string> = {
 };
 
 /**
- * Walk a local repo, ingest each readable source file into Cortex.
+ * Detect a git remote URL. Recognized shapes:
+ *   - https?://...                 (any host; shallow-clones via HTTPS)
+ *   - git@host:owner/repo[.git]    (SSH)
+ *   - ssh://git@host[:port]/...    (SSH)
+ *   - git://host/...               (unauthenticated, rare)
  *
- * Phase 2 scope: LOCAL paths only. Remote clone (git URL → tmpdir →
- * walk → cleanup) is a follow-up; users with private repos can clone
- * themselves and point this at the working tree.
+ * A bare github.com URL without scheme would be ambiguous — it could
+ * be a path. We require an explicit scheme or `git@` prefix to avoid
+ * misclassifying a local path that happens to contain "github.com".
+ */
+export function isGitUrl(input: string): boolean {
+  if (/^(?:https?|ssh|git):\/\//i.test(input)) return true;
+  if (/^git@[\w.-]+:[\w./-]+/.test(input)) return true;
+  return false;
+}
+
+/**
+ * Run `git clone --depth=1 [--branch <ref>] <url> <dest>`. Caller is
+ * responsible for the tmpdir lifecycle. Throws on non-zero exit, on
+ * timeout, or when `git` isn't on PATH.
+ */
+export async function shallowClone(args: {
+  url: string;
+  dest: string;
+  branch?: string;
+  timeoutMs: number;
+}): Promise<void> {
+  const cmdArgs = ["clone", "--depth=1"];
+  if (args.branch) cmdArgs.push("--branch", args.branch);
+  cmdArgs.push(args.url, args.dest);
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn("git", cmdArgs, { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+    let settled = false;
+    const settle = (err: Error | null) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err); else resolve();
+    };
+    const timer = setTimeout(() => {
+      try { child.kill("SIGTERM"); } catch {}
+      settle(new Error(`git clone timed out after ${args.timeoutMs}ms`));
+    }, args.timeoutMs);
+    child.stderr?.on("data", (d) => {
+      // Cap retained stderr so a noisy clone (lots of progress lines)
+      // doesn't balloon memory.
+      if (stderr.length < 8 * 1024) stderr += String(d);
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      settle(new Error(`git clone failed to spawn: ${err.message}${err.message.includes("ENOENT") ? " — is git on PATH?" : ""}`));
+    });
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      if (code === 0) settle(null);
+      else settle(new Error(`git clone exited ${code}: ${stderr.trim() || "(no stderr)"}`));
+    });
+  });
+}
+
+/**
+ * Walk a local repo OR shallow-clone a git URL and walk the result.
+ *
+ * For git URLs the clone lands in an OS tmpdir (mkdtemp prefix
+ * `cortex-ingest-repo-`) and is rm -rf'd in the finally block, so a
+ * crash mid-walk never leaks the working tree.
  *
  * The walk is breadth-first on directories. Default ignore set prunes
  * common build/output dirs. `maxFiles` is a hard ceiling that aborts
@@ -126,16 +218,62 @@ const LANGUAGE_BY_EXT: Record<string, string> = {
 export const ingestRepo: McpTool<typeof inputSchema, Output> = {
   name: "ingest_repo",
   description:
-    "Walk a local repository and ingest every readable source file into " +
-    "Cortex. Path must exist on the cortex process's filesystem. Skips " +
-    "node_modules / .git / dist / build / similar by default; binary " +
-    "files and unsupported extensions are skipped (recorded in `errors`). " +
-    "Caps at maxFiles=2000 by default — bumps the cap if you really need " +
-    "to ingest a huge tree, but consider a more targeted ingest_file run.",
+    "Walk a repository and ingest every readable source file into Cortex. " +
+    "`path` accepts either a local directory OR a git URL (https / ssh / " +
+    "git@) — git URLs are shallow-cloned to a tmpdir, walked, and cleaned " +
+    "up. Skips node_modules / .git / dist / build / similar by default. " +
+    "Caps at maxFiles=2000 by default. Set `branch` to clone a specific " +
+    "ref (git URL inputs only). Requires `git` on PATH for clones.",
   inputSchema,
 
   async handler(input, ctx) {
-    const root = path.resolve(input.path);
+    let cloned = false;
+    let cloneTmpDir: string | null = null;
+    let walkRoot: string;
+    let cloneSource: string | undefined;
+    if (isGitUrl(input.path)) {
+      cloneTmpDir = await mkdtemp(path.join(tmpdir(), "cortex-ingest-repo-"));
+      cloneSource = input.path;
+      try {
+        await shallowClone({
+          url: input.path,
+          dest: cloneTmpDir,
+          ...(input.branch ? { branch: input.branch } : {}),
+          timeoutMs: input.cloneTimeoutMs,
+        });
+      } catch (err) {
+        // Clone failed — clean up the tmpdir we created and surface.
+        try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+        throw err;
+      }
+      cloned = true;
+      walkRoot = cloneTmpDir;
+    } else {
+      walkRoot = path.resolve(input.path);
+    }
+
+    try {
+      return await walkAndIngest({
+        ...input,
+        resolvedPath: walkRoot,
+        cloned,
+        ...(cloneSource ? { source: cloneSource } : {}),
+      }, ctx);
+    } finally {
+      if (cloneTmpDir) {
+        try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+      }
+    }
+  },
+};
+
+async function walkAndIngest(
+  args: z.infer<typeof inputSchema> & { resolvedPath: string; cloned: boolean; source?: string },
+  ctx: Parameters<typeof ingestContent.handler>[1],
+): Promise<Output> {
+  const input = args;
+  {
+    const root = args.resolvedPath;
     const rootInfo = await stat(root).catch(() => null);
     if (!rootInfo || !rootInfo.isDirectory()) {
       throw new Error(`ingest_repo: ${root} is not a directory`);
@@ -268,6 +406,9 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
     }
 
     return {
+      resolvedPath: args.resolvedPath,
+      cloned: args.cloned,
+      ...(args.source ? { source: args.source } : {}),
       filesIngested,
       chunksIngested,
       filesSkipped,
@@ -277,5 +418,5 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
       errors,
       truncated,
     };
-  },
-};
+  }
+}
