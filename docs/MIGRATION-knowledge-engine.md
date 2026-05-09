@@ -1,31 +1,33 @@
 # Cortex 0.3 — Knowledge Engine Repositioning
 
-Status: **Phases 1A, 1C, 2, 4 shipped; Phases 0, 1B, 1D deferred.**
+Status: **Phases 1A, 1B, 1C, 2, 4 SHIPPED; Phases 0, 1D deferred.**
 Updated: 2026-05-09 (post-execution).
 Companion: `pyre/CHANGELOG.md`.
 
 ## Done today
 
-| Phase | Cortex commit | Summary |
-|-------|---------------|---------|
-| 1A    | `9204e35`     | Removed gmail / google-calendar / google-drive / outlook adapters + google-login CLI. |
-| 1C    | `990d3a7`     | Removed 10 personal-priority MCP tools (digest, action_items, summarize_*, session-handoff×3, add_person, *_user_identity). |
-| 2     | `44a4de6`     | Added `ingest_url` + `ingest_repo` MCP tools (synchronous). |
-| 2+    | `31cec7f`     | `ingest_url` BFS sitemap crawl with same-host + path-prefix scope. |
-| 2+    | `a32e57d`     | `ingest_repo` accepts git URLs (shallow clone → walk → cleanup). |
-| 4     | `0c8b7b6`     | Added `kb_search` + `kb_dossier` MCP tools (mirrors Engram pattern). |
+| Phase | Cortex commits | Summary |
+|-------|----------------|---------|
+| 1A    | `9204e35`      | Removed gmail / google-calendar / google-drive / outlook adapters + google-login CLI. |
+| 1B    | `(post-44a4de6 sequence)` | Removed upcoming-briefs, notification-bootstrap + notification-data + notify CLI, my-action-items, priorities, today-meetings, today-timeline; deleted the `pipeline-notification` package; rewrote dashboard root from TodayTimeline → Recent Activity. Cortex no longer has any personal-flow surface. |
+| 1C    | `990d3a7`      | Removed 10 personal-priority MCP tools (digest, action_items, summarize_*, session-handoff×3, add_person, *_user_identity). |
+| 2     | `44a4de6`      | Added `ingest_url` + `ingest_repo` MCP tools (synchronous). |
+| 2+    | `31cec7f`      | `ingest_url` BFS sitemap crawl with same-host + path-prefix scope. |
+| 2+    | `a32e57d`      | `ingest_repo` accepts git URLs (shallow clone → walk → cleanup). |
+| 2+    | `0caa89c`      | Binary-doc rejection in `ingest_file` (clean "not yet supported" error for PDF/DOCX/etc.). |
+| 4     | `0c8b7b6`      | Added `kb_search` + `kb_dossier` MCP tools (mirrors Engram pattern). |
 
 Pyre-side commits that consume the new Cortex surface (in `pyre`):
 - `83e454e` — refresh Cortex MCP catalog entry for 0.3 description.
-- `df8bc79`, `451d2bf`, `dcfcdfb` — `~/.pyre/inbox` auto-ingest watcher (class + boot wiring + Settings toggle).
+- `df8bc79`, `451d2bf`, `dcfcdfb`, `c56c28e`, `6382573`, `b756b7c` — `~/.pyre/inbox` auto-ingest watcher (class + boot wiring + Settings toggle + live activity log + Open Folder button + preload home expose).
 - `a121fa3` — Settings → Knowledge card with file/url/repo forms.
+- `85fafb7` — Cortex IPC ingest-result normalizer tests.
 
 ## Still deferred
 
 - **Phase 0 (RLS)** — load-bearing security primitive. Schema design in this doc; implementation is a dedicated session.
-- **Phase 1B (dashboard widget cascade strip)** — today-meetings / today-timeline / priorities / my-action-items / upcoming-briefs across server widgets + dashboard widgets + notification bootstrap. Estimated 4–6 hrs as a focused session.
 - **Phase 1D (project-model flatten)** — collapse the per-project routing into one KB per tenant. ~100+ files touched. Dedicated session before the first enterprise contract.
-- **Phase 2 deferred items still open**: PDF / DOCX / HTML binary-doc support in `ingest_file` (currently surfaces a clean "not yet supported" error so the missing capability is visible). Async job runner + `ingest_status` MCP tool.
+- **Phase 2 deferred items still open**: PDF / DOCX / HTML binary-doc support in `ingest_file` (parser dep). Async job runner + `ingest_status` MCP tool. Headless-browser SPA mode for `ingest_url` (puppeteer/playwright dep).
 
 The phase-by-phase plan below is preserved for future reference.
 
