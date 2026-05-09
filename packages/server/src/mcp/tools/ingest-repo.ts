@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { ingestContent } from "./ingest-content.js";
+import { jobs } from "../jobs.js";
 import type { McpTool } from "../tool.js";
 
 const inputSchema = z.object({
@@ -32,6 +33,15 @@ const inputSchema = z.object({
    * pathological repos with binary blobs in history get killed.
    */
   cloneTimeoutMs: z.number().int().positive().default(5 * 60 * 1000),
+  /**
+   * Run in the background and return a jobId immediately. Default
+   * false (preserves the existing synchronous shape for any pre-
+   * async caller). When true, the response is `{ jobId, queued: true }`
+   * and the caller polls `kb_job_status({ jobId })` for progress +
+   * the eventual result. Useful for repos large enough that the
+   * synchronous path ties up the MCP transport noticeably.
+   */
+  async: z.boolean().default(false),
   /**
    * Per-file size cap. Files larger than this get skipped (recorded in
    * `errors`). Default 256 KiB — enough for almost any source file,
@@ -229,45 +239,86 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
   inputSchema,
 
   async handler(input, ctx) {
-    let cloned = false;
-    let cloneTmpDir: string | null = null;
-    let walkRoot: string;
-    let cloneSource: string | undefined;
-    if (isGitUrl(input.path)) {
-      cloneTmpDir = await mkdtemp(path.join(tmpdir(), "cortex-ingest-repo-"));
-      cloneSource = input.path;
-      try {
-        await shallowClone({
-          url: input.path,
-          dest: cloneTmpDir,
-          ...(input.branch ? { branch: input.branch } : {}),
-          timeoutMs: input.cloneTimeoutMs,
-        });
-      } catch (err) {
-        // Clone failed — clean up the tmpdir we created and surface.
-        try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
-        throw err;
-      }
-      cloned = true;
-      walkRoot = cloneTmpDir;
-    } else {
-      walkRoot = path.resolve(input.path);
+    // Async opt-in: register a job, kick off the work in the background,
+    // return the jobId immediately. The caller polls kb_job_status for
+    // the eventual result. Synchronous behavior preserved when async=false
+    // (default) so existing callers see no change.
+    if (input.async) {
+      const job = jobs.create({ kind: "ingest_repo" });
+      void runIngestRepo(input, ctx)
+        .then((result) => jobs.complete(job.id, result))
+        .catch((err) => jobs.fail(job.id, err));
+      jobs.start(job.id);
+      return {
+        // Match the synchronous Output shape's required fields with
+        // safe placeholders. Renderers that already handle the sync
+        // shape can ignore unknown jobId/queued; renderers that opt
+        // into async use those to start polling.
+        resolvedPath: "",
+        cloned: false,
+        filesIngested: 0,
+        chunksIngested: 0,
+        filesSkipped: 0,
+        filesByType: {},
+        totalBytes: 0,
+        files: [],
+        errors: [],
+        truncated: false,
+        // Signal fields the renderer keys off when async=true.
+        jobId: job.id,
+        queued: true,
+      } as Output & { jobId: string; queued: boolean };
     }
-
-    try {
-      return await walkAndIngest({
-        ...input,
-        resolvedPath: walkRoot,
-        cloned,
-        ...(cloneSource ? { source: cloneSource } : {}),
-      }, ctx);
-    } finally {
-      if (cloneTmpDir) {
-        try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
-      }
-    }
+    return runIngestRepo(input, ctx);
   },
 };
+
+/**
+ * Synchronous ingest_repo body, extracted so the async opt-in can run
+ * the same code path without duplicating logic.
+ */
+async function runIngestRepo(
+  input: z.infer<typeof inputSchema>,
+  ctx: Parameters<typeof ingestContent.handler>[1],
+): Promise<Output> {
+  let cloned = false;
+  let cloneTmpDir: string | null = null;
+  let walkRoot: string;
+  let cloneSource: string | undefined;
+  if (isGitUrl(input.path)) {
+    cloneTmpDir = await mkdtemp(path.join(tmpdir(), "cortex-ingest-repo-"));
+    cloneSource = input.path;
+    try {
+      await shallowClone({
+        url: input.path,
+        dest: cloneTmpDir,
+        ...(input.branch ? { branch: input.branch } : {}),
+        timeoutMs: input.cloneTimeoutMs,
+      });
+    } catch (err) {
+      // Clone failed — clean up the tmpdir we created and surface.
+      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+      throw err;
+    }
+    cloned = true;
+    walkRoot = cloneTmpDir;
+  } else {
+    walkRoot = path.resolve(input.path);
+  }
+
+  try {
+    return await walkAndIngest({
+      ...input,
+      resolvedPath: walkRoot,
+      cloned,
+      ...(cloneSource ? { source: cloneSource } : {}),
+    }, ctx);
+  } finally {
+    if (cloneTmpDir) {
+      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+    }
+  }
+}
 
 async function walkAndIngest(
   args: z.infer<typeof inputSchema> & { resolvedPath: string; cloned: boolean; source?: string },
