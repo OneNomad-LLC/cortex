@@ -527,25 +527,6 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
 
-  packages/google-auth:
-    dependencies:
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      eslint:
-        specifier: ^9.12.0
-        version: 9.39.4(jiti@2.6.1)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
-
   packages/llm-core:
     dependencies:
       '@onenomad/cortex-core':
@@ -878,9 +859,6 @@ importers:
       '@onenomad/cortex-github-auth':
         specifier: workspace:*
         version: link:../github-auth
-      '@onenomad/cortex-google-auth':
-        specifier: workspace:*
-        version: link:../google-auth
       '@onenomad/cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
@@ -2026,7 +2004,6 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha512-JQpZHV5KzUzDI3flYCjtZcfHlEbL8lM54E0NT+jrRYe29aKYegfavvPsAsuZp0VdcMwFMZcpMkaBhjQMo/fwvg==}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
