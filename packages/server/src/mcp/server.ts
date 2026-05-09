@@ -372,26 +372,12 @@ export async function startServer(): Promise<void> {
     await dashboardApi.start();
   }
 
-  // Prong B notification scheduler — fires morning brief 8am, EOD 5pm,
-  // pre-meeting T-30 per calendar event. No-op when SLACK_TOKEN is
-  // unset. Scoped to the daemon-mode boot path; CLI-only invocations
-  // (e.g. `cortex sync`) don't need long-lived schedulers.
-  const notifications = await (await import("../notification-bootstrap.js"))
-    .bootstrapNotifications({
-      logger: logger.child({ component: "notification-bootstrap" }),
-      widgetContext: {
-        logger: logger.child({ component: "notification-widget-ctx" }),
-        engram,
-        ...(router ? { llmRouter: router } : {}),
-        taxonomy,
-      },
-    })
-    .catch((err) => {
-      logger.warn("notification.bootstrap.failed", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return null;
-    });
+  // Notification scheduler removed in Phase 1B (2026-05-09). The
+  // morning-brief / EOD / pre-meeting flow was personal-priority
+  // surface that doesn't fit the multi-tenant knowledge-engine
+  // positioning. The pipeline-notification package still ships its
+  // dispatcher for any future per-org alert use case but is no longer
+  // booted automatically.
 
   // Dashboard UI auto-start — spawn the Next.js dev server as a child
   // when we're running as a daemon (HTTP MCP). When Cortex is spawned
@@ -485,7 +471,7 @@ export async function startServer(): Promise<void> {
     logger.info("shutdown.begin");
     clearInterval(sessionGcTimer);
     await scheduler.stop();
-    if (notifications) await notifications.stop();
+    // notifications.stop() was here pre-Phase-1B; the bootstrap is gone.
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
     if (dashboardChild) await dashboardChild.stop();
