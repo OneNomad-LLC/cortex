@@ -48,7 +48,6 @@
     "@onenomad/cortex-cache-sqlite": "workspace:*",
     "@onenomad/cortex-core": "workspace:*",
     "@onenomad/cortex-github-auth": "workspace:*",
-    "@onenomad/cortex-google-auth": "workspace:*",
     "@onenomad/cortex-llm-core": "workspace:*",
     "@onenomad/cortex-memory-pgvector": "workspace:*",
     "@onenomad/cortex-pipeline-code": "workspace:*",
