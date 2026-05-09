@@ -10,6 +10,8 @@ import { getProjectContext } from "./get-project-context.js";
 import { getTaxonomyGaps } from "./get-taxonomy-gaps.js";
 import { ingestContent } from "./ingest-content.js";
 import { ingestFile } from "./ingest-file.js";
+import { ingestRepo } from "./ingest-repo.js";
+import { ingestUrl } from "./ingest-url.js";
 import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
@@ -69,10 +71,13 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   currentWorkspaceTool,
   switchWorkspaceTool,
   addWorkspaceTool,
-  // On-demand ingest. Phase 2 of the repositioning adds ingest_url and
-  // ingest_repo alongside these.
+  // On-demand ingest. Phase 2 of the repositioning added ingest_url
+  // and ingest_repo. ingest_file (text-only); PDF/DOCX/HTML coverage
+  // remains a follow-up.
   ingestContent,
   ingestFile,
+  ingestUrl,
+  ingestRepo,
   // Cortex-authored notes (Phase 1 — filesystem-backed via the
   // obsidian adapter's vault).
   noteCreate,
