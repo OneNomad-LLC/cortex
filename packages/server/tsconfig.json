@@ -23,15 +23,11 @@
     { "path": "../adapter-bitbucket" },
     { "path": "../adapter-confluence" },
     { "path": "../adapter-github" },
-    { "path": "../adapter-gmail" },
-    { "path": "../adapter-google-calendar" },
-    { "path": "../adapter-google-drive" },
     { "path": "../adapter-jira" },
     { "path": "../adapter-linear" },
     { "path": "../adapter-loom" },
     { "path": "../adapter-notion" },
     { "path": "../adapter-obsidian" },
-    { "path": "../adapter-outlook" },
     { "path": "../adapter-slack" }
   ]
 }

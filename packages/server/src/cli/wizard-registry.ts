@@ -2,15 +2,11 @@ import type { WizardModule } from "@onenomad/cortex-core";
 import { bitbucketWizard } from "@onenomad/cortex-adapter-bitbucket";
 import { confluenceWizard } from "@onenomad/cortex-adapter-confluence";
 import { githubWizard } from "@onenomad/cortex-adapter-github";
-import { gmailWizard } from "@onenomad/cortex-adapter-gmail";
-import { googleCalendarWizard } from "@onenomad/cortex-adapter-google-calendar";
-import { googleDriveWizard } from "@onenomad/cortex-adapter-google-drive";
 import { jiraWizard } from "@onenomad/cortex-adapter-jira";
 import { linearWizard } from "@onenomad/cortex-adapter-linear";
 import { loomWizard } from "@onenomad/cortex-adapter-loom";
 import { notionWizard } from "@onenomad/cortex-adapter-notion";
 import { obsidianWizard } from "@onenomad/cortex-adapter-obsidian";
-import { outlookWizard } from "@onenomad/cortex-adapter-outlook";
 import { slackWizard } from "@onenomad/cortex-adapter-slack";
 import { pgvectorWizard } from "@onenomad/cortex-memory-pgvector";
 import { ollamaWizard } from "@onenomad/cortex-provider-ollama";
@@ -25,10 +21,11 @@ import { webhooksWizard } from "./webhooks-wizard.js";
  * as the adapter + provider registries). Listing here is the single place
  * new modules land when their wizards ship.
  *
- * Google adapters (gmail, google-calendar, google-drive) rely on a
- * separate `cortex google-login` subcommand for the OAuth handshake —
- * the wizard flow here only collects adapter-specific config and
- * assumes the shared refresh token is already on disk.
+ * Knowledge-engine repositioning (2026-05-09): Gmail / Google Calendar /
+ * Google Drive / Outlook adapters were removed — they're personal-flow
+ * surfaces, not org knowledge sources. Cortex is now the multi-tenant
+ * knowledge engine for Pyre; per-user inbox/calendar belongs in a
+ * different layer. See cortex/docs/MIGRATION-knowledge-engine.md.
  */
 const WIZARDS: WizardModule[] = [
   // adapters
@@ -40,11 +37,7 @@ const WIZARDS: WizardModule[] = [
   loomWizard,
   notionWizard,
   obsidianWizard,
-  outlookWizard,
   slackWizard,
-  gmailWizard,
-  googleCalendarWizard,
-  googleDriveWizard,
   // llm providers — OpenRouter first so the dashboard shows it as the
   // default pick (BYOK cloud, no GPU required). Ollama stays for users
   // who have a local GPU box.

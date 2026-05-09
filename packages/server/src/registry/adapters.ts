@@ -7,15 +7,11 @@ import type {
 import { createAdapter as createBitbucketAdapter } from "@onenomad/cortex-adapter-bitbucket";
 import { createAdapter as createConfluenceAdapter } from "@onenomad/cortex-adapter-confluence";
 import { createAdapter as createGithubAdapter } from "@onenomad/cortex-adapter-github";
-import { createAdapter as createGmailAdapter } from "@onenomad/cortex-adapter-gmail";
-import { createAdapter as createGoogleCalendarAdapter } from "@onenomad/cortex-adapter-google-calendar";
-import { createAdapter as createGoogleDriveAdapter } from "@onenomad/cortex-adapter-google-drive";
 import { createAdapter as createJiraAdapter } from "@onenomad/cortex-adapter-jira";
 import { createAdapter as createLinearAdapter } from "@onenomad/cortex-adapter-linear";
 import { createAdapter as createLoomAdapter } from "@onenomad/cortex-adapter-loom";
 import { createAdapter as createNotionAdapter } from "@onenomad/cortex-adapter-notion";
 import { createAdapter as createObsidianAdapter } from "@onenomad/cortex-adapter-obsidian";
-import { createAdapter as createOutlookAdapter } from "@onenomad/cortex-adapter-outlook";
 import { createAdapter as createSlackAdapter } from "@onenomad/cortex-adapter-slack";
 import type { CortexConfig } from "../config.js";
 
@@ -28,15 +24,11 @@ const adapterFactories: Record<string, AdapterFactory> = {
   "@onenomad/cortex-adapter-bitbucket": createBitbucketAdapter,
   "@onenomad/cortex-adapter-confluence": createConfluenceAdapter,
   "@onenomad/cortex-adapter-github": createGithubAdapter,
-  "@onenomad/cortex-adapter-gmail": createGmailAdapter,
-  "@onenomad/cortex-adapter-google-calendar": createGoogleCalendarAdapter,
-  "@onenomad/cortex-adapter-google-drive": createGoogleDriveAdapter,
   "@onenomad/cortex-adapter-jira": createJiraAdapter,
   "@onenomad/cortex-adapter-linear": createLinearAdapter,
   "@onenomad/cortex-adapter-loom": createLoomAdapter,
   "@onenomad/cortex-adapter-notion": createNotionAdapter,
   "@onenomad/cortex-adapter-obsidian": createObsidianAdapter,
-  "@onenomad/cortex-adapter-outlook": createOutlookAdapter,
   "@onenomad/cortex-adapter-slack": createSlackAdapter,
 };
 

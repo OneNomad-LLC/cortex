@@ -114,90 +114,6 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
 
-  packages/adapter-gmail:
-    dependencies:
-      '@onenomad/cortex-adapter-sdk':
-        specifier: workspace:*
-        version: link:../adapter-sdk
-      '@onenomad/cortex-core':
-        specifier: workspace:*
-        version: link:../core
-      '@onenomad/cortex-google-auth':
-        specifier: workspace:*
-        version: link:../google-auth
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      eslint:
-        specifier: ^9.12.0
-        version: 9.39.4(jiti@2.6.1)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
-
-  packages/adapter-google-calendar:
-    dependencies:
-      '@onenomad/cortex-adapter-sdk':
-        specifier: workspace:*
-        version: link:../adapter-sdk
-      '@onenomad/cortex-core':
-        specifier: workspace:*
-        version: link:../core
-      '@onenomad/cortex-google-auth':
-        specifier: workspace:*
-        version: link:../google-auth
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      eslint:
-        specifier: ^9.12.0
-        version: 9.39.4(jiti@2.6.1)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
-
-  packages/adapter-google-drive:
-    dependencies:
-      '@onenomad/cortex-adapter-sdk':
-        specifier: workspace:*
-        version: link:../adapter-sdk
-      '@onenomad/cortex-core':
-        specifier: workspace:*
-        version: link:../core
-      '@onenomad/cortex-google-auth':
-        specifier: workspace:*
-        version: link:../google-auth
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      eslint:
-        specifier: ^9.12.0
-        version: 9.39.4(jiti@2.6.1)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
-
   packages/adapter-jira:
     dependencies:
       '@onenomad/cortex-adapter-sdk':
@@ -309,34 +225,6 @@ importers:
       chokidar:
         specifier: ^4.0.1
         version: 4.0.3
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      eslint:
-        specifier: ^9.12.0
-        version: 9.39.4(jiti@2.6.1)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
-
-  packages/adapter-outlook:
-    dependencies:
-      '@onenomad/cortex-adapter-sdk':
-        specifier: workspace:*
-        version: link:../adapter-sdk
-      '@onenomad/cortex-core':
-        specifier: workspace:*
-        version: link:../core
-      '@onenomad/cortex-pipeline-conversation':
-        specifier: workspace:*
-        version: link:../pipeline-conversation
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -979,15 +867,6 @@ importers:
       '@onenomad/cortex-adapter-github':
         specifier: workspace:*
         version: link:../adapter-github
-      '@onenomad/cortex-adapter-gmail':
-        specifier: workspace:*
-        version: link:../adapter-gmail
-      '@onenomad/cortex-adapter-google-calendar':
-        specifier: workspace:*
-        version: link:../adapter-google-calendar
-      '@onenomad/cortex-adapter-google-drive':
-        specifier: workspace:*
-        version: link:../adapter-google-drive
       '@onenomad/cortex-adapter-jira':
         specifier: workspace:*
         version: link:../adapter-jira
@@ -1003,9 +882,6 @@ importers:
       '@onenomad/cortex-adapter-obsidian':
         specifier: workspace:*
         version: link:../adapter-obsidian
-      '@onenomad/cortex-adapter-outlook':
-        specifier: workspace:*
-        version: link:../adapter-outlook
       '@onenomad/cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
@@ -1027,9 +903,6 @@ importers:
       '@onenomad/cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
-      '@onenomad/cortex-llm-sdk':
-        specifier: workspace:*
-        version: link:../llm-sdk
       '@onenomad/cortex-memory-pgvector':
         specifier: workspace:*
         version: link:../memory-pgvector
@@ -1054,12 +927,6 @@ importers:
       '@onenomad/cortex-pipeline-research':
         specifier: workspace:*
         version: link:../pipeline-research
-      '@onenomad/cortex-provider-ollama':
-        specifier: workspace:*
-        version: link:../provider-ollama
-      '@onenomad/cortex-provider-openrouter':
-        specifier: workspace:*
-        version: link:../provider-openrouter
       '@onenomad/engram-memory':
         specifier: 1.0.0-beta.13
         version: 1.0.0-beta.13(@anthropic-ai/sdk@0.40.1)(@azure/identity@4.13.1)(@azure/search-documents@12.2.0)(@cfworker/json-schema@4.1.1)(@cloudflare/workers-types@4.20260423.1)(@google/genai@1.50.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)))(@langchain/core@1.1.41(openai@4.104.0(ws@8.20.0)(zod@3.25.76))(ws@8.20.0))(@mistralai/mistralai@1.15.1)(@qdrant/js-client-rest@1.13.0(typescript@5.9.3))(@supabase/supabase-js@2.104.0)(@types/jest@29.5.14)(@types/pg@8.20.0)(apache-arrow@18.1.0)(better-sqlite3@12.9.0)(cloudflare@4.5.0)(groq-sdk@0.3.0)(neo4j-driver@5.28.3)(ollama@0.5.18)(pg@8.20.0)(redis@4.7.1)(ws@8.20.0)
@@ -1078,6 +945,16 @@ importers:
       zod-to-json-schema:
         specifier: ^3.23.5
         version: 3.25.2(zod@3.25.76)
+    optionalDependencies:
+      '@onenomad/cortex-llm-sdk':
+        specifier: workspace:*
+        version: link:../llm-sdk
+      '@onenomad/cortex-provider-ollama':
+        specifier: workspace:*
+        version: link:../provider-ollama
+      '@onenomad/cortex-provider-openrouter':
+        specifier: workspace:*
+        version: link:../provider-openrouter
     devDependencies:
       '@types/ws':
         specifier: ^8.5.13
@@ -2168,7 +2045,6 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha512-JQpZHV5KzUzDI3flYCjtZcfHlEbL8lM54E0NT+jrRYe29aKYegfavvPsAsuZp0VdcMwFMZcpMkaBhjQMo/fwvg==}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
@@ -6438,6 +6314,7 @@ packages:
 
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@11.1.0:
@@ -6446,6 +6323,7 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@9.0.1:

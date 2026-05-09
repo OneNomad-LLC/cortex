@@ -1,10 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
-import {
-  defaultTokenPath,
-  readGoogleToken,
-} from "@onenomad/cortex-google-auth";
 import type { Logger } from "@onenomad/cortex-core";
 import { createPgPool } from "@onenomad/cortex-memory-pgvector";
 import {
@@ -39,9 +35,6 @@ const ADAPTER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
   "@onenomad/cortex-adapter-bitbucket": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
   "@onenomad/cortex-adapter-confluence": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
   "@onenomad/cortex-adapter-github": ["GITHUB_TOKEN"],
-  "@onenomad/cortex-adapter-gmail": [],
-  "@onenomad/cortex-adapter-google-calendar": [],
-  "@onenomad/cortex-adapter-google-drive": [],
   "@onenomad/cortex-adapter-jira": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
   "@onenomad/cortex-adapter-linear": ["LINEAR_API_KEY"],
   "@onenomad/cortex-adapter-loom": ["LOOM_API_KEY"],
@@ -53,12 +46,6 @@ const ADAPTER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
 const PROVIDER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
   "@onenomad/cortex-provider-ollama": [],
   "@onenomad/cortex-provider-openrouter": ["OPENROUTER_API_KEY"],
-};
-
-const GOOGLE_ID_TO_SCOPE: Record<string, string> = {
-  gmail: "https://www.googleapis.com/auth/gmail.readonly",
-  "google-calendar": "https://www.googleapis.com/auth/calendar.readonly",
-  "google-drive": "https://www.googleapis.com/auth/drive.readonly",
 };
 
 export async function runDoctor(args: readonly string[]): Promise<number> {
@@ -180,45 +167,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
     }
   }
 
-  // 6. Google token — only check if any google-* adapter is enabled
-  const googleEnabled = enabledAdapters
-    .map(([id]) => id)
-    .filter((id) => id in GOOGLE_ID_TO_SCOPE);
-  if (googleEnabled.length > 0) {
-    const tokenPath = defaultTokenPath();
-    try {
-      const token = await readGoogleToken(tokenPath);
-      const needed = googleEnabled.map((id) => GOOGLE_ID_TO_SCOPE[id]!);
-      const missingScopes = needed.filter((s) => !token.scopes.includes(s));
-      if (missingScopes.length === 0) {
-        results.push({
-          name: "google oauth token",
-          verdict: "ok",
-          detail: `${token.scopes.length} scope(s) at ${path.basename(tokenPath)}`,
-        });
-      } else {
-        results.push({
-          name: "google oauth token",
-          verdict: "fail",
-          detail: `missing scopes: ${missingScopes.join(", ")} — rerun cortex google-login`,
-        });
-      }
-    } catch {
-      results.push({
-        name: "google oauth token",
-        verdict: "fail",
-        detail: `not found at ${tokenPath} — run cortex google-login`,
-      });
-    }
-  } else {
-    results.push({
-      name: "google oauth token",
-      verdict: "skip",
-      detail: "no Google adapters enabled",
-    });
-  }
-
-  // 7. Memory backend — if pgvector is the fallback, POSTGRES_URL must resolve
+  // 6. Memory backend — if pgvector is the fallback, POSTGRES_URL must resolve
   const memory = (cfg?.memory ?? {}) as {
     fallback?: string;
     pgvector?: { connectionString?: string };
@@ -246,7 +195,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
     });
   }
 
-  // 8. Projects taxonomy — optional but common point of confusion
+  // 7. Projects taxonomy — optional but common point of confusion
   const projectsPath = path.resolve(path.dirname(resolvedCfg), "projects.yaml");
   const resolvedProjects = await resolveLocalFirst(projectsPath);
   const projectsRaw = await tryRead(resolvedProjects);
@@ -277,7 +226,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
     }
   }
 
-  // 9. Dashboard API posture — warn if enabled without a localhost bind.
+  // 8. Dashboard API posture — warn if enabled without a localhost bind.
   const api = (cfg?.api ?? {}) as { enabled?: boolean; host?: string; port?: number };
   if (api.enabled) {
     const host = api.host ?? "127.0.0.1";
@@ -303,7 +252,7 @@ export async function runDoctor(args: readonly string[]): Promise<number> {
     });
   }
 
-  // 10. Live probes (opt-in: `cortex doctor --connect`). The checks above are
+  // 9. Live probes (opt-in: `cortex doctor --connect`). The checks above are
   //    mechanical; --connect actually talks to Engram and Postgres.
   if (connect) {
     const memCfg = (cfg?.memory ?? {}) as {
