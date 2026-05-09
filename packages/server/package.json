@@ -45,7 +45,6 @@
     "@onenomad/cortex-pipeline-conversation": "workspace:*",
     "@onenomad/cortex-pipeline-doc": "workspace:*",
     "@onenomad/cortex-pipeline-meeting": "workspace:*",
-    "@onenomad/cortex-pipeline-notification": "workspace:*",
     "@onenomad/cortex-pipeline-research": "workspace:*",
     "@onenomad/cortex-adapter-bitbucket": "workspace:*",
     "@onenomad/cortex-adapter-confluence": "workspace:*",

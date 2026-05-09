@@ -375,9 +375,9 @@ export async function startServer(): Promise<void> {
   // Notification scheduler removed in Phase 1B (2026-05-09). The
   // morning-brief / EOD / pre-meeting flow was personal-priority
   // surface that doesn't fit the multi-tenant knowledge-engine
-  // positioning. The pipeline-notification package still ships its
-  // dispatcher for any future per-org alert use case but is no longer
-  // booted automatically.
+  // positioning. pipeline-notification package was deleted entirely
+  // in the follow-up slice; the cron scheduler stays for adapter
+  // sync schedules.
 
   // Dashboard UI auto-start — spawn the Next.js dev server as a child
   // when we're running as a daemon (HTTP MCP). When Cortex is spawned
