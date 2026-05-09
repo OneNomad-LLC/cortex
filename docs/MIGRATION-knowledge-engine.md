@@ -1,33 +1,37 @@
 # Cortex 0.3 — Knowledge Engine Repositioning
 
-Status: **Phases 1A, 1B, 1C, 2, 4 SHIPPED; Phases 0, 1D deferred.**
-Updated: 2026-05-09 (post-execution).
+Status: **Phases 1A, 1B, 1C, 1D, 2, 4 SHIPPED; Phase 0 deferred.**
+Updated: 2026-05-09 (post-execution, second pass).
 Companion: `pyre/CHANGELOG.md`.
 
 ## Done today
 
-| Phase | Cortex commits | Summary |
-|-------|----------------|---------|
-| 1A    | `9204e35`      | Removed gmail / google-calendar / google-drive / outlook adapters + google-login CLI. |
-| 1B    | `(post-44a4de6 sequence)` | Removed upcoming-briefs, notification-bootstrap + notification-data + notify CLI, my-action-items, priorities, today-meetings, today-timeline; deleted the `pipeline-notification` package; rewrote dashboard root from TodayTimeline → Recent Activity. Cortex no longer has any personal-flow surface. |
-| 1C    | `990d3a7`      | Removed 10 personal-priority MCP tools (digest, action_items, summarize_*, session-handoff×3, add_person, *_user_identity). |
-| 2     | `44a4de6`      | Added `ingest_url` + `ingest_repo` MCP tools (synchronous). |
-| 2+    | `31cec7f`      | `ingest_url` BFS sitemap crawl with same-host + path-prefix scope. |
-| 2+    | `a32e57d`      | `ingest_repo` accepts git URLs (shallow clone → walk → cleanup). |
-| 2+    | `0caa89c`      | Binary-doc rejection in `ingest_file` (clean "not yet supported" error for PDF/DOCX/etc.). |
-| 4     | `0c8b7b6`      | Added `kb_search` + `kb_dossier` MCP tools (mirrors Engram pattern). |
+| Phase | Summary | Cortex commits |
+|-------|---------|----------------|
+| 1A    | Removed gmail / google-calendar / google-drive / outlook adapters + google-login CLI. Orphan google-auth package later deleted. | `9204e35` + google-auth strip |
+| 1B    | Removed upcoming-briefs, notification-bootstrap + notification-data + notify CLI, my-action-items, priorities, today-meetings, today-timeline; deleted the `pipeline-notification` package; rewrote dashboard root from TodayTimeline → Recent Activity. Cortex no longer has any personal-flow surface. | `e718b94`, `8bd82ed`, `1aa9402`, `22101b9`, `d34ecf9` |
+| 1C    | Removed 10 personal-priority MCP tools (digest, action_items, summarize_*, session-handoff×3, add_person, *_user_identity). | `990d3a7` |
+| 1D    | `project` field optional on every ingest_* tool with sentinel `default` fallback (`ab9bb54`). Removed `add_project` / `list_projects` / `get_taxonomy_gaps` MCP tools (`db7a678`). `memoryMetadataSchema.project` becomes optional; `passthroughMetadata` skips the stamp when project is the literal `default` (`f8420a4`). `get_project_context` lives on as an internal helper for `kb_dossier`'s project entity-type. | `ab9bb54`, `db7a678`, `f8420a4` |
+| 2     | Added `ingest_url` + `ingest_repo` MCP tools (synchronous, `44a4de6`). `ingest_url` BFS sitemap crawl with same-host + path-prefix scope (`31cec7f`). `ingest_repo` accepts git URLs (shallow clone → walk → cleanup, `a32e57d`). PDF support in `ingest_file` via lazy pdf-parse (`0840662`). Binary-doc rejection for `.docx`/`.pptx`/etc. (`0caa89c`). | `44a4de6`, `31cec7f`, `a32e57d`, `0840662`, `0caa89c` |
+| 4     | Added `kb_search` + `kb_dossier` (`0c8b7b6`), `kb_stats` (`f0c9de9`), `kb_delete` (`3784936`), `kb_recent` (`db74055`) — full CRUD + introspection surface mirroring the Engram pattern at the org-knowledge level. | `0c8b7b6`, `f0c9de9`, `3784936`, `db74055` |
 
 Pyre-side commits that consume the new Cortex surface (in `pyre`):
 - `83e454e` — refresh Cortex MCP catalog entry for 0.3 description.
-- `df8bc79`, `451d2bf`, `dcfcdfb`, `c56c28e`, `6382573`, `b756b7c` — `~/.pyre/inbox` auto-ingest watcher (class + boot wiring + Settings toggle + live activity log + Open Folder button + preload home expose).
-- `a121fa3` — Settings → Knowledge card with file/url/repo forms.
+- `df8bc79`, `451d2bf`, `dcfcdfb`, `c56c28e`, `6382573`, `b756b7c`, `102ecce` — `~/.pyre/inbox` auto-ingest watcher (class + boot wiring + Settings toggle + live activity log + Open Folder button + preload home expose + Retry Failed).
+- `a121fa3`, `ea2dd31`, `9b31852`, `3248ca2` — Settings → Knowledge card progressively built up: ingest forms (file/url/repo), inline KB search with results, per-result delete affordance, Recent Ingests pane.
 - `85fafb7` — Cortex IPC ingest-result normalizer tests.
+- `f915ac0` — Settings status pill shows live KB chunk count via kb_stats.
+
+Pyre-side **non-Cortex fixes** also in this session:
+- `00070d4` — VRAM settle delay (model-swap freeze fix on AMD Vulkan).
+- `7ce3df5` — engine pre-flight context gate (kills 51K-into-32K crashes).
+- `d36a9d4` — agent-runner pre-flight overflow gate (covers chatStreamCollect bypass).
+- `6cbe616` — GPT-OSS `mandatoryDisableThinking` (empty-response fix).
 
 ## Still deferred
 
-- **Phase 0 (RLS)** — load-bearing security primitive. Schema design in this doc; implementation is a dedicated session.
-- **Phase 1D (project-model flatten)** — collapse the per-project routing into one KB per tenant. ~100+ files touched. Dedicated session before the first enterprise contract.
-- **Phase 2 deferred items still open**: PDF / DOCX / HTML binary-doc support in `ingest_file` (parser dep). Async job runner + `ingest_status` MCP tool. Headless-browser SPA mode for `ingest_url` (puppeteer/playwright dep).
+- **Phase 0 (RLS)** — load-bearing security primitive. Schema design in this doc; implementation is a dedicated session (~8–12 hr including auth provider pick, schema migrations, principal session middleware, RLS policies on every content table, ACL sync hook on every adapter).
+- **Phase 2 residuals**: `.docx` / `.pptx` / `.xlsx` / `.odt` / `.epub` (per-format parser deps — mammoth for docx etc.). Async job runner + `ingest_status` MCP tool (in-memory queue is small; persistent queue needs a schema). Headless-browser SPA mode for `ingest_url` (puppeteer/playwright is a 200+ MB dep — keep the synchronous strip-html path as the default).
 
 The phase-by-phase plan below is preserved for future reference.
 
