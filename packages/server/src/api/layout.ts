@@ -45,19 +45,22 @@ export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;
  * widgets that ship in later sprints without breaking the page.
  */
 export const ROLE_PRESETS: Record<Exclude<Role, "custom">, LayoutWidget[]> = {
+  // Knowledge-engine repositioning (Phase 1B, 2026-05-09): the personal-
+  // priority widgets (priorities, my-action-items, today-meetings,
+  // today-timeline, upcoming-briefs) are gone. Both presets now show
+  // ORG-knowledge surfaces only — recent decisions, recent activity,
+  // code activity, who-knows. Dashboard renders PlaceholderWidget for
+  // any unknown name so stale presets / experimental widget refs in
+  // user configs don't crash the page.
   delivery: [
-    { name: "priorities", props: { limit: 20 } },
-    { name: "today-meetings", props: {} },
-    // upcoming-briefs removed in Phase 1B (2026-05-09). Dashboard
-    // renders a placeholder for unknown widget names so this preset
-    // would still load even if a stale config referenced it.
     { name: "recent-decisions", props: { days: 7, limit: 15 } },
     { name: "recent-activity", props: { days: 3 } },
+    { name: "who-knows", props: {} },
   ],
   developer: [
     { name: "code-activity", props: { days: 3 } },
     { name: "recent-decisions", props: { days: 14, limit: 15 } },
-    { name: "priorities", props: { limit: 15 } },
+    { name: "recent-activity", props: { days: 3 } },
   ],
 };
 

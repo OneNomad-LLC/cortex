@@ -164,26 +164,10 @@ describe("dashboard API", () => {
     const body = (await res.json()) as {
       widgets: Array<{ name: string; description: string }>;
     };
-    expect(body.widgets.some((w) => w.name === "priorities")).toBe(true);
-  });
-
-  it("serves /api/widgets/priorities with rows that bubble up", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/widgets/priorities?limit=5`,
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      rows: Array<{ reason: string; content: string }>;
-      generatedAt: string;
-    };
-    expect(body.generatedAt).toBeTruthy();
-    // m1 + m2 as just-nudged action_items (m3 is done → skipped), d1 as
-    // fresh-decision. Sort order: just-nudged before fresh-decision, and
-    // within just-nudged the row with a due date wins the tiebreak.
-    expect(body.rows.length).toBe(3);
-    expect(body.rows[0]!.reason).toBe("just-nudged");
-    expect(body.rows[0]!.content).toContain("slides");
-    expect(body.rows[2]!.reason).toBe("fresh-decision");
+    // Post-Phase-1B: priorities is gone; recent-decisions is the
+    // canonical knowledge-engine widget that should always be in the
+    // list.
+    expect(body.widgets.some((w) => w.name === "recent-decisions")).toBe(true);
   });
 
   it("serves /api/widgets/recent-activity grouped by project", async () => {
@@ -214,8 +198,8 @@ describe("dashboard API", () => {
     };
     expect(body.role).toBe("delivery");
     const names = body.widgets.map((w) => w.name);
-    expect(names).toContain("priorities");
     expect(names).toContain("recent-decisions");
+    expect(names).toContain("recent-activity");
   });
 
   it("serves /api/widgets/recent-decisions newest-first", async () => {
@@ -239,7 +223,7 @@ describe("dashboard API", () => {
   });
 
   it("responds to CORS preflight", async () => {
-    const res = await fetch(`${baseUrl}/api/widgets/priorities`, {
+    const res = await fetch(`${baseUrl}/api/widgets/recent-decisions`, {
       method: "OPTIONS",
       headers: { origin: "http://localhost:3000" },
     });

@@ -1,9 +1,7 @@
 import { CodeActivityWidget } from "./code-activity";
 import { PlaceholderWidget } from "./placeholder";
-import { PrioritiesWidget } from "./priorities";
 import { RecentActivityWidget } from "./recent-activity";
 import { RecentDecisionsWidget } from "./recent-decisions";
-import { TodayMeetingsWidget } from "./today-meetings";
 import { WhoKnowsWidget } from "./who-knows";
 
 /**
@@ -36,13 +34,13 @@ type WidgetComponent = (props: Record<string, unknown>) => React.ReactNode;
  * crash the page.
  */
 export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
-  priorities: PrioritiesWidget as WidgetComponent,
+  // Knowledge-engine repositioning (Phase 1B, 2026-05-09): personal-
+  // priority widgets removed — priorities, my-action-items,
+  // today-meetings, today-timeline, upcoming-briefs. Stale presets
+  // referencing them fall back to PlaceholderWidget via the
+  // `if (!Component)` branch below.
   "recent-decisions": RecentDecisionsWidget as WidgetComponent,
   "recent-activity": RecentActivityWidget as WidgetComponent,
-  "today-meetings": TodayMeetingsWidget as WidgetComponent,
-  // upcoming-briefs removed in Phase 1B (2026-05-09). Stale presets
-  // referencing it fall back to PlaceholderWidget via the `if
-  // (!Component)` branch below.
   "code-activity": CodeActivityWidget as WidgetComponent,
   "who-knows": WhoKnowsWidget as WidgetComponent,
 };
