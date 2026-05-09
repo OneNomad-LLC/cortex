@@ -1,5 +1,4 @@
 import { CodeActivityWidget } from "./code-activity";
-import { MyActionItemsWidget } from "./my-action-items";
 import { PlaceholderWidget } from "./placeholder";
 import { PrioritiesWidget } from "./priorities";
 import { RecentActivityWidget } from "./recent-activity";
@@ -38,7 +37,6 @@ type WidgetComponent = (props: Record<string, unknown>) => React.ReactNode;
  */
 export const WIDGET_COMPONENTS: Record<string, WidgetComponent> = {
   priorities: PrioritiesWidget as WidgetComponent,
-  "my-action-items": MyActionItemsWidget as WidgetComponent,
   "recent-decisions": RecentDecisionsWidget as WidgetComponent,
   "recent-activity": RecentActivityWidget as WidgetComponent,
   "today-meetings": TodayMeetingsWidget as WidgetComponent,

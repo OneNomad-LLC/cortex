@@ -186,39 +186,6 @@ describe("dashboard API", () => {
     expect(body.rows[2]!.reason).toBe("fresh-decision");
   });
 
-  it("serves /api/widgets/my-action-items with only open items by default", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/widgets/my-action-items?owner=matt`,
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      owner?: string;
-      open: Array<{ status: string; content: string; owner?: string }>;
-      done?: Array<unknown>;
-    };
-    expect(body.owner).toBe("matt");
-    // Only m1 matches owner=matt and is open. m3 is matt but done.
-    expect(body.open.length).toBe(1);
-    expect(body.open[0]!.status).toBe("open");
-    expect(body.open[0]!.content).toContain("slides");
-    expect(body.done).toBeUndefined();
-  });
-
-  it("surfaces done items when my-action-items?includeDone=true", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/widgets/my-action-items?owner=matt&includeDone=true`,
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      open: Array<unknown>;
-      done?: Array<{ status: string; content: string }>;
-    };
-    expect(body.done).toBeDefined();
-    expect(body.done!.length).toBe(1);
-    expect(body.done![0]!.status).toBe("done");
-    expect(body.done![0]!.content).toContain("onboarding");
-  });
-
   it("serves /api/widgets/recent-activity grouped by project", async () => {
     const res = await fetch(
       `${baseUrl}/api/widgets/recent-activity?days=7&limit=10`,
@@ -248,7 +215,6 @@ describe("dashboard API", () => {
     expect(body.role).toBe("delivery");
     const names = body.widgets.map((w) => w.name);
     expect(names).toContain("priorities");
-    expect(names).toContain("my-action-items");
     expect(names).toContain("recent-decisions");
   });
 
