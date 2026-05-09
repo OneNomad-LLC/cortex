@@ -12,6 +12,8 @@ import { ingestContent } from "./ingest-content.js";
 import { ingestFile } from "./ingest-file.js";
 import { ingestRepo } from "./ingest-repo.js";
 import { ingestUrl } from "./ingest-url.js";
+import { kbDossier } from "./kb-dossier.js";
+import { kbSearch } from "./kb-search.js";
 import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
@@ -49,6 +51,12 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   getTaxonomyGaps,
   addProject,
   // Retrieval.
+  // Phase 4 of the repositioning added kb_search and kb_dossier as the
+  // canonical retrieval surface for Pyre / external MCP clients. The
+  // older search_related + get_project_context stay registered for
+  // back-compat with any pre-0.3 consumer that calls them by name.
+  kbSearch,
+  kbDossier,
   listProjects,
   getProjectContext,
   research,
