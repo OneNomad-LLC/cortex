@@ -130,9 +130,11 @@ export async function runInit(args: InitArgs): Promise<number> {
   }
 
   section("Next steps");
-  line(`  - Populate projects: \`cortex add projects\``);
-  line(`  - Edit ${path.join(writeRoot, "config", "people.yaml")}`);
-  line("  - Wire Cortex into Claude Code:");
+  line("  - Add a data source adapter:  `cortex add notion`  (or github, slack, etc.)");
+  line(`  - Edit ${path.join(writeRoot, "config", "cortex.yaml")} for backend / provider tuning`);
+  line("  - Ingest your first doc / URL / repo:");
+  line("      `cortex ingest file <path>`  /  `ingest url <url>`  /  `ingest repo <path>`");
+  line("  - Wire Cortex into your MCP client (Claude Code / Pyre / etc.):");
   line(
     '      { "mcpServers": { "cortex": { "command": "cortex", "args": ["start"] } } }',
   );

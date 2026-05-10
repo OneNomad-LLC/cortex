@@ -1,28 +1,37 @@
-# docker compose recipe for Cortex.
+# docker compose recipe for Cortex (Personal / VPS deployment).
 #
-# Two services:
-#   cortex    - MCP + API server (engram/persona run as stdio children inside)
+# Two services (default):
+#   cortex    - MCP + API server (engram backend by default — local
+#               Xenova embeddings, no LLM provider needed)
 #   dashboard - Next.js UI that proxies /api/cortex/* to the cortex API
 #
 # Quick start:
-#   cp .env.example .env   # fill in at least one LLM key (OpenRouter is easiest)
+#   cp .env.example .env       # set OPENROUTER_API_KEY for LLM
+#                              # enrichment (optional; not required for
+#                              # ingest + kb_search to work)
 #   docker compose up -d
 #
-# Remote VPS: put this behind Tailscale (dashboard + MCP stay on the tailnet,
-# no public auth needed) or a reverse proxy with TLS + bearer auth. The
-# exposed ports below are published to 127.0.0.1 by default so nothing
-# leaks to the open internet unless you explicitly change the bind.
+# Remote VPS: put this behind Tailscale (dashboard + MCP stay on the
+# tailnet, no public auth needed) or a reverse proxy with TLS + bearer
+# auth. The exposed ports below publish on all interfaces so the
+# dashboard works on Docker Desktop for Windows (which can't reach
+# IPv4-only 127.0.0.1 binds); for a real VPS add a firewall.
 #
-# Workspaces + OAuth tokens + engram/persona data all live under the
-# CORTEX_HOME_HOST directory you bind-mount below. Default is
-# ./.cortex-data in the repo; set it to your real ~/.cortex to reuse an
-# existing workspace (e.g. CORTEX_HOME_HOST=/home/matt/.cortex).
+# Workspaces + engram/persona data live under the CORTEX_HOME_HOST
+# directory bind-mounted below. Default is ./.cortex-data in the
+# repo; set CORTEX_HOME_HOST in .env to reuse an existing workspace.
 #
 # Optional profiles:
-#   docker compose --profile pgvector up     # adds Postgres + pgvector
-#   docker compose --profile ollama up       # adds a local Ollama daemon
-#                                              (only useful if the host has a GPU
-#                                               — on a VPS, use OpenRouter)
+#   docker compose --profile pgvector up
+#       # adds Postgres + pgvector. Note: pgvector backend currently
+#       # requires an enabled LLM provider for embeddings, so set
+#       # OPENROUTER_API_KEY (or another provider) and flip the
+#       # provider's enabled flag in cortex.yaml. Engram backend
+#       # works standalone without one.
+#
+#   docker compose --profile ollama up
+#       # adds a local Ollama daemon. Only useful if the host has a
+#       # GPU; on a VPS use OpenRouter instead.
 
 services:
   cortex:
@@ -58,11 +67,12 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ${CORTEX_HOME_HOST:-./.cortex-data}:/root/.cortex
-      # Private modules — each is its own sibling repo, mounted
-      # read-only so the running server can import compiled dist/
-      # files. Add a line per module; point cortex.yaml's
-      # `privateModules` list at the mounted paths.
-      - ../cortex-career-automation:/root/cortex-career-automation:ro
+      # Private modules (optional) — each is its own sibling repo,
+      # mounted read-only so the running server can import compiled
+      # dist/ files. Uncomment + add a line per module; point
+      # cortex.yaml's `privateModules` list at the mounted paths.
+      # Example:
+      #   - ../cortex-private-myorg:/root/cortex-private-myorg:ro
       # Obsidian vault — set OBSIDIAN_VAULT_HOST in .env to your vault
       # path to enable the obsidian adapter + dashboard /notes route.
       # When unset, the mount falls back to the cortex data dir as a

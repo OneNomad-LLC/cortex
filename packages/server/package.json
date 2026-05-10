@@ -55,7 +55,6 @@
     "@onenomad/cortex-pipeline-core": "workspace:*",
     "@onenomad/cortex-pipeline-doc": "workspace:*",
     "@onenomad/cortex-pipeline-meeting": "workspace:*",
-    "@onenomad/cortex-pipeline-research": "workspace:*",
     "@onenomad/engram-memory": "1.0.0-beta.13",
     "@onenomad/persona-mcp": "^1.0.0-beta.6",
     "pdf-parse": "^2.4.5",

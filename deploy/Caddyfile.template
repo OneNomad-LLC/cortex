@@ -1,0 +1,68 @@
+# Cortex reverse-proxy template (Caddy v2).
+#
+# Caddy auto-provisions a Let's Encrypt certificate the first time the
+# domain resolves to this host, so the only customer-specific value
+# below is the domain on the first line. No manual cert renewal, no
+# certbot, no nginx.conf to maintain.
+#
+# Install:
+#   apt install caddy           # or: dnf / pacman / brew
+#   cp deploy/Caddyfile.template /etc/caddy/Caddyfile
+#   $EDITOR /etc/caddy/Caddyfile  # replace cortex.example.com
+#   systemctl reload caddy
+#
+# Pre-flight: A/AAAA record for the chosen domain MUST point at this
+# host before reload, otherwise the ACME challenge fails and Caddy
+# falls back to a self-signed cert.
+
+# Replace cortex.example.com with the customer's domain (e.g.
+# cortex.acme.com, kb.example.io). Anything that resolves to this host
+# works — Caddy provisions one cert per matching name.
+cortex.example.com {
+	# MCP server bound on loopback by the systemd unit. Caddy is the
+	# only thing that touches the public interface.
+	reverse_proxy 127.0.0.1:3100 {
+		# Cortex's MCP HTTP transport streams responses; disable
+		# Caddy's response buffering so SSE / chunked replies flush
+		# end-to-end without blocking on full-response assembly.
+		flush_interval -1
+
+		# Pass the original host so cortex can log the customer's
+		# vanity hostname instead of "127.0.0.1".
+		header_up Host {host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Tighten defaults — no directory listings, no server header
+	# leakage, sensible logging.
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+
+	log {
+		output file /var/log/caddy/cortex-access.log {
+			roll_size 50mb
+			roll_keep 5
+		}
+		format json
+	}
+}
+
+# OPTIONAL: dashboard on a separate hostname (port 3030 internally).
+# Uncomment + adjust if you want the cortex CLI's web dashboard
+# reachable. Default install does not enable the dashboard process —
+# you must run `cortex dashboard` separately or add it as a second
+# systemd unit.
+#
+# dashboard.cortex.example.com {
+# 	reverse_proxy 127.0.0.1:3030
+# 	# Dashboard is admin-only; lock it down with basic auth or
+# 	# tailscale_auth / forward_auth at minimum.
+# 	basicauth {
+# 		admin {bcrypt-hash-here}
+# 	}
+# }

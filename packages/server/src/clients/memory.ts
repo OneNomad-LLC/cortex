@@ -1,154 +1,120 @@
+import os from "node:os";
+import path from "node:path";
 import type { Logger } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
+import { LOCAL_EMBEDDING_DIM } from "@onenomad/cortex-memory-pgvector";
 import type { MemoryConfig } from "../config.js";
-import { createEngramClient } from "./engram.js";
 import { createPgVectorClient } from "./pgvector.js";
 import type { EngramClient } from "./engram.js";
 
 export interface MemoryBootResult {
   /** The backend Cortex will use for ingest/search/health from this point. */
   client: EngramClient;
-  /** Which backend was actually selected. */
-  selected: "engram" | "pgvector";
-  /** True when the primary was healthy; false means we're running on the fallback. */
+  /** Which backend was actually selected. Always 'pgvector' since
+   *  Cortex 0.3 — the engram backend was dropped to make Cortex
+   *  standalone-deployable (no @onenomad/engram-memory runtime dep).
+   *  Old yamls with primary='engram' get auto-translated to pgvector
+   *  embedded with a warn-level log so operators notice the change. */
+  selected: "pgvector";
+  /** Always true now (single backend, no fallback). Kept on the
+   *  result shape for back-compat with callers reading it. */
   primaryHealthy: boolean;
 }
 
 /**
- * Boot the memory backend described by `config/cortex.yaml > memory`.
+ * Boot the memory backend.
  *
- * Policy:
- *   1. Spawn the primary backend (engram = stdio subprocess, pgvector = pg pool).
- *   2. Run its healthCheck. If healthy, use it.
- *   3. If not healthy and a `fallback` is configured (and differs from primary),
- *      spawn + health-check the fallback. Use it if healthy.
- *   4. If neither is healthy, throw.
+ * Cortex 0.3+ uses pgvector exclusively. Two modes:
+ *   - embedded: PGlite in-process (zero deps, default for personal installs)
+ *   - external: connection string to your own Postgres + pgvector
  *
- * Runtime per-call fallback is intentionally not implemented here. The
- * configured primary is picked once per process; swapping later requires
- * a restart. That's the right default — memory write paths are hard to
- * reason about if they split mid-session, and operators want to see
- * "we're running on pgvector because engram was down at boot" in the log
- * rather than guess from intermittent tool behavior.
+ * Embeddings come from a Cortex-internal Xenova model (MiniLM-L6-v2,
+ * 384-dim) by default; an LLM router takes over when one is wired
+ * (provider-specific embedding model for higher quality on cloud
+ * deploys with credentials).
+ *
+ * Migration: yamls that still say `memory.primary: engram` are
+ * auto-translated to pgvector embedded (warn-logged so the operator
+ * sees the rewrite). The engram backend was Pyre's per-user memory
+ * concern; Cortex is the multi-tenant knowledge engine and is now
+ * entirely separate.
  */
 export async function createMemoryClient(args: {
   memory: MemoryConfig;
-  /** Optional in Cortex 0.2 — pgvector embeddings need it; engram doesn't. */
+  /** Optional. When wired, embeddings come from the configured
+   *  provider's embed task. When omitted, Cortex's local Xenova
+   *  embedder (Cortex-internal) handles embeddings. */
   llmRouter?: LLMRouter;
   logger: Logger;
 }): Promise<MemoryBootResult> {
   const { memory, llmRouter, logger } = args;
 
-  const primary = memory.primary;
-  const fallback =
-    memory.fallback && memory.fallback !== memory.primary
-      ? memory.fallback
-      : undefined;
-
-  const built = await build(primary, memory, llmRouter, logger);
-  const primaryHealth = await built.healthCheck();
-  if (primaryHealth.healthy) {
-    logger.info("memory.ready", { selected: primary, fallback: fallback ?? null });
-    return { client: built, selected: primary, primaryHealthy: true };
-  }
-
-  logger.warn("memory.primary_unhealthy", {
-    backend: primary,
-    message: primaryHealth.message,
-  });
-
-  // Shut the primary down — we're not going to use it, and leaving an
-  // engram subprocess hanging (or a pg pool open) just eats handles.
-  try {
-    await built.shutdown();
-  } catch (err) {
-    logger.warn("memory.primary_shutdown.error", {
-      error: err instanceof Error ? err.message : String(err),
+  // Migration: legacy `engram` primary → pgvector embedded with
+  // sensible defaults. Warn loudly so the operator updates their yaml.
+  const usingLegacyEngram = (memory.primary as string) === "engram";
+  if (usingLegacyEngram) {
+    logger.warn("memory.engram_backend_deprecated", {
+      message:
+        "memory.primary='engram' is no longer supported in Cortex 0.3+. " +
+        "Auto-translating to pgvector embedded (PGlite). Update cortex.yaml " +
+        "to memory.primary='pgvector' to silence this warning.",
     });
   }
 
-  if (!fallback) {
-    throw new Error(
-      `memory: primary backend '${primary}' is unhealthy and no fallback is configured. ` +
-        `Either start '${primary}' or set memory.fallback in cortex.yaml.`,
-    );
-  }
+  const dataDir =
+    memory.pgvector?.dataDir ||
+    path.join(os.homedir(), ".cortex", "data", "pglite");
+  const table = memory.pgvector?.table || "cortex_memories";
+  // Local Xenova model is 384-dim. Honor an explicit override (>0)
+  // when the operator wired an LLM-routed embedder of a different dim.
+  const embeddingDim =
+    memory.pgvector?.embeddingDim && memory.pgvector.embeddingDim > 0
+      ? memory.pgvector.embeddingDim
+      : LOCAL_EMBEDDING_DIM;
+  const embedTask = memory.pgvector?.embedTask || "embed";
 
-  const fbClient = await build(fallback, memory, llmRouter, logger);
-  const fbHealth = await fbClient.healthCheck();
-  if (!fbHealth.healthy) {
-    throw new Error(
-      `memory: both primary ('${primary}') and fallback ('${fallback}') are unhealthy. ` +
-        `Primary: ${primaryHealth.message}. Fallback: ${fbHealth.message}.`,
-    );
-  }
-  logger.warn("memory.using_fallback", {
-    from: primary,
-    to: fallback,
-    reason: primaryHealth.message,
-  });
-  return { client: fbClient, selected: fallback, primaryHealthy: false };
-}
+  // External vs embedded: explicit `connectionString` wins. Empty +
+  // legacy-engram-translated configs land in embedded mode.
+  const externalConn = memory.pgvector?.connectionString;
+  const useExternal =
+    !usingLegacyEngram &&
+    memory.pgvector?.mode !== "embedded" &&
+    typeof externalConn === "string" &&
+    externalConn.length > 0;
 
-async function build(
-  backend: "engram" | "pgvector",
-  memory: MemoryConfig,
-  llmRouter: LLMRouter | undefined,
-  logger: Logger,
-): Promise<EngramClient> {
-  if (backend === "engram") {
-    return createEngramClient({
-      logger,
-      ...(memory.engram.command ? { command: memory.engram.command } : {}),
-      ...(memory.engram.args.length > 0 ? { args: memory.engram.args } : {}),
-      ...(Object.keys(memory.engram.env).length > 0
-        ? { env: memory.engram.env }
-        : {}),
-    });
-  }
-  if (backend === "pgvector") {
-    if (!llmRouter) {
-      throw new Error(
-        "memory: pgvector backend needs an LLM provider for embeddings. " +
-          "Either enable a provider in cortex.yaml > llm.providers, or " +
-          "switch to the engram backend (which does not require one).",
-      );
-    }
-    const mode = memory.pgvector.mode;
-    if (mode === "embedded") {
-      const dataDir = memory.pgvector.dataDir;
-      if (!dataDir) {
-        throw new Error(
-          "memory.pgvector.dataDir is not set but mode='embedded'. Set it to a writable directory for the in-process PGlite database (e.g. './data/pglite').",
-        );
-      }
-      return createPgVectorClient({
+  const client = useExternal
+    ? await createPgVectorClient({
+        mode: "external",
+        connectionString: externalConn!,
+        table,
+        embeddingDim,
+        embedTask,
+        ...(llmRouter ? { llmRouter } : {}),
+        logger,
+      })
+    : await createPgVectorClient({
         mode: "embedded",
         dataDir,
-        table: memory.pgvector.table,
-        embeddingDim: memory.pgvector.embeddingDim,
-        embedTask: memory.pgvector.embedTask,
-        llmRouter,
+        table,
+        embeddingDim,
+        embedTask,
+        ...(llmRouter ? { llmRouter } : {}),
         logger,
       });
-    }
-    const conn = memory.pgvector.connectionString;
-    if (!conn) {
-      throw new Error(
-        "memory.pgvector.connectionString is not set. Point it at a Postgres " +
-          "instance with pgvector installed (or use ${POSTGRES_URL} in cortex.yaml). " +
-          "For a zero-config option, set mode='embedded' and dataDir to use PGlite.",
-      );
-    }
-    return createPgVectorClient({
-      mode: "external",
-      connectionString: conn,
-      table: memory.pgvector.table,
-      embeddingDim: memory.pgvector.embeddingDim,
-      embedTask: memory.pgvector.embedTask,
-      llmRouter,
-      logger,
-    });
+
+  const health = await client.healthCheck();
+  if (!health.healthy) {
+    try { await client.shutdown(); } catch { /* nothing */ }
+    throw new Error(
+      `memory: pgvector backend is unhealthy: ${health.message}. ` +
+        `Check the data directory is writable (embedded mode) or the ` +
+        `connection string is reachable (external mode).`,
+    );
   }
-  throw new Error(`memory: unknown backend '${backend as string}'`);
+  logger.info("memory.ready", {
+    selected: "pgvector",
+    mode: useExternal ? "external" : "embedded",
+    embedder: llmRouter ? "llm-router" : "local-xenova",
+  });
+  return { client, selected: "pgvector", primaryHealthy: true };
 }

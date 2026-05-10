@@ -77,15 +77,37 @@ export const apiConfigSchema = z
     /**
      * Off by default — the dashboard API only boots when the operator opts
      * in. Like webhooks, it's a new surface and should stay dormant until
-     * an operator explicitly wants it.
+     * an operator explicitly wants it. Install scripts targeting remote
+     * deploys (curl|sh, docker-compose) flip this to true.
      */
     enabled: z.boolean().default(false),
     /**
      * Bind host. Localhost by default because the dashboard is a per-user
      * local app; exposing the API over a LAN/Tailscale is an opt-in move.
+     * Remote installs override to 0.0.0.0.
      */
     host: z.string().default("127.0.0.1"),
     port: z.number().int().nonnegative().default(4141),
+  })
+  .default({});
+
+export const mcpConfigSchema = z
+  .object({
+    /**
+     * Transport for the MCP server. 'stdio' = subprocess (Pyre / Claude
+     * Desktop launch Cortex per-session). 'http' = long-running HTTP
+     * server (remote VPS deploys, hosted Cortex, anything where a
+     * client connects over the network). Env var CORTEX_MCP_TRANSPORT
+     * still works as an override at boot.
+     */
+    transport: z.enum(["stdio", "http"]).default("stdio"),
+    /**
+     * Host to bind when transport='http'. 127.0.0.1 by default for
+     * local installs; remote deploys override to 0.0.0.0 (firewall
+     * or reverse proxy in front).
+     */
+    host: z.string().default("127.0.0.1"),
+    port: z.number().int().nonnegative().default(3100),
   })
   .default({});
 
@@ -102,6 +124,7 @@ export const cortexConfigSchema = z.object({
   memory: memoryConfigSchema,
   webhooks: webhooksConfigSchema,
   api: apiConfigSchema,
+  mcp: mcpConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
   /**
    * Absolute paths to private/personal Cortex module directories

@@ -1,10 +1,6 @@
 import type { AnyMcpTool } from "../tool.js";
-import { ALL_BROWSER_TOOLS } from "./browser.js";
 import { addWorkspaceTool } from "./add-workspace.js";
-import { approveResearch } from "./approve-research.js";
 import { currentWorkspaceTool } from "./current-workspace.js";
-import { fetchPr } from "./fetch-pr.js";
-import { fetchTicket } from "./fetch-ticket.js";
 import { ingestContent } from "./ingest-content.js";
 import { ingestFile } from "./ingest-file.js";
 import { ingestRepo } from "./ingest-repo.js";
@@ -17,6 +13,7 @@ import { kbSearch } from "./kb-search.js";
 import { kbStats } from "./kb-stats.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
+import { recentLogsTool } from "./recent-logs.js";
 import { noteCreate } from "./note-create.js";
 import { noteDelete } from "./note-delete.js";
 import { noteGet } from "./note-get.js";
@@ -24,7 +21,6 @@ import { noteList } from "./note-list.js";
 import { noteSuggestMetadata } from "./note-suggest-metadata.js";
 import { noteUpdate } from "./note-update.js";
 import { pendingEnrichmentRequests } from "./pending-enrichment-requests.js";
-import { research } from "./research.js";
 import { searchRelated } from "./search-related.js";
 import {
   getSessionWorkspace,
@@ -36,6 +32,13 @@ import { switchWorkspaceTool } from "./switch-workspace.js";
 /**
  * Every MCP tool Cortex advertises. Add new tools here; the server will
  * pick them up automatically.
+ *
+ * Architectural rule (Pyre Business Plan §16, 2026-05-10):
+ *   Cortex is the knowledge source of truth, searchable by Pyre. That
+ *   is its entire job. Cortex returns structured retrieval (chunks,
+ *   entities, briefs, sources). Pyre composes language. No query-time
+ *   LLM calls happen on Cortex; the only LLM work is ingest-time
+ *   enrichment (brief, classify, structural).
  *
  * Knowledge-engine repositioning history:
  *  - 2026-05-09 Phase 1C: removed personal-priority tools — `digest`,
@@ -53,6 +56,11 @@ import { switchWorkspaceTool } from "./switch-workspace.js";
  *    works for users who want manual taxonomy curation.
  *    `get_project_context` lives on as an internal helper imported
  *    by `kb_dossier`'s project entity-type path.
+ *  - 2026-05-10 Architecture-boundary cleanup: removed `research`,
+ *    `approve_research` (query-time LLM synthesis — moves to Pyre),
+ *    `fetch_pr`, `fetch_ticket` (user-auth fetch — moves to Pyre),
+ *    and the 12 `browser_*` tools (browser-extension relay — Pyre
+ *    talks to the extension directly now).
  *
  * See docs/MIGRATION-knowledge-engine.md.
  */
@@ -66,8 +74,6 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   kbDelete,
   kbRecent,
   kbJobStatus,
-  research,
-  approveResearch,
   listUnclassified,
   searchRelated,
   // Enrichment-protocol bridge — connected MCP clients (Pyre, Claude
@@ -75,9 +81,6 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   // has no local LLM. See docs/enrichment-protocol.md.
   pendingEnrichmentRequests,
   submitEnrichmentResult,
-  // External fetches (PR review + ticket cross-ref flows).
-  fetchPr,
-  fetchTicket,
   // Workspaces — session-scoped (call get_session_workspace FIRST
   // in every new conversation) + the CLI-side list/add/switch.
   getSessionWorkspace,
@@ -86,6 +89,10 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   currentWorkspaceTool,
   switchWorkspaceTool,
   addWorkspaceTool,
+  // Persistent runtime log surface. Combines the in-memory ring with
+  // the on-disk runtime.log so callers (Pyre's Activity tab) get logs
+  // that survive Cortex restarts.
+  recentLogsTool,
   // On-demand ingest. Phase 2 of the repositioning added ingest_url
   // and ingest_repo. ingest_file (text-only); PDF/DOCX/HTML coverage
   // remains a follow-up.
@@ -101,7 +108,4 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   noteList,
   noteGet,
   noteSuggestMetadata,
-  // Browser control — routed through the Cortex bridge to the
-  // extension. Claude gets eyes + hands in the user's real browser.
-  ...ALL_BROWSER_TOOLS,
 ];

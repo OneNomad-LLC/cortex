@@ -69,3 +69,9 @@ docs.github.com/en/apps/oauth-apps
 
 # URL-shape documentation in tool comments (OWNER/REPO placeholders)
 github.com/OWNER/REPO
+
+# Cortex's own canonical GitHub URL — referenced by install scripts +
+# systemd unit Documentation field as the source-available repo location.
+# Public identifier, not a leak.
+github.com/OneNomad-LLC/cortex
+github.com/coreybutler/nvm-windows

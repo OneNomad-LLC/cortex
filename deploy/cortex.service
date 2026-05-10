@@ -1,0 +1,84 @@
+# Cortex MCP server — systemd unit template.
+#
+# Install:
+#   1. Run scripts/install.sh on the host (puts cortex at /opt/cortex by
+#      default and writes a zero-config cortex.yaml).
+#   2. Create a dedicated system user that owns the install:
+#        useradd --system --home /opt/cortex --shell /usr/sbin/nologin cortex
+#        chown -R cortex:cortex /opt/cortex
+#   3. Drop a per-host env file at /etc/cortex/env (see cortex.env.template).
+#        install -d -m 0750 -o cortex -g cortex /etc/cortex
+#        install -m 0640 -o cortex -g cortex deploy/cortex.env.template /etc/cortex/env
+#        $EDITOR /etc/cortex/env
+#   4. Copy this unit and enable:
+#        cp deploy/cortex.service /etc/systemd/system/cortex.service
+#        systemctl daemon-reload
+#        systemctl enable --now cortex
+#
+# CORTEX_HOME and the install path are kept as drop-in-overridable
+# variables so the same unit serves /opt/cortex, /srv/cortex, or any
+# customer-specific layout. Override via:
+#   systemctl edit cortex
+# and add an [Service] block with new Environment= / WorkingDirectory=.
+
+[Unit]
+Description=Cortex MCP server (org knowledge base)
+Documentation=https://github.com/OneNomad-LLC/cortex
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cortex
+Group=cortex
+
+# Install dir. Override via `systemctl edit cortex` for non-default paths.
+Environment=CORTEX_HOME=/opt/cortex
+
+# Bind MCP HTTP transport on loopback only — terminate TLS at the
+# reverse proxy (Caddy / nginx / Traefik) so this never directly faces
+# the internet. Customer-specific domain lives in the proxy config, not
+# here, which keeps the unit identical across deployments.
+Environment=CORTEX_MCP_TRANSPORT=http
+Environment=CORTEX_MCP_HOST=127.0.0.1
+Environment=CORTEX_MCP_PORT=3100
+
+# Per-host secrets / overrides (DATABASE_URL, OPENROUTER_API_KEY, etc.).
+# EnvironmentFile is optional with the leading '-' so the unit boots
+# even on a fresh install before the file exists.
+EnvironmentFile=-/etc/cortex/env
+
+WorkingDirectory=/opt/cortex
+ExecStart=/usr/bin/env node packages/server/dist/index.js start
+
+# Crash recovery — restart on any non-clean exit, but cap so a hard
+# config bug doesn't loop forever.
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# Logs to journald — view with `journalctl -u cortex -f`.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cortex
+
+# Hardening. Keep these in sync with scripts/install.sh's expected
+# write paths: data/pglite (PGlite store), config/cortex.yaml, .cache.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/opt/cortex/data /opt/cortex/config /opt/cortex/.cache /etc/cortex
+
+# Resource caps — generous defaults that fit a CCX13 (8 GB / 2 vCPU)
+# with room left for a reverse proxy. Bump on bigger boxes.
+LimitNOFILE=65536
+MemoryMax=6G
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

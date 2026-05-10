@@ -4,6 +4,7 @@ import {
   createPgPool,
   createPglitePool,
   createPgVectorBackend,
+  createLocalEmbedder,
   type MemoryBackend,
 } from "@onenomad/cortex-memory-pgvector";
 import type {
@@ -26,7 +27,16 @@ export interface PgVectorClientOptions {
   table: string;
   embeddingDim: number;
   embedTask: string;
-  llmRouter: LLMRouter;
+  /**
+   * Optional LLM router for embeddings. When supplied, the configured
+   * `embedTask` resolves to a provider's embed() (e.g. Ollama, OpenAI).
+   * When omitted, Cortex's local Xenova embedder takes over —
+   * MiniLM-L6-v2 (384-dim, ~23MB on first run, zero credentials).
+   * Local is the default for the standalone-Cortex story; LLM
+   * routing is opt-in for higher-quality embeddings on cloud deploys
+   * with credentials.
+   */
+  llmRouter?: LLMRouter;
   logger: Logger;
 }
 
@@ -36,9 +46,10 @@ export interface PgVectorClientOptions {
  * know which backend served the call; switching primary + fallback is a
  * config + factory change, not a tool-level refactor.
  *
- * Embeddings are produced by the LLM router using the `embed` task. The
- * router resolves that to a provider implementing `embed()` (Ollama today);
- * providers that don't are skipped automatically.
+ * Embeddings: prefer the LLM router when wired (provider-specific
+ * model, often higher quality). Fall back to Cortex's local Xenova
+ * embedder otherwise — keeps the standalone deploy story intact
+ * (Cortex is fully self-sufficient; no external runtime memory dep).
  */
 export async function createPgVectorClient(
   opts: PgVectorClientOptions,
@@ -65,15 +76,25 @@ export async function createPgVectorClient(
       { logger: opts.logger },
     );
   }
+
+  // Embedder selection. LLM router wins when present (matches the
+  // user's explicit provider config); local Xenova covers the
+  // zero-config + no-credentials case. Built once; the factory
+  // memoizes the model load on first call.
+  const localEmbedder = opts.llmRouter ? null : createLocalEmbedder();
+  const embed = opts.llmRouter
+    ? async (text: string) => {
+        const res = await opts.llmRouter!.embed({
+          task: opts.embedTask,
+          input: text,
+        });
+        return res.vector;
+      }
+    : localEmbedder!;
+
   const backend: MemoryBackend = createPgVectorBackend({
     pool,
-    embed: async (text) => {
-      const res = await opts.llmRouter.embed({
-        task: opts.embedTask,
-        input: text,
-      });
-      return res.vector;
-    },
+    embed,
     config: {
       table: opts.table,
       embeddingDim: opts.embeddingDim,
