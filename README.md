@@ -80,8 +80,6 @@ the adapter to backfill the structured layer.
 - *Identity:* `get_user_identity`, `update_user_identity`,
   `get_job_profile`, `set_job_profile`, `update_job_profile` (job
   profile is private-module; optional)
-- *Research:* `research`, `approve_research` (draft / in_review /
-  approved / revoked)
 - *Session bridge:* `leave_session_handoff`, `read_session_handoffs`,
   `resolve_session_handoff` — hand a conversation off between Claude
   Desktop, Claude Code, and Claude for Chrome via Cortex as the bus
@@ -582,8 +580,7 @@ Cortex MCP server  ◄── HTTP sidecar ──► @onenomad/cortex-dashboard
        │     ├── @onenomad/cortex-pipeline-doc           ✅  (prose → chunked memories)
        │     ├── @onenomad/cortex-pipeline-meeting       ✅  (3-pass: structural → synthesis → brief)
        │     ├── @onenomad/cortex-pipeline-code          ✅  (per-file, language-aware chunking)
-       │     ├── @onenomad/cortex-pipeline-conversation  ✅  (chat threads → transcript + quotes)
-       │     └── @onenomad/cortex-pipeline-research      ✅  (topic → reference brief + findings)
+       │     └── @onenomad/cortex-pipeline-conversation  ✅  (chat threads → transcript + quotes)
        │
        ├── Memory backend        (pluggable — engram, pgvector, or remote)
        │     ├── @onenomad/engram-memory     (stdio subprocess — primary)
