@@ -284,7 +284,6 @@ provider:
 | `pipeline-code` | full behavior — chunking is language-aware, no LLM needed |
 | `pipeline-conversation` | thread + per-day + quote memories emitted; signal extractor (due/owner) skipped |
 | `pipeline-meeting` | transcript chunks emitted; brief / decisions / action items skipped |
-| `pipeline-research` | brief skipped; only the original retrieved context is preserved |
 
 In every case retrieval still works against the raw memories that
 were ingested. Connect an enrichment provider later and re-run the

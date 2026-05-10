@@ -308,7 +308,7 @@ Postgres OR-combines policies — a principal can read a chunk if EITHER tenant 
 Three new packages under `packages/`:
 
 - `adapter-file/` — accepts PDF / markdown / txt / docx / html paths. Wraps existing `pipeline-doc`.
-- `adapter-url/` — single-page fetch + sitemap crawl. Wraps existing `pipeline-research` (2-pass).
+- `adapter-url/` — single-page fetch + sitemap crawl. Two-pass extraction (chunk → brief) using the LLM router directly; the prior `pipeline-research` package was removed when research moved to Pyre (Pyre Business Plan §16).
 - `adapter-repo/` — clone (or use local path) → walk → chunk by file type. Wraps existing `pipeline-code`.
 
 Each follows the existing adapter SDK pattern (configSchema, requiredSecrets, init, sync). Register them in `packages/server/src/registry/adapters.ts`, `packages/server/src/cli/wizard-registry.ts`, `packages/server/package.json`, `packages/server/tsconfig.json`.

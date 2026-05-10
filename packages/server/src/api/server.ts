@@ -50,7 +50,6 @@ import type { PersonaClient } from "../clients/persona.js";
 import type { SourceAdapter } from "@onenomad/cortex-core";
 import { runSync } from "../sync.js";
 import type { ReloadResult } from "../hot-reload.js";
-import { getSharedBrowserBridge } from "../browser-bridge.js";
 import { TaxonomyCache } from "../taxonomy-cache.js";
 import {
   installModule,
@@ -371,18 +370,11 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         });
       });
 
-      // Upgrade `/ws/browser` connections to the browser bridge so
-      // the extension can drive tools on the user's tabs. Shares the
-      // dashboard API port — one listener, one surface.
-      const browserBridge = getSharedBrowserBridge(opts.logger);
-      server.on("upgrade", (req, socket, head) => {
-        const handled = browserBridge.handleUpgrade(req, socket, head);
-        if (!handled) {
-          // Not our upgrade path — reject cleanly rather than leak
-          // the socket.
-          socket.destroy();
-        }
-      });
+      // Browser bridge removed 2026-05-10 (Pyre Business Plan §16): the
+      // browser-extension tools moved to Pyre, which talks to the
+      // extension directly over a local WebSocket. Cortex no longer
+      // relays anything for the extension.
+
       await new Promise<void>((resolve, reject) => {
         server!.once("error", reject);
         server!.listen(opts.port, host, () => {

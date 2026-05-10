@@ -283,7 +283,11 @@ llm:
 
 ## ADR-011: Research feature as a pipeline + `type: "reference"` memories (2026-04-22)
 
-**Status**: Accepted
+**Status**: Superseded 2026-05-10 — research moved to Pyre per
+[Pyre Business Plan §16](https://onenomad.local/) (Cortex-Pyre Architecture
+Boundaries). Cortex 0.5+ no longer ships the `research` / `approve_research`
+MCP tools or the `pipeline-research` package; the `reference` content type
+remains so Pyre can ingest synthesized briefs back into Cortex KB.
 
 **Context**: The user asks Cortex to "research X" or "become an expert
 in Y". This is fundamentally different from passive ingestion — it's
