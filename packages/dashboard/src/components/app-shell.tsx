@@ -6,12 +6,10 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BookOpen,
-  BookText,
   Cable,
   Cpu,
   FileText,
   LayoutDashboard,
-  LayoutGrid,
   Package,
   Search,
   Settings,
@@ -23,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 interface NavItem {
   href: string;
@@ -36,9 +33,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Overview",
     items: [
-      { href: "/", label: "Today", icon: LayoutDashboard },
-      { href: "/notes", label: "Notes", icon: BookText },
-      { href: "/widgets", label: "Widgets", icon: LayoutGrid },
+      { href: "/", label: "Overview", icon: LayoutDashboard },
       { href: "/search", label: "Search", icon: Search },
       { href: "/docs", label: "Docs", icon: BookOpen },
       { href: "/status", label: "Status", icon: Activity },
@@ -83,23 +78,26 @@ export function AppShell({
 function Sidebar(): React.JSX.Element {
   const pathname = usePathname();
   return (
-    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-mono text-xs font-bold">
-          Cx
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold">Cortex</span>
-          <span className="text-[10px] text-muted-foreground">
-            work-knowledge
-          </span>
-        </div>
+    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border-subtle bg-bg-surface/40 text-sidebar-foreground">
+      <div className="flex h-14 items-center gap-2 border-b border-border-subtle px-5 font-mono text-sm font-semibold text-text-primary">
+        {/* eslint-disable-next-line @next/next/no-img-element --
+            using a bare <img> instead of next/image keeps the sidebar
+            header server-render-stable without the Image component's
+            loader noise for a tiny static asset. */}
+        <img
+          src="/cortex-logo.png"
+          alt="Cortex"
+          width={22}
+          height={22}
+          className="drop-shadow-[0_0_8px_rgba(244,114,182,0.35)]"
+        />
+        <span className="lowercase tracking-tight">cortex</span>
       </div>
 
-      <ScrollArea className="flex-1 px-2 py-4">
+      <ScrollArea className="flex-1 px-3 py-4">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-4">
-            <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <div key={group.label} className="mb-5">
+            <p className="px-2 pb-2 font-mono text-[10px] font-medium uppercase tracking-widest text-text-disabled">
               {group.label}
             </p>
             <nav className="flex flex-col gap-0.5">
@@ -114,10 +112,10 @@ function Sidebar(): React.JSX.Element {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 font-mono text-sm transition-colors",
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        ? "bg-gold/10 text-gold"
+                        : "text-text-secondary hover:bg-bg-raised/40 hover:text-text-primary",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -135,7 +133,7 @@ function Sidebar(): React.JSX.Element {
         ))}
       </ScrollArea>
 
-      <Separator />
+      <Separator className="bg-border-subtle" />
       <WorkspaceFooter />
     </aside>
   );
@@ -162,14 +160,13 @@ function WorkspaceFooter(): React.JSX.Element {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 p-3 text-xs">
-      <div className="min-w-0 flex-1">
-        <p className="text-muted-foreground">workspace</p>
-        <p className="truncate font-mono font-medium">
-          {workspace === undefined ? "…" : (workspace ?? "(none)")}
-        </p>
-      </div>
-      <ThemeToggle />
+    <div className="px-5 py-4 text-xs">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-text-disabled">
+        Workspace
+      </p>
+      <p className="mt-1 truncate font-mono text-sm text-text-primary">
+        {workspace === undefined ? "…" : (workspace ?? "(none)")}
+      </p>
     </div>
   );
 }
