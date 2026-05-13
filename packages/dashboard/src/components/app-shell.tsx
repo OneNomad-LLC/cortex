@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BookOpen,
+  Brain,
   Cable,
   Cpu,
   FileText,
@@ -80,16 +81,9 @@ function Sidebar(): React.JSX.Element {
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border-subtle bg-bg-surface/40 text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2 border-b border-border-subtle px-5 font-mono text-sm font-semibold text-text-primary">
-        {/* eslint-disable-next-line @next/next/no-img-element --
-            using a bare <img> instead of next/image keeps the sidebar
-            header server-render-stable without the Image component's
-            loader noise for a tiny static asset. */}
-        <img
-          src="/cortex-logo.png"
-          alt="Cortex"
-          width={22}
-          height={22}
-          className="drop-shadow-[0_0_8px_rgba(244,114,182,0.35)]"
+        <Brain
+          className="h-5 w-5 text-purple"
+          strokeWidth={1.7}
         />
         <span className="lowercase tracking-tight">cortex</span>
       </div>
