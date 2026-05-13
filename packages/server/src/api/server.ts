@@ -327,6 +327,57 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    // Cold-storage restore. Accepts a gzipped tarball (the output of
+    // /api/admin/backup/dump) in the request body, stashes it next to
+    // the PGlite data dir, and exits the process. Fly's restart_policy
+    // brings the machine back up; the boot path detects the marker,
+    // wipes the dataDir, and initializes PGlite from the tarball. This
+    // means brief downtime mid-restore (~30s for the machine bounce)
+    // but no runtime PGlite-reload complications.
+    if (req.method === "POST" && pathname === "/api/admin/backup/restore") {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+        }
+        const buf = Buffer.concat(chunks);
+        if (buf.length === 0) {
+          sendJson(res, 400, { error: "empty body" });
+          return;
+        }
+        const { mkdir, writeFile } = await import("node:fs/promises");
+        const path = await import("node:path");
+        const os = await import("node:os");
+        const dataDir = path.join(os.homedir(), ".cortex", "data", "pglite");
+        const marker = `${dataDir}.restore-pending.tar.gz`;
+        await mkdir(path.dirname(marker), { recursive: true });
+        await writeFile(marker, buf);
+        sendJson(res, 202, {
+          accepted: true,
+          marker,
+          bytes: buf.length,
+          message:
+            "restore queued; process will exit after this response and Fly's restart policy will boot a fresh machine that picks up the tarball",
+        });
+        // Defer exit until the response is flushed.
+        setTimeout(() => {
+          logger.warn("api.backup.restore_exiting", {
+            marker,
+            bytes: buf.length,
+          });
+          process.exit(0);
+        }, 250).unref();
+      } catch (err) {
+        logger.error("api.backup.restore_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
     // Cold-storage dump. Returns the entire PGlite data directory as
     // a gzipped tar in the response body. Auth already checked above
     // (cookie / bearer / gateway secret — admin-equivalent for the

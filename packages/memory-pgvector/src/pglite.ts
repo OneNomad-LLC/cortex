@@ -31,6 +31,14 @@ export interface CreatePgliteOptions {
   /** Logger for backend errors. Errors during query are also surfaced
    *  to the caller via the rejected promise; the logger is a record. */
   logger?: Logger;
+  /**
+   * Optional: restore the data dir from a previously-dumped tarball
+   * blob. When set, PGlite ignores any existing state at `dataDir` and
+   * extracts the blob's contents instead — caller is responsible for
+   * having cleared the dataDir beforehand. Used by the cold-storage
+   * restore flow at boot.
+   */
+  loadFromBlob?: Blob;
 }
 
 /**
@@ -56,6 +64,7 @@ export async function createPglitePool(opts: CreatePgliteOptions): Promise<PgPoo
   const db = await PGlite.create({
     dataDir: opts.dataDir,
     extensions: { vector },
+    ...(opts.loadFromBlob ? { loadDataDir: opts.loadFromBlob } : {}),
   });
 
   return {

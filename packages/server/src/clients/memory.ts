@@ -64,13 +64,43 @@ export async function createMemoryClient(args: {
   const dataDir =
     memory.pgvector?.dataDir ||
     path.join(os.homedir(), ".cortex", "data", "pglite");
+
+  // Cold-storage restore handshake. The /api/admin/backup/restore
+  // endpoint writes the incoming tarball to <dataDir>.restore-pending
+  // and exits; on next boot (Fly restart_policy=always picks the
+  // machine back up) we detect the marker, clear the data dir, and
+  // initialize PGlite from the tarball blob. On success the marker is
+  // deleted; failure leaves it for retry next boot.
+  const pendingRestore = await readPendingRestoreBlob(dataDir, logger);
   const table = memory.pgvector?.table || "cortex_memories";
-  // Local Xenova model is 384-dim. Honor an explicit override (>0)
-  // when the operator wired an LLM-routed embedder of a different dim.
-  const embeddingDim =
-    memory.pgvector?.embeddingDim && memory.pgvector.embeddingDim > 0
-      ? memory.pgvector.embeddingDim
-      : LOCAL_EMBEDDING_DIM;
+  // The embedding dim has to match whatever produces the vectors:
+  //   - With an LLM router wired, the operator's chosen embedding model
+  //     drives it. Honor the configured value.
+  //   - Without an LLM router, embeddings come from the bundled Xenova
+  //     model (LOCAL_EMBEDDING_DIM = 384). The Zod-defaulted 768 would
+  //     mismatch and every embed() call rejects with a dim error, so we
+  //     pin to 384 here and warn if the operator wrote something else.
+  const configuredDim = memory.pgvector?.embeddingDim;
+  let embeddingDim: number;
+  if (llmRouter) {
+    embeddingDim =
+      configuredDim && configuredDim > 0 ? configuredDim : LOCAL_EMBEDDING_DIM;
+  } else {
+    embeddingDim = LOCAL_EMBEDDING_DIM;
+    if (
+      configuredDim &&
+      configuredDim > 0 &&
+      configuredDim !== LOCAL_EMBEDDING_DIM
+    ) {
+      logger.warn("memory.embedding_dim_overridden", {
+        configured: configuredDim,
+        used: LOCAL_EMBEDDING_DIM,
+        reason:
+          "No LLM router wired; embeddings come from the local Xenova model. " +
+          "Set memory.pgvector.embeddingDim to 384 (or omit it) to silence this warning.",
+      });
+    }
+  }
   const embedTask = memory.pgvector?.embedTask || "embed";
 
   // External vs embedded: explicit `connectionString` wins. Empty +
@@ -99,6 +129,7 @@ export async function createMemoryClient(args: {
         embeddingDim,
         embedTask,
         ...(llmRouter ? { llmRouter } : {}),
+        ...(pendingRestore ? { loadFromBlob: pendingRestore } : {}),
         logger,
       });
 
@@ -115,6 +146,73 @@ export async function createMemoryClient(args: {
     selected: "pgvector",
     mode: useExternal ? "external" : "embedded",
     embedder: llmRouter ? "llm-router" : "local-xenova",
+    ...(pendingRestore ? { restoredFromBackup: true } : {}),
   });
+
+  // PGlite initialized successfully from the restore blob — clear the
+  // marker so the next boot doesn't re-apply it. Done after the
+  // healthcheck so we only delete on a confirmed-working restore.
+  if (pendingRestore) {
+    await clearPendingRestoreMarker(dataDir, logger);
+  }
+
   return { client, selected: "pgvector", primaryHealthy: true };
+}
+
+/**
+ * Path to the restore-marker file. Sits next to (not inside) the
+ * dataDir so PGlite doesn't try to treat the tarball as a corrupt
+ * data file. The /api/admin/backup/restore endpoint writes here.
+ */
+function pendingRestorePath(dataDir: string): string {
+  return `${dataDir}.restore-pending.tar.gz`;
+}
+
+async function readPendingRestoreBlob(
+  dataDir: string,
+  logger: Logger,
+): Promise<Blob | undefined> {
+  const marker = pendingRestorePath(dataDir);
+  const fs = await import("node:fs/promises");
+  let stat: Awaited<ReturnType<typeof fs.stat>>;
+  try {
+    stat = await fs.stat(marker);
+  } catch {
+    return undefined; // No pending restore — common path on every boot.
+  }
+  if (!stat.isFile()) return undefined;
+
+  logger.warn("memory.restore.pending_detected", {
+    marker,
+    sizeBytes: stat.size,
+    hint: "wiping data dir + initializing PGlite from the tarball blob",
+  });
+
+  // Wipe any existing data dir contents so PGlite's loadDataDir lands
+  // a clean tree. The marker file lives outside the data dir so this
+  // rm doesn't touch it.
+  await fs.rm(dataDir, { recursive: true, force: true });
+  await fs.mkdir(dataDir, { recursive: true });
+
+  const buf = await fs.readFile(marker);
+  // PGlite's loadDataDir expects a Blob or File. Node's native Blob
+  // (since 18) is structurally compatible.
+  return new Blob([new Uint8Array(buf)], { type: "application/gzip" });
+}
+
+async function clearPendingRestoreMarker(
+  dataDir: string,
+  logger: Logger,
+): Promise<void> {
+  const marker = pendingRestorePath(dataDir);
+  const fs = await import("node:fs/promises");
+  try {
+    await fs.unlink(marker);
+    logger.info("memory.restore.completed", { marker });
+  } catch (err) {
+    logger.warn("memory.restore.marker_cleanup_failed", {
+      marker,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

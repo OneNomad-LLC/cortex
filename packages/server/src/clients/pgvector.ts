@@ -37,6 +37,12 @@ export interface PgVectorClientOptions {
    * with credentials.
    */
   llmRouter?: LLMRouter;
+  /**
+   * Optional: restore the PGlite data dir from a tarball at init.
+   * Caller already wiped the dataDir; pass-through to PGlite's
+   * loadDataDir. Only honored in `embedded` mode.
+   */
+  loadFromBlob?: Blob;
   logger: Logger;
 }
 
@@ -64,6 +70,7 @@ export async function createPgVectorClient(
     pool = await createPglitePool({
       dataDir: opts.dataDir,
       logger: opts.logger,
+      ...(opts.loadFromBlob ? { loadFromBlob: opts.loadFromBlob } : {}),
     });
   } else {
     if (!opts.connectionString) {
