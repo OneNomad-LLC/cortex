@@ -156,5 +156,16 @@ function wrapAsEngramClient(
         });
       }
     },
+
+    // Delegate dumpDataDir to the backend when present (embedded mode).
+    // External-pool deployments fall through to undefined, which the
+    // orchestrator handles as "cold storage not applicable here."
+    ...(backend.dumpDataDir
+      ? {
+          async dumpDataDir(): Promise<Blob> {
+            return backend.dumpDataDir!();
+          },
+        }
+      : {}),
   };
 }

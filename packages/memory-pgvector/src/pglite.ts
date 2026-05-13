@@ -64,6 +64,19 @@ export async function createPglitePool(opts: CreatePgliteOptions): Promise<PgPoo
       values?: unknown[],
     ): Promise<{ rows: T[] }> {
       try {
+        // PGlite's `query()` uses the extended protocol, which parses
+        // one statement per call — multi-statement DDL (the bootstrap
+        // schema) crashes with `cannot insert multiple commands into a
+        // prepared statement`. `exec()` uses simple-query and handles
+        // multi-statement, but doesn't accept parameters. Route on the
+        // presence of params: parameterized -> query (single statement),
+        // parameterless -> exec (may be multi-statement; we return rows
+        // from the last statement to match the single-result shape).
+        if (!values || values.length === 0) {
+          const results = await db.exec(text);
+          const last = results[results.length - 1];
+          return { rows: (last?.rows ?? []) as T[] };
+        }
         const res = await db.query<T>(text, values as unknown[]);
         return { rows: res.rows };
       } catch (err) {
@@ -78,6 +91,16 @@ export async function createPglitePool(opts: CreatePgliteOptions): Promise<PgPoo
     },
     async end() {
       await db.close();
+    },
+    async dumpDataDir(): Promise<Blob> {
+      // PGlite's dump returns the entire data directory as a gzipped
+      // tar — system catalogs + WAL + cortex_memories table + indexes.
+      // The export is internally consistent (PGlite snapshots the FS
+      // before tarring) so callers don't need to quiesce writes first.
+      // Result type is documented as `File | Blob` upstream; we coerce
+      // to Blob since that's what the API server streams back.
+      const out = await db.dumpDataDir("gzip");
+      return out as Blob;
     },
   };
 }

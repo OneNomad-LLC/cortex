@@ -4,7 +4,6 @@ import {
   connectMcpSubprocess,
   type McpSubprocess,
 } from "./mcp-subprocess.js";
-import { resolvePackageBin } from "./resolve-bin.js";
 
 export interface EngramClientOptions {
   /** Bin name for the Engram MCP server. Default: "engram-memory". */
@@ -62,6 +61,14 @@ export interface EngramMemory {
 export interface EngramClient extends EngramAccess {
   search(args: EngramSearchArgs): Promise<EngramMemory[]>;
   shutdown(): Promise<void>;
+  /**
+   * Optional cold-storage dump. Embedded PGlite backends implement
+   * this; external Postgres backends omit it. Callers probe with
+   * `typeof client.dumpDataDir === 'function'`. Returns a gzipped tar
+   * Blob of the entire data directory — pyre-web's cold-storage
+   * orchestrator uploads it as-is to object storage.
+   */
+  dumpDataDir?(): Promise<Blob>;
 }
 
 /**
@@ -85,37 +92,12 @@ export function filterByWorkspace(
   });
 }
 
-/**
- * Real Engram client: spawns `engram-memory` as a stdio MCP subprocess and
- * wraps a handful of tools we care about.
- *
- * The Engram MCP server advertises ~20 tools; we wrap only what Cortex
- * currently uses and add more as tools are plumbed into Cortex features.
- */
-export async function createEngramClient(
-  opts: EngramClientOptions,
-): Promise<EngramClient> {
-  const resolved = opts.command
-    ? undefined
-    : resolvePackageBin("@onenomad/engram-memory");
-  const spawnOpts = resolved
-    ? {
-        command: resolved.node,
-        args: [resolved.script, ...(opts.args ?? [])],
-      }
-    : {
-        command: opts.command ?? "engram-memory",
-        args: opts.args ?? [],
-      };
-  const sub = await connectMcpSubprocess({
-    id: "engram",
-    ...spawnOpts,
-    ...(opts.env ? { env: opts.env } : {}),
-    logger: opts.logger,
-  });
-
-  return buildClient(sub, opts.logger);
-}
+// `createEngramClient()` was removed in Cortex 0.3 when the runtime
+// went standalone — memory is served in-process by the pgvector backend
+// (see clients/memory.ts), not by an Engram MCP subprocess. The
+// EngramClient type / EngramMemory / filterByWorkspace exports above
+// are reused by clients/pgvector.ts so the rest of the codebase can
+// keep speaking the same shape regardless of backend.
 
 /**
  * Engram's native type enum is narrow. Cortex carries its richer type

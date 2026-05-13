@@ -28,6 +28,19 @@ export interface PgPoolLike {
     values?: unknown[],
   ): Promise<{ rows: T[] }>;
   end?(): Promise<void>;
+  /**
+   * Embedded-mode dump hook. Implemented by the PGlite pool wrapper;
+   * external-Postgres pools throw "not supported" because their dump
+   * path is operator-managed (pg_dump from outside the process).
+   *
+   * Returns a Blob containing the entire PGlite data directory as a
+   * gzipped tar. The blob is consumed via .stream() / .arrayBuffer()
+   * by the caller (typically pyre-web's cold-storage orchestrator).
+   *
+   * Optional so non-dumpable backends don't have to stub it. Callers
+   * check `typeof pool.dumpDataDir === 'function'` before invoking.
+   */
+  dumpDataDir?(): Promise<Blob>;
 }
 
 export const pgVectorConfigSchema = z.object({
@@ -282,5 +295,17 @@ export function createPgVectorBackend(
     async shutdown() {
       if (pool.end) await pool.end();
     },
+
+    // Embedded-only — delegates to the PGlite pool wrapper. External
+    // Postgres pools don't implement this; the resulting `undefined`
+    // method on MemoryBackend is what pyre-web's orchestrator probes
+    // for to decide whether cold storage applies to a given deployment.
+    ...(pool.dumpDataDir
+      ? {
+          async dumpDataDir(): Promise<Blob> {
+            return pool.dumpDataDir!();
+          },
+        }
+      : {}),
   };
 }

@@ -18,6 +18,7 @@ import {
 } from "@onenomad/cortex-github-auth";
 import { applyWizardResult } from "../cli/config-mutation.js";
 import { resolveConfigPath } from "../cli/config-path.js";
+import { handleIssue, verifyCookie } from "./cookie-session.js";
 import { discoverForWizard } from "../cli/discovery.js";
 import { findRepoRoot } from "../cli/dotenv.js";
 import { findWizard, listWizards } from "../cli/wizard-registry.js";
@@ -46,7 +47,6 @@ import { getSharedLogBus, type LogLine } from "../log-bus.js";
 import { ALL_TOOLS } from "../mcp/tools/index.js";
 import type { AnyMcpTool, ToolContext } from "../mcp/tool.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import type { PersonaClient } from "../clients/persona.js";
 import type { SourceAdapter } from "@onenomad/cortex-core";
 import { runSync } from "../sync.js";
 import type { ReloadResult } from "../hot-reload.js";
@@ -68,17 +68,10 @@ export interface DashboardApiOptions extends WidgetContext {
   /**
    * Live heartbeat writer. The API exposes its snapshot via
    * `/api/status` so the dashboard's Status page can render uptime,
-   * engram/persona health, and per-adapter sync state without
-   * re-reading the file from disk.
+   * memory health, and per-adapter sync state without re-reading the
+   * file from disk.
    */
   heartbeat?: HeartbeatWriter;
-  /**
-   * Persona client passed through to MCP console tool invocations so
-   * tools that take a full ToolContext (all of them) can execute. Made
-   * optional so tests that don't need MCP can omit it; the console
-   * endpoint will 503 if it's not wired.
-   */
-  persona?: PersonaClient;
   /**
    * Live adapter registry so the dashboard can trigger a one-off sync
    * from the Adapters page. Keyed by adapter id. Omit to disable the
@@ -142,6 +135,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     engram: opts.engram,
     ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
     taxonomy: opts.taxonomy,
+    memoryTypes: opts.memoryTypes,
   };
 
   // ADR-019 Phase 1 — registry built per-instance so the optional cache
@@ -174,6 +168,32 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (req.method === "GET" && pathname === "/health") {
       sendJson(res, 200, { ok: true, version: 1, widgets: widgets.length });
+      return;
+    }
+
+    // Cookie-handoff bootstrap: `/cortex-session/issue?token=...`
+    // verifies a short-lived signed token from pyre-web, sets the
+    // session cookie, and redirects. Public path because the token IS
+    // the auth — anything past this can rely on the cookie.
+    if (await handleIssue(req, res)) {
+      return;
+    }
+
+    // Three-track auth. Cookie, bearer, or gateway-secret — any one
+    // passes. Cookie covers browser sessions (pyre-web → JWT handoff).
+    // Bearer covers direct-client API access (Claude Code's MCP).
+    // Gateway secret covers server-to-server proxy callers.
+    //
+    // Health stays public so Fly's machine health probe (and any
+    // upstream load balancer) can reach it without secrets.
+    if (!apiAuthOk(req)) {
+      logger.warn("api.auth_rejected", {
+        path: pathname,
+        ip: req.socket.remoteAddress ?? "unknown",
+      });
+      res.statusCode = 401;
+      res.setHeader("WWW-Authenticate", "Bearer");
+      res.end("unauthorized");
       return;
     }
 
@@ -304,6 +324,101 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (pathname === "/api/status") {
       await handleStatus(res, opts.heartbeat, logger);
+      return;
+    }
+
+    // Cold-storage dump. Returns the entire PGlite data directory as
+    // a gzipped tar in the response body. Auth already checked above
+    // (cookie / bearer / gateway secret — admin-equivalent for the
+    // pyre-web cold-storage cron). External-pool deployments don't
+    // implement dumpDataDir and respond 501 so callers can skip.
+    if (req.method === "POST" && pathname === "/api/admin/backup/dump") {
+      const dump = opts.engram.dumpDataDir;
+      if (typeof dump !== "function") {
+        sendJson(res, 501, {
+          error:
+            "this deployment uses an external Postgres backend; cold-storage dumps via PGlite are not available. Use pg_dump against the configured connectionString.",
+        });
+        return;
+      }
+      try {
+        const blob = await dump.call(opts.engram);
+        const buf = Buffer.from(await blob.arrayBuffer());
+        res.writeHead(200, {
+          "content-type": "application/gzip",
+          "content-length": String(buf.length),
+          "x-cortex-backup-version": "1",
+          "x-cortex-backup-format": "pglite-tar-gz",
+        });
+        res.end(buf);
+      } catch (err) {
+        logger.error("api.backup.dump_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    // Memory-type registry endpoints — power the Settings → Memory
+    // types tab. GET returns built-in + custom merged with origin; POST
+    // adds (or promotes auto → config); DELETE removes a custom slug.
+    if (pathname === "/api/types") {
+      if (req.method === "GET") {
+        sendJson(res, 200, { types: opts.memoryTypes.list() });
+        return;
+      }
+      if (req.method === "POST") {
+        const body = (await readJsonBody(req)) as {
+          slug?: unknown;
+          label?: unknown;
+          description?: unknown;
+        } | null;
+        const raw = typeof body?.slug === "string" ? body.slug : "";
+        const label =
+          typeof body?.label === "string" && body.label.length > 0
+            ? body.label
+            : undefined;
+        const description =
+          typeof body?.description === "string" &&
+          body.description.length > 0
+            ? body.description
+            : undefined;
+        const slug = opts.memoryTypes.register(raw, {
+          source: "config",
+          ...(label !== undefined ? { label } : {}),
+          ...(description !== undefined ? { description } : {}),
+        });
+        if (!slug) {
+          sendJson(res, 400, {
+            error:
+              "slug is required and must normalize to non-empty [a-z0-9_]",
+          });
+          return;
+        }
+        sendJson(res, 201, { slug, types: opts.memoryTypes.list() });
+        return;
+      }
+      sendJson(res, 405, { error: "method not allowed" });
+      return;
+    }
+    const typeDelete = pathname.match(/^\/api\/types\/([^/]+)$/);
+    if (typeDelete && req.method === "DELETE") {
+      const slug = decodeURIComponent(typeDelete[1]!);
+      if (opts.memoryTypes.isBuiltIn(slug)) {
+        sendJson(res, 400, {
+          error: `'${slug}' is a built-in type and cannot be removed`,
+        });
+        return;
+      }
+      const removed = opts.memoryTypes.remove(slug);
+      if (!removed) {
+        sendJson(res, 404, { error: `unknown custom type '${slug}'` });
+        return;
+      }
+      sendJson(res, 200, { removed: slug, types: opts.memoryTypes.list() });
       return;
     }
 
@@ -451,6 +566,68 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
+}
+
+/**
+ * Two-track auth gate for the dashboard API. Off when neither
+ * CORTEX_API_AUTH_TOKEN nor CORTEX_GATEWAY_SECRET is set (local dev —
+ * operator drives the dashboard directly from localhost). When either
+ * is set, requests past /health must present at least one matching
+ * credential:
+ *
+ *   - `Authorization: Bearer <CORTEX_API_AUTH_TOKEN>` — user-facing
+ *     bearer. Direct API access (Claude Code on MCP, scripts, etc.).
+ *   - `X-Cortex-Gateway-Secret: <CORTEX_GATEWAY_SECRET>` — server-to-
+ *     server gate. Used by the pyre-web proxy that fronts the
+ *     dashboard UI. Pyre-web auths the user via its own session and
+ *     attaches this secret on the proxied request — the secret is
+ *     never seen by the browser.
+ *
+ * Either credential is sufficient. This is alternative gates, not
+ * additive — the bearer represents an end-user with a key; the
+ * gateway secret represents pyre-web vouching for an end-user it
+ * authed by other means.
+ *
+ * Constant-time compare so an attacker can't time-sidechannel either
+ * token's length or contents.
+ */
+function apiAuthOk(req: IncomingMessage): boolean {
+  const bearerExpected = process.env.CORTEX_API_AUTH_TOKEN;
+  const gatewayExpected = process.env.CORTEX_GATEWAY_SECRET;
+  if (!bearerExpected && !gatewayExpected) return true;
+
+  // Cookie (browser session, set via /cortex-session/issue).
+  if (verifyCookie(req)) return true;
+
+  if (gatewayExpected) {
+    const header = req.headers["x-cortex-gateway-secret"];
+    const value = Array.isArray(header) ? header[0] : header;
+    if (typeof value === "string" && constantTimeEqual(value, gatewayExpected)) {
+      return true;
+    }
+  }
+
+  if (bearerExpected) {
+    const header = req.headers["authorization"];
+    const value = Array.isArray(header) ? header[0] : header;
+    if (typeof value === "string") {
+      const match = /^Bearer\s+(.+)$/i.exec(value);
+      if (match && constantTimeEqual(match[1]!, bearerExpected)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -1203,14 +1380,6 @@ async function handleMcpTools(
         sendJson(res, 404, { error: `tool '${name}' not registered` });
         return;
       }
-      if (!opts.persona) {
-        sendJson(res, 503, {
-          error:
-            "persona client not available — tools need it in their ToolContext",
-        });
-        return;
-      }
-
       const body = (await readJsonBody(req)) as { input?: unknown } | null;
       const rawInput = body?.input ?? {};
 
@@ -1236,13 +1405,13 @@ async function handleMcpTools(
           : opts.taxonomy;
       const ctx: ToolContext = {
         taxonomy: liveTaxonomy,
+        memoryTypes: opts.memoryTypes,
         logger: logger.child({
           component: "mcp-console",
           tool: name,
           ...(activeWs ? { workspace: activeWs.slug } : {}),
         }),
         engram: opts.engram,
-        persona: opts.persona,
         ...(opts.llmRouter ? { llmRouter: opts.llmRouter } : {}),
         traceId: randomUUID(),
         sessionWorkspace: activeWs?.slug ?? null,

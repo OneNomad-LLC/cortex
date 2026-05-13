@@ -78,6 +78,13 @@ export interface MemoryBackend {
   delete(args: MemoryDeleteArgs): Promise<{ deleted: number }>;
   healthCheck(): Promise<HealthStatus>;
   shutdown(): Promise<void>;
+  /**
+   * Optional — embedded backends (PGlite) expose a native dump that
+   * returns the entire data directory as a gzipped tar Blob. External
+   * Postgres deployments omit this; pyre-web's cold-storage orchestrator
+   * checks for presence before invoking.
+   */
+  dumpDataDir?(): Promise<Blob>;
 }
 
 /**
