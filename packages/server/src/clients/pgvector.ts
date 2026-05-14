@@ -178,5 +178,9 @@ function wrapAsEngramClient(
     async wipeAll(): Promise<{ deleted: number }> {
       return backend.wipeAll();
     },
+
+    exportAll(opts) {
+      return backend.exportAll(opts);
+    },
   };
 }

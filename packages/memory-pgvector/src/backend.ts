@@ -13,6 +13,7 @@ import type {
   Memory,
   MemoryBackend,
   MemoryDeleteArgs,
+  MemoryExportRow,
   MemoryIngestInput,
   MemorySearchArgs,
 } from "./types.js";
@@ -312,6 +313,25 @@ export function createPgVectorBackend(
       return { deleted: Number.isFinite(n) ? n : 0 };
     },
 
+    exportAll(opts: {
+      includeEmbedding?: boolean;
+      batchSize?: number;
+    } = {}): AsyncIterable<MemoryExportRow> {
+      const includeEmbedding = opts.includeEmbedding === true;
+      const batchSize = Math.max(1, Math.min(opts.batchSize ?? 200, 1000));
+      const selectCols = includeEmbedding
+        ? "id, source_id, content, metadata, embedding, created_at, updated_at"
+        : "id, source_id, content, metadata, created_at, updated_at";
+
+      return streamExport({
+        pool,
+        table: cfg.table,
+        selectCols,
+        batchSize,
+        includeEmbedding,
+      });
+    },
+
     // Embedded-only — delegates to the PGlite pool wrapper. External
     // Postgres pools don't implement this; the resulting `undefined`
     // method on MemoryBackend is what pyre-web's orchestrator probes
@@ -324,4 +344,63 @@ export function createPgVectorBackend(
         }
       : {}),
   };
+}
+
+interface ExportPageRow {
+  id: string;
+  source_id: string | null;
+  content: string;
+  metadata: unknown;
+  embedding?: number[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+async function* streamExport(args: {
+  pool: PgPoolLike;
+  table: string;
+  selectCols: string;
+  batchSize: number;
+  includeEmbedding: boolean;
+}): AsyncGenerator<MemoryExportRow, void, undefined> {
+  const { pool, table, selectCols, batchSize, includeEmbedding } = args;
+  // Stream via id-based keyset pagination — stable under concurrent
+  // ingest, deterministic order, no offset performance cliff at scale.
+  // We rely on uuid id being lexicographically sortable.
+  let cursor: string | null = null;
+  while (true) {
+    const params: unknown[] = [];
+    let whereClause = "";
+    if (cursor !== null) {
+      params.push(cursor);
+      whereClause = `WHERE id > $${params.length}`;
+    }
+    params.push(batchSize);
+    const limitIdx = params.length;
+    const sqlText: string =
+      `SELECT ${selectCols} FROM ${table} ${whereClause} ORDER BY id LIMIT $${limitIdx}`;
+    const page: { rows: ExportPageRow[] } = await pool.query<ExportPageRow>(
+      sqlText,
+      params,
+    );
+    if (page.rows.length === 0) break;
+    for (const r of page.rows) {
+      const row: MemoryExportRow = {
+        id: r.id,
+        content: r.content,
+        metadata: (r.metadata ?? {}) as Record<string, unknown>,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      };
+      if (r.source_id) row.sourceId = r.source_id;
+      if (includeEmbedding && Array.isArray(r.embedding)) {
+        row.embedding = r.embedding;
+      }
+      yield row;
+    }
+    const lastRow = page.rows[page.rows.length - 1];
+    if (!lastRow) break;
+    cursor = lastRow.id;
+    if (page.rows.length < batchSize) break;
+  }
 }

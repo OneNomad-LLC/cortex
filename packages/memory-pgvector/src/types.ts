@@ -91,6 +91,28 @@ export interface MemoryBackend {
    * people, secrets are untouched — this is data-only.
    */
   wipeAll(): Promise<{ deleted: number }>;
+  /**
+   * Stream every memory row in id order. Async iterator so callers
+   * (typically a data-export endpoint streaming JSONL) don't have to
+   * materialize the full table in memory. Each row carries id, content,
+   * metadata, createdAt; the optional `includeEmbedding` flag includes
+   * the vector — useful for full backups, off by default since the
+   * float arrays inflate the export 10-100x.
+   */
+  exportAll(opts?: {
+    includeEmbedding?: boolean;
+    batchSize?: number;
+  }): AsyncIterable<MemoryExportRow>;
+}
+
+export interface MemoryExportRow {
+  id: string;
+  sourceId?: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  embedding?: number[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**

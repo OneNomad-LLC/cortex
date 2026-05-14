@@ -175,7 +175,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     // verifies a short-lived signed token from pyre-web, sets the
     // session cookie, and redirects. Public path because the token IS
     // the auth — anything past this can rely on the cookie.
-    if (await handleIssue(req, res)) {
+    if (await handleIssue(req, res, logger)) {
       return;
     }
 
@@ -324,6 +324,59 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
 
     if (pathname === "/api/status") {
       await handleStatus(res, opts.heartbeat, logger);
+      return;
+    }
+
+    // Memory export. Streams every row as JSONL — one record per
+    // line. Used by pyre-web's 'Export memories' download button so
+    // the user can pull their data out without going through the
+    // cold-backup tarball path (which includes the whole PGlite
+    // data dir + indexes; this is just the rows).
+    //
+    // Query params:
+    //   ?embeddings=true   include the 384-dim vector per row
+    //                      (default false — embeddings are 10-100x
+    //                       the size of the content)
+    //   ?batchSize=200     pagination size against the underlying
+    //                      pool. Default 200; capped at 1000 server-
+    //                      side.
+    if (req.method === "GET" && pathname === "/api/admin/memory/export") {
+      const includeEmbedding = url.searchParams.get("embeddings") === "true";
+      const batchSizeRaw = url.searchParams.get("batchSize");
+      const batchSize = batchSizeRaw ? Number(batchSizeRaw) : undefined;
+      try {
+        res.writeHead(200, {
+          "content-type": "application/x-ndjson; charset=utf-8",
+          "content-disposition": 'attachment; filename="cortex-memories.jsonl"',
+          "x-cortex-export-format": "jsonl",
+          "x-cortex-export-includes-embedding": includeEmbedding ? "1" : "0",
+        });
+        let count = 0;
+        for await (const row of opts.engram.exportAll({
+          includeEmbedding,
+          ...(batchSize !== undefined && Number.isFinite(batchSize)
+            ? { batchSize }
+            : {}),
+        })) {
+          res.write(JSON.stringify(row) + "\n");
+          count++;
+        }
+        res.end();
+        logger.info("api.memory.export_complete", { count, includeEmbedding });
+      } catch (err) {
+        logger.error("api.memory.export_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Headers may already be sent on a mid-stream failure — close
+        // the connection rather than re-sending a JSON error envelope.
+        if (!res.headersSent) {
+          sendJson(res, 500, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        } else {
+          res.end();
+        }
+      }
       return;
     }
 

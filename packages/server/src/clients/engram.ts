@@ -75,6 +75,25 @@ export interface EngramClient extends EngramAccess {
    * pyre-web's Engram page danger zone.
    */
   wipeAll(): Promise<{ deleted: number }>;
+  /**
+   * Stream every memory row for data-portability exports. Async
+   * iterator so callers can serialize JSONL straight to the response
+   * without materializing the whole table.
+   */
+  exportAll(opts?: {
+    includeEmbedding?: boolean;
+    batchSize?: number;
+  }): AsyncIterable<EngramExportRow>;
+}
+
+export interface EngramExportRow {
+  id: string;
+  sourceId?: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  embedding?: number[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -371,6 +390,14 @@ export function buildClient(sub: McpSubprocess, logger: Logger): EngramClient {
       // memory_clear tool (or equivalent) at that time.
       throw new Error(
         "wipeAll is not implemented for the legacy Engram subprocess client",
+      );
+    },
+
+    async *exportAll() {
+      // Dead path — see wipeAll comment above. Would loop engram's
+      // memory_recent or equivalent tool here if revived.
+      throw new Error(
+        "exportAll is not implemented for the legacy Engram subprocess client",
       );
     },
   };
