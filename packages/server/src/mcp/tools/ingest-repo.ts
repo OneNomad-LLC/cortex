@@ -35,13 +35,14 @@ const inputSchema = z.object({
   cloneTimeoutMs: z.number().int().positive().default(5 * 60 * 1000),
   /**
    * Run in the background and return a jobId immediately. Default
-   * false (preserves the existing synchronous shape for any pre-
-   * async caller). When true, the response is `{ jobId, queued: true }`
-   * and the caller polls `kb_job_status({ jobId })` for progress +
-   * the eventual result. Useful for repos large enough that the
-   * synchronous path ties up the MCP transport noticeably.
+   * true (the safe default — even small repos can exceed the MCP
+   * transport timeout once embeddings + enrichment land, and the
+   * client polls `kb_job_status({ jobId })` for progress + the
+   * eventual result). Set false ONLY when the caller knows the repo
+   * is small (under ~50 files) and wants the result inline; the sync
+   * shape is kept for that and for backward-compat with older callers.
    */
-  async: z.boolean().default(false),
+  async: z.boolean().default(true),
   /**
    * Per-file size cap. Files larger than this get skipped (recorded in
    * `errors`). Default 256 KiB — enough for almost any source file,
@@ -245,10 +246,10 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
     // (default) so existing callers see no change.
     if (input.async) {
       const job = jobs.create({ kind: "ingest_repo" });
-      void runIngestRepo(input, ctx)
-        .then((result) => jobs.complete(job.id, result))
-        .catch((err) => jobs.fail(job.id, err));
-      jobs.start(job.id);
+      // enqueue() respects the process-wide concurrency cap so two
+      // parallel ingests don't OOM the box. Jobs over the cap sit at
+      // status='queued' until a slot opens.
+      jobs.enqueue(job.id, () => runIngestRepo(input, ctx));
       return {
         // Match the synchronous Output shape's required fields with
         // safe placeholders. Renderers that already handle the sync

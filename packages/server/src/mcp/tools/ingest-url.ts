@@ -45,13 +45,13 @@ const inputSchema = z.object({
   samePathPrefixOnly: z.boolean().default(true),
   /**
    * Run the crawl in the background and return a jobId immediately.
-   * Default false (preserves the existing synchronous shape). When
-   * true, the response is `{ jobId, queued: true }` and the caller
-   * polls `kb_job_status({ jobId })` for the eventual result. Useful
-   * when crawlDepth >= 1 with a large maxPages — synchronous crawls
-   * past ~20 pages start to feel slow over the MCP transport.
+   * Default true — even single-page fetches can stall behind a slow
+   * upstream and trip the MCP transport timeout, and crawls past a
+   * few pages routinely do. Async returns `{ jobId, queued: true }`;
+   * caller polls `kb_job_status({ jobId })`. Set false ONLY for a
+   * single-page fetch the caller knows will be fast and wants inline.
    */
-  async: z.boolean().default(false),
+  async: z.boolean().default(true),
 });
 
 interface PageResult {
@@ -115,10 +115,9 @@ export const ingestUrl: McpTool<typeof inputSchema, Output> = {
   async handler(input, ctx) {
     if (input.async) {
       const job = jobs.create({ kind: "ingest_url" });
-      void runIngestUrl(input, ctx)
-        .then((result) => jobs.complete(job.id, result))
-        .catch((err) => jobs.fail(job.id, err));
-      jobs.start(job.id);
+      // enqueue() respects the process-wide concurrency cap so two
+      // parallel crawls don't OOM the box.
+      jobs.enqueue(job.id, () => runIngestUrl(input, ctx));
       const seedNorm = normalizeUrl(input.url);
       return {
         // Match Output's required fields with safe placeholders. Renderers
