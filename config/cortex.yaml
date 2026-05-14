@@ -14,10 +14,17 @@ llm:
       config:
         appTitle: "Cortex"
 
+  # Default task split: Haiku for the high-frequency, output-bounded
+  # stages (structural extraction, classification, short briefs) where
+  # cost dominates and the model just needs to follow instructions
+  # reliably. Sonnet for synthesis — that's the one stage where
+  # reasoning across multiple structured passes shows up in the final
+  # output, especially on long meeting transcripts. Override per-task
+  # in your workspace cortex.yaml if you want one model everywhere.
   tasks:
     default:    { provider: openrouter, model: "anthropic/claude-haiku-4.5" }
     structural: { provider: openrouter, model: "anthropic/claude-haiku-4.5" }
-    synthesis:  { provider: openrouter, model: "anthropic/claude-haiku-4.5" }
+    synthesis:  { provider: openrouter, model: "anthropic/claude-sonnet-4.6" }
     brief:      { provider: openrouter, model: "anthropic/claude-haiku-4.5" }
     classify:   { provider: openrouter, model: "anthropic/claude-haiku-4.5" }
 
