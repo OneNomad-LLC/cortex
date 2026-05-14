@@ -1,0 +1,51 @@
+{
+  "name": "@onenomad/cortex-onboarder",
+  "version": "0.1.0",
+  "description": "One-time MCP server that handles Cortex login + writes the per-tenant Cortex MCP config for the user. Install once; never think about MCP config files again.",
+  "type": "module",
+  "bin": {
+    "cortex-onboarder": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --build",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "open": "^10.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.0",
+    "eslint": "^9.12.0",
+    "@types/node": "^22.7.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/onboarder"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
