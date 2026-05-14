@@ -4,9 +4,36 @@
  * Client components go through Next.js rewrites at `/api/cortex/*`; the
  * next.config rewrites forward to `${CORTEX_API_URL}/api/*`. Server
  * components bypass the rewrite and call the sidecar directly.
+ *
+ * Auth on server-side fetches: when CORTEX_GATEWAY_SECRET is set on the
+ * dashboard child's env (every Cortex Cloud deployment ships it through
+ * pyre-web's deploy action), every internal RSC fetch attaches the
+ * `x-cortex-gateway-secret` header so apiAuthOk on the sidecar honors
+ * it. Without this header, RSC fetches lack a credential — the browser
+ * cookie that authenticated the user lives in the browser, not the
+ * dashboard process — and 401 immediately. Local-dev installs without
+ * the secret env var fall through unauthenticated, which is fine
+ * because the sidecar's apiAuthOk leaves the gate open when no auth
+ * env vars are set.
  */
 
 const SERVER_BASE = process.env.CORTEX_API_URL ?? "http://127.0.0.1:4141";
+const GATEWAY_SECRET = process.env.CORTEX_GATEWAY_SECRET;
+
+function serverHeaders(extra?: HeadersInit): HeadersInit {
+  if (!GATEWAY_SECRET) return extra ?? {};
+  const out: Record<string, string> = { "x-cortex-gateway-secret": GATEWAY_SECRET };
+  if (extra) {
+    if (extra instanceof Headers) {
+      extra.forEach((value, key) => { out[key] = value; });
+    } else if (Array.isArray(extra)) {
+      for (const [key, value] of extra) out[key] = value;
+    } else {
+      Object.assign(out, extra);
+    }
+  }
+  return out;
+}
 
 export type WidgetFetcher = <T>(
   widget: string,
@@ -30,7 +57,7 @@ export const fetchWidgetServer: WidgetFetcher = async <T>(
   params?: Record<string, string | number>,
 ): Promise<T> => {
   const url = `${SERVER_BASE}/api/widgets/${widget}${buildQuery(params)}`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: serverHeaders() });
   if (!res.ok) {
     throw new Error(`widget ${widget}: ${res.status} ${res.statusText}`);
   }
@@ -59,7 +86,7 @@ export const fetchWidgetClient: WidgetFetcher = async <T>(
  */
 export async function fetchLayoutServer<T>(): Promise<T> {
   const url = `${SERVER_BASE}/api/layout`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: serverHeaders() });
   if (!res.ok) {
     throw new Error(`layout: ${res.status} ${res.statusText}`);
   }
@@ -78,6 +105,7 @@ export async function fetchCortexJsonServer<T>(
   const url = `${SERVER_BASE}${apiPath}`;
   const res = await fetch(url, {
     cache: "no-store",
+    headers: serverHeaders(),
     ...(init?.signal ? { signal: init.signal } : {}),
   });
   if (!res.ok) {
