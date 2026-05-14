@@ -393,9 +393,10 @@ export function buildClient(sub: McpSubprocess, logger: Logger): EngramClient {
       );
     },
 
+    // Generator never yields — this is a dead path that throws on call.
+    // See wipeAll comment above. require-yield disabled here intentionally.
+    // eslint-disable-next-line require-yield
     async *exportAll() {
-      // Dead path — see wipeAll comment above. Would loop engram's
-      // memory_recent or equivalent tool here if revived.
       throw new Error(
         "exportAll is not implemented for the legacy Engram subprocess client",
       );
