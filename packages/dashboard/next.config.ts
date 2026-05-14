@@ -23,6 +23,25 @@ const config: NextConfig = {
         source: "/api/cortex/:path*",
         destination: `${apiBase}/api/:path*`,
       },
+      // Admin endpoints — backup dump/restore, memory wipe/export.
+      // pyre-web's server actions call these directly at
+      // `/api/admin/*` against the Fly hostname; Fly :443 routes to
+      // this dashboard (3030), so without the rewrite the dashboard
+      // 404s before the API server ever sees the request. Auth is
+      // checked on the API side via `X-Cortex-Gateway-Secret` or the
+      // session cookie.
+      {
+        source: "/api/admin/:path*",
+        destination: `${apiBase}/api/admin/:path*`,
+      },
+      // The cookie-handoff endpoint lives on the API server (it sets a
+      // session cookie + 302s). User-facing traffic hits the dashboard
+      // on :443; rewrite this prefix through to the API process so the
+      // user's browser receives the Set-Cookie + Location response.
+      {
+        source: "/cortex-session/:path*",
+        destination: `${apiBase}/cortex-session/:path*`,
+      },
     ];
   },
 };
