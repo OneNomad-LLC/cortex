@@ -1,0 +1,50 @@
+﻿{
+  "name": "@onenomad/cortex-adapter-notion",
+  "version": "0.1.0",
+  "description": "Notion source adapter for Cortex.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --build",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/cortex-adapter-sdk": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.0",
+    "eslint": "^9.12.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/adapter-notion"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
