@@ -121,31 +121,61 @@ async function reportFailed(
   }
 }
 
+const SUPPORTED_KINDS = new Set(["ingest_repo", "ingest_url", "ingest_file"]);
+
 /**
- * Dispatch a claimed job to the right runner.
+ * Execute a claimed job by calling back into the tenant's Cortex MCP
+ * over HTTP. The tenant's MCP server has the workspace context + the
+ * pgvector store mounted; the worker just orchestrates.
  *
- * NOTE (P2.3 follow-up): the runners need a tenant-scoped storage
- * adapter to write results into the right pgvector store. Today
- * runIngestRepo / runIngestUrl pull from a singleton ctx
- * established at MCP server boot, which doesn't exist in worker
- * context. Wiring a tenant-scoped storage client per-job is the
- * remaining work. For now this worker can claim + report-back the
- * plumbing, and the actual ingest execution still happens on the
- * per-tenant MCP machine via the legacy in-process job runner.
+ * Why not run the ingest pipeline locally in the worker process? The
+ * embedding + pgvector write paths are bound to a workspace-scoped
+ * storage adapter the MCP server constructs at boot. Re-creating that
+ * adapter per-job in worker code is doable but requires lifting a
+ * lot of singleton state — out of scope for v1. The worker's value
+ * here is queue isolation: jobs survive MCP server restarts (the
+ * queue is in pyre-web's Postgres) and ingest doesn't tie up the
+ * per-tenant transport.
  *
- * To exercise the queue plumbing without the storage wiring,
- * workers report jobs as failed with a clear reason — the MCP
- * server stays the source-of-truth for ingest execution until the
- * storage refactor lands.
+ * The HTTP call uses the existing /api/mcp/tools/:name/invoke
+ * endpoint, which is already gateway-secret-authed and runs the tool
+ * inline against the workspace. Forces `async: false` in the input
+ * to prevent recursive queueing.
  */
 async function execute(claimed: ClaimedJob): Promise<unknown> {
-  const { kind } = claimed.job;
-  if (kind === "ingest_repo" || kind === "ingest_url" || kind === "ingest_file") {
+  const { kind, payload } = claimed.job;
+  if (!SUPPORTED_KINDS.has(kind)) {
+    throw new Error(`unsupported job kind: ${kind}`);
+  }
+  const { gatewaySecret, flyHostname, hostname } = claimed.deployment;
+  if (!gatewaySecret) {
     throw new Error(
-      "P2.3 not yet implemented: worker-side execution requires tenant-scoped storage adapter wiring (the runIngest* functions live in the MCP server's bound context, not callable standalone yet). Until that lands, the per-tenant MCP server's in-process runner handles the work and this worker only exercises the queue + report-back plumbing.",
+      "tenant deployment has no gateway secret — worker cannot authenticate back to it",
     );
   }
-  throw new Error(`unsupported job kind: ${kind}`);
+  // Prefer the .fly.dev hostname for worker → tenant calls. The pretty
+  // hostname's Let's Encrypt cert can be in-flight after a fresh
+  // deploy; .fly.dev is always serving.
+  const host = flyHostname ?? hostname;
+  if (!host) {
+    throw new Error("tenant deployment has neither flyHostname nor hostname");
+  }
+  const url = `https://${host}:4141/api/mcp/tools/${encodeURIComponent(kind)}/invoke`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-cortex-gateway-secret": gatewaySecret,
+    },
+    body: JSON.stringify({
+      input: { ...payload, async: false },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`tenant invoke failed (${res.status}): ${text || res.statusText}`);
+  }
+  return await res.json();
 }
 
 export async function runWorker(): Promise<number> {

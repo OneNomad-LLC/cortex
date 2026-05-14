@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`cortex worker` subcommand** — long-running entrypoint for the cortex-workers Fly fleet. Polls pyre-web's `/api/cortex/jobs/claim` endpoint, executes claimed jobs by calling back to the tenant's MCP server's `/api/mcp/tools/{kind}/invoke` (gateway-secret-authed, runs inline), reports results via `/api/cortex/jobs/complete`. Idle-exits after `CORTEX_WORKER_IDLE_EXIT_MS` (default 60s) so Fly's `auto_stop_machines` can park the machine. See Pyre Business Plan doc 25.
+- `deploy/workers/fly.toml` — autoscale-to-zero Fly app config for the worker fleet (`min_machines_running=0`, `auto_start_machines=true`, `auto_stop_machines=stop`, `shared-cpu-2x@2GB`).
+- Required env on worker machines: `PYRE_WEB_URL`, `CORTEX_WORKER_SECRET`. Optional: `WORKER_ID`, `CORTEX_WORKER_POLL_MS`, `CORTEX_WORKER_IDLE_EXIT_MS`.
+
+### Changed
+- **`ingest_repo` and `ingest_url` MCP tools default to `async: true`.** The MCP HTTP transport drops connections when sync ingest exceeds its timeout; reproducible OOM-and-disconnect on a 1GB Fly box during a 1k-chunk ingest. Async returns `{ jobId, queued: true }` immediately; caller polls `kb_job_status({ jobId })`. Pass `async: false` explicitly when you know the work is small and want it inline.
+- **Per-process concurrency cap on background ingest.** `JobRegistry.enqueue(jobId, work)` now respects `CORTEX_MAX_CONCURRENT_JOBS` (default 1). Excess jobs sit at `status='queued'` until a slot opens. Stops the "fire 6 in parallel and OOM" footgun.
+- Dockerfile: install `ca-certificates` alongside `git` in the runtime image. Without it, every `git clone` over HTTPS failed with `server certificate verification failed. CAfile: none`.
+- Internal package deps in `packages/server` and `packages/memory-remote` use `workspace:*` instead of `^0.x`. Forces pnpm's topological build order so providers build before server.
+
+### Added (earlier)
 - Shared credentials file at `~/.pyre/credentials.json` — one login per machine signs the user into Cortex, Engram, and Persona. Cortex extends the existing engram/persona shape with an additive `cortex.tenants[]` section, forward-compatible with the multi-tenant login flow.
 - One-time migration from the legacy `~/.config/cortex/credentials.json` location. Runs on first credentials read; idempotent.
 - 23 vitest cases covering credential round-trip, env-var precedence, active-tenant fallback, partial logout, and all migration paths.

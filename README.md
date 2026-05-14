@@ -255,6 +255,15 @@ cortex workspace remove <slug> --yes
 cortex workspace rename <old> <new>
 
 cortex google-login              # OAuth flow for gmail/calendar/drive
+
+cortex worker                    # long-running worker for the cortex-workers
+                                 #   Fly fleet (autoscale-to-zero job runner).
+                                 #   Polls pyre-web's /api/cortex/jobs/claim,
+                                 #   executes ingest jobs by calling back to
+                                 #   the tenant's MCP server, reports results.
+                                 #   Required env: PYRE_WEB_URL, CORTEX_WORKER_SECRET.
+                                 #   See deploy/workers/fly.toml.
+
 cortex help
 ```
 
