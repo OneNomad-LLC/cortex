@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@onenomad/cortex-memory-remote",
   "version": "0.0.0",
   "private": true,
@@ -24,7 +24,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "^0.1.0",
+    "@onenomad/cortex-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1"
   },
   "devDependencies": {

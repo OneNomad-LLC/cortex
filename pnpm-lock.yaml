@@ -429,8 +429,8 @@ importers:
         specifier: ^1.12.1
         version: 1.29.0(zod@3.25.76)
       '@onenomad/cortex-core':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       eslint:
         specifier: ^9.12.0
@@ -648,65 +648,65 @@ importers:
         specifier: ^1.12.1
         version: 1.29.0(zod@3.25.76)
       '@onenomad/cortex-adapter-bitbucket':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-bitbucket
       '@onenomad/cortex-adapter-confluence':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-confluence
       '@onenomad/cortex-adapter-github':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-github
       '@onenomad/cortex-adapter-jira':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-jira
       '@onenomad/cortex-adapter-linear':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-linear
       '@onenomad/cortex-adapter-loom':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-loom
       '@onenomad/cortex-adapter-notion':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-notion
       '@onenomad/cortex-adapter-obsidian':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-obsidian
       '@onenomad/cortex-adapter-sdk':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-sdk
       '@onenomad/cortex-adapter-slack':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../adapter-slack
       '@onenomad/cortex-cache-sqlite':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../cache-sqlite
       '@onenomad/cortex-core':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../core
       '@onenomad/cortex-github-auth':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../github-auth
       '@onenomad/cortex-llm-core':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../llm-core
       '@onenomad/cortex-memory-pgvector':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../memory-pgvector
       '@onenomad/cortex-pipeline-code':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../pipeline-code
       '@onenomad/cortex-pipeline-conversation':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../pipeline-conversation
       '@onenomad/cortex-pipeline-core':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../pipeline-core
       '@onenomad/cortex-pipeline-doc':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../pipeline-doc
       '@onenomad/cortex-pipeline-meeting':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:../pipeline-meeting
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
@@ -724,13 +724,13 @@ importers:
         version: 3.25.2(zod@3.25.76)
     optionalDependencies:
       '@onenomad/cortex-llm-sdk':
-        specifier: ^0.1.0
+        specifier: workspace:*
         version: link:../llm-sdk
       '@onenomad/cortex-provider-ollama':
-        specifier: ^0.1.0
+        specifier: workspace:*
         version: link:../provider-ollama
       '@onenomad/cortex-provider-openrouter':
-        specifier: ^0.1.0
+        specifier: workspace:*
         version: link:../provider-openrouter
     devDependencies:
       '@types/ws':
@@ -1478,67 +1478,6 @@ packages:
   '@napi-rs/canvas@0.1.80':
     resolution: {integrity: sha512-DxuT1ClnIPts1kQx8FBmkk4BQDTfI5kIzywAaMjQSXfNnra5UFU9PwurXrl+Je3bJ6BGsp/zmshVVFbCmyI+ww==}
     engines: {node: '>= 10'}
-
-  '@onenomad/cortex-adapter-bitbucket@0.1.0':
-    resolution: {integrity: sha512-fs+4fZUI+JB83zwNw8L79hlisSnuq+VNHS0A30f8AhjOJiOSN+J1R/UCFFDzcj8CN93ssSeRoO8pusjOuyjfGA==}
-
-  '@onenomad/cortex-adapter-confluence@0.1.0':
-    resolution: {integrity: sha512-X4K9CAr9ybgF4Fs4WxMXASCduSlJ92rDWPCxdte3pxRDDjUuv8qpXXOf4eoi9lFyTr3eaFXmba7Y+hsZa9191Q==}
-
-  '@onenomad/cortex-adapter-github@0.1.0':
-    resolution: {integrity: sha512-G4Kqzg2+oygpDNrZZ7hP49qaD6FPkzWTRPxQPrGdyJdsTFSq9kt0xFv+Wu19NSqnujKLZAtI9UMSX7F2Oicj1A==}
-
-  '@onenomad/cortex-adapter-jira@0.1.0':
-    resolution: {integrity: sha512-7b7zphNIru5TCOxDE9zsPdOdtYwahMiu67meHLE15Vqd4IsLUYAmeDpYQpmrC60TrhVI4q5lWzjRXPMDaLoKow==}
-
-  '@onenomad/cortex-adapter-linear@0.1.0':
-    resolution: {integrity: sha512-jiSuHFdBHeLo/k5YgVBIEd3woYpGqruTiKGVZmylst/8v/z9OpymqoSF1UDT4T8cj4Jf8kVgDKTNmsvqThUzCA==}
-
-  '@onenomad/cortex-adapter-loom@0.1.0':
-    resolution: {integrity: sha512-w3B22rkIWQmiwa8POrnMZDT38yV4xwkA0lmH53P8NcS5L+E0x0RISs52lXO43RimbC29NLgbEfFoMAs9/J16Sw==}
-
-  '@onenomad/cortex-adapter-notion@0.1.0':
-    resolution: {integrity: sha512-nfFa5YwYtuiWFd/ANTgViwsx7QsKwESu4BIE7gU3QaXdbeea19f583rIsoBxJczep8dyUXhHy3BgelqwR+dmgw==}
-
-  '@onenomad/cortex-adapter-obsidian@0.1.0':
-    resolution: {integrity: sha512-Pt9N7AK2Ctf/OHRfn/zqpvaJaGFE4bfADup9Ixr2GvTE/OGFskbs1Jd8J8vrk3zs8xrtuOIuDj6WsVcLovQFFw==}
-
-  '@onenomad/cortex-adapter-sdk@0.1.0':
-    resolution: {integrity: sha512-NwP28fTG4ItKuC8Y6u7VeSw1vcP7b8M6nQsEbTPshkrao5bAKfMl6fGzmxZA4a7kE5wtkQQGcs1tPjZCAONqVw==}
-
-  '@onenomad/cortex-adapter-slack@0.1.0':
-    resolution: {integrity: sha512-jERXgb40pA72E8OF/ioeu1Vu5vKaC/2+XlV4baDBpLq1E84pHbTvhKpuEluTvtjtuLEr0eT68nZjnV4VhlBXkQ==}
-
-  '@onenomad/cortex-cache-sqlite@0.1.0':
-    resolution: {integrity: sha512-O2MT18Q8WOcAWC/Bit/QzOp68tq5TzrbAYXQWd7JnWuAH8Gcp2f80amRcvDn038zK6HQ8scfwWpQmdG/cTlGMQ==}
-    engines: {node: '>=22.16'}
-
-  '@onenomad/cortex-core@0.1.0':
-    resolution: {integrity: sha512-TPLjRJtikixVCCu9em5Z62d7L1IBRaybZSDO9vFDOA0uTHl31GS6w5gK0YKp11ge+VB1zgQe6eJHHC4Be6T1Vw==}
-
-  '@onenomad/cortex-github-auth@0.1.0':
-    resolution: {integrity: sha512-LVsJGBPIn1V8Os8wxQPjJP4alDxy9ww8RgvHd7Qhj7g17t+I5BP3J0P7rq/a+kgJ0H+YjjV6dYm7Fa3oWLUnmg==}
-
-  '@onenomad/cortex-llm-core@0.1.0':
-    resolution: {integrity: sha512-Mw/QvzcRI6tllo+oJ6TiXLlQZJRWkFXgcnqrDEiK53hUF4+5JTzLeajC8FcdsqJ6Exl7yt/9OYSrHQouEGJzqg==}
-
-  '@onenomad/cortex-memory-pgvector@0.1.0':
-    resolution: {integrity: sha512-3GG2S/ZCCbQKI0Y6ArZiqlZA+4rrN0OwcwvdQ13B6v8c8AdQM2b/aGK7zkiVJBRmXbROZNDznEDyjcVyLLC7WQ==}
-
-  '@onenomad/cortex-pipeline-code@0.1.0':
-    resolution: {integrity: sha512-NHELOL34jdZ25RfWoITRVSWFzggbVRYOfVWyOnWzgVK/iUZH5ZQm4gr7RWEsNUVhqxpJMp6Hd/M1Sj+baWvW+w==}
-
-  '@onenomad/cortex-pipeline-conversation@0.1.0':
-    resolution: {integrity: sha512-Dd7nDWq3nRJyhxusXWUEHo3XUFQ6dU+4NohvPljuhwcSbeygbRTSfrr20AHMkThrapOCKol4B1tDWrqItOSZ+A==}
-
-  '@onenomad/cortex-pipeline-core@0.1.0':
-    resolution: {integrity: sha512-mN6nG7mk+w4ZcvXeT1L2XgqxyAMXNXBk+lnmBXtk5cZJ3krxRdVHTbs86T8dtY2mjRr46jJEmgGJRS0GHa2k2A==}
-
-  '@onenomad/cortex-pipeline-doc@0.1.0':
-    resolution: {integrity: sha512-uzWVbWU1AwVa05iK+oN0n2Ufd12FjNz/qBemiOdUBniCpIKONXIpxSBSXR0gGkzel03q4QW9zooRniocboblMw==}
-
-  '@onenomad/cortex-pipeline-meeting@0.1.0':
-    resolution: {integrity: sha512-R3vtXH3tafaYlPS11ukkQrxvhxCDQEVrGgyxRQcJGU8qvkbhxlhyw0Y6aevkb8qw9doWOJe0lwqssZ97GO1+tA==}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -3462,117 +3401,6 @@ snapshots:
       '@napi-rs/canvas-linux-x64-gnu': 0.1.80
       '@napi-rs/canvas-linux-x64-musl': 0.1.80
       '@napi-rs/canvas-win32-x64-msvc': 0.1.80
-
-  '@onenomad/cortex-adapter-bitbucket@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-confluence@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-github@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      '@onenomad/cortex-github-auth': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-jira@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-linear@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-loom@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-notion@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-obsidian@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      chokidar: 4.0.3
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-sdk@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-adapter-slack@0.1.0':
-    dependencies:
-      '@onenomad/cortex-adapter-sdk': 0.1.0
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-cache-sqlite@0.1.0': {}
-
-  '@onenomad/cortex-core@0.1.0':
-    dependencies:
-      zod: 3.25.76
-
-  '@onenomad/cortex-github-auth@0.1.0':
-    dependencies:
-      zod: 3.25.76
-
-  '@onenomad/cortex-llm-core@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      zod: 3.25.76
-
-  '@onenomad/cortex-memory-pgvector@0.1.0':
-    dependencies:
-      '@electric-sql/pglite': 0.4.5
-      '@huggingface/transformers': 4.2.0
-      '@onenomad/cortex-core': 0.1.0
-      pg: 8.20.0
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - pg-native
-
-  '@onenomad/cortex-pipeline-code@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      '@onenomad/cortex-pipeline-core': 0.1.0
-
-  '@onenomad/cortex-pipeline-conversation@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      '@onenomad/cortex-pipeline-core': 0.1.0
-
-  '@onenomad/cortex-pipeline-core@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-
-  '@onenomad/cortex-pipeline-doc@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      '@onenomad/cortex-pipeline-core': 0.1.0
-
-  '@onenomad/cortex-pipeline-meeting@0.1.0':
-    dependencies:
-      '@onenomad/cortex-core': 0.1.0
-      '@onenomad/cortex-pipeline-core': 0.1.0
-      zod: 3.25.76
 
   '@protobufjs/aspromise@1.1.2': {}
 
