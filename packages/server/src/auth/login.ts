@@ -1,6 +1,7 @@
 /**
  * `cortex login [server-url] [--server <url>]` — device-code flow against
- * pyre-web (RFC 8628).
+ * pyre-web (RFC 8628), followed by a tenant-list fetch so one login
+ * picks up every tenant the user belongs to.
  *
  * Server URL resolution (no hardcoded default — strict):
  *   1. positional arg:  `cortex login https://pyre.sh`
@@ -10,51 +11,77 @@
  * environment URLs" rule means the binary stays decoupled from any
  * single deployment.
  *
- * Server is the source of truth: the canonical mcp_url + login_server
- * we save to disk come from the poll response, never from what the
- * user typed.
+ * Two-step flow:
  *
- * Today's flow assumes a single tenant per user (the response shape
- * currently used by pyre-web's /api/cortex/device/poll). When pyre-web
- * ships the multi-tenant /api/auth/device-code endpoint (task #11),
- * this file flips to consume `tenants: []` directly and drops the
- * single-tenant fallback below.
+ *   1. Device-code: POST {api_url}/api/auth/device-code with
+ *      `scopes: ["cortex:tenants", "cortex:invoke"]`. pyre-web mints a
+ *      user-scoped session token (not a tenant-scoped api-key) and
+ *      returns the bearer on first successful poll.
+ *
+ *   2. Tenant enumeration: GET {api_url}/api/cortex/tenants with that
+ *      bearer. Returns every running Cortex deployment the user can
+ *      reach via memberships[]. Pro users get one entry; enterprise
+ *      users with multiple memberships get one per tenant.
+ *
+ * The user-token + canonical api_url go into the shared
+ * ~/.pyre/credentials.json's base fields (matching engram/persona's
+ * convention). The per-tenant mcp_url + bearer pairs go into the
+ * cortex.tenants[] array there. active_tenant defaults to the first
+ * tenant; use `cortex tenant switch <slug>` to change.
+ *
+ * Backward compat: nothing. The legacy /api/cortex/device/* endpoints
+ * are deprecated. Users on old credentials keep working until their
+ * bearer expires; re-running `cortex login` upgrades them.
  */
 
 import { hostname, platform } from "node:os";
 import { spawn } from "node:child_process";
 import {
-  saveCortexCredentials,
   writeSharedCredentials,
   readSharedCredentials,
   type CortexTenant,
 } from "./credentials.js";
 
 const PACKAGE_NAME = "cortex";
+const SCOPES = ["cortex:tenants", "cortex:invoke"];
 
-interface DeviceStartResponse {
-  deviceCode: string;
-  userCode: string;
-  verifyUrl: string;
-  /** Seconds between polls. Server-controlled to back off DoS. */
+// ── pyre-web wire types ─────────────────────────────────────────────
+
+interface DeviceCodeStart {
+  user_code: string;
+  device_code: string;
+  api_url: string;
+  verification_url: string;
+  verification_url_complete?: string;
+  expires_in: number;
   interval: number;
-  /** Seconds until deviceCode rejects further polls. */
-  expiresIn: number;
 }
 
-interface DevicePollResponse {
-  /** When `true`, keep polling — user hasn't confirmed yet. */
-  pending?: boolean;
-  /** Single-tenant cloud-mode credentials (today's shape). */
-  mcpUrl?: string;
-  bearer?: string;
-  tenantSlug?: string;
-  userEmail?: string;
-  /** Canonical pyre-web URL (may differ from the URL the user typed). */
-  apiUrl?: string;
-  /** Set when device flow expired or was rejected. Terminal. */
-  error?: string;
+type DeviceCodePoll =
+  | { status: "pending" }
+  | {
+      status: "approved";
+      api_url: string;
+      api_key: string;
+      label: string;
+      scopes: string[];
+    }
+  | { status: "denied" }
+  | { status: "expired" };
+
+interface TenantsResponse {
+  user_email: string | null;
+  tenants: Array<{
+    slug: string;
+    mcp_url: string;
+    api_url: string;
+    bearer: string;
+    tenant_plan: string | null;
+    role: string | null;
+  }>;
 }
+
+// ── Public surface ──────────────────────────────────────────────────
 
 export interface LoginOptions {
   /** pyre-web base URL — required. Caller resolves from arg/flag/env. */
@@ -74,11 +101,13 @@ export interface LoginOptions {
 }
 
 /**
- * Resolve the server URL from positional arg / --server flag / env, in
- * that precedence. Returns null when none of the three gave us a URL —
- * caller prints the spec'd error and exits 1.
+ * Resolve the server URL from positional arg / --server flag / env.
+ * Returns null when none of the three gave us a URL.
  */
-export function resolveServerUrl(opts: { positional?: string; flag?: string }): string | null {
+export function resolveServerUrl(opts: {
+  positional?: string;
+  flag?: string;
+}): string | null {
   const trim = (s: string | undefined): string | null => {
     const t = s?.trim();
     if (!t) return null;
@@ -97,7 +126,6 @@ function openInBrowser(url: string): void {
     if (p === "darwin") {
       spawn("open", [url], { stdio: "ignore", detached: true }).unref();
     } else if (p === "win32") {
-      // Empty title arg matters — `start <url>` treats the URL as the title.
       spawn("cmd", ["/c", "start", "", url], { stdio: "ignore", detached: true }).unref();
     } else {
       spawn("xdg-open", [url], { stdio: "ignore", detached: true }).unref();
@@ -105,6 +133,58 @@ function openInBrowser(url: string): void {
   } catch {
     /* best-effort; the printed URL is the always-works fallback */
   }
+}
+
+async function postJson<T>(
+  fetchImpl: typeof fetch,
+  url: string,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<{ status: number; json: T }> {
+  const res = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      ...(headers ?? {}),
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let json: unknown = null;
+  if (text.length > 0) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(
+        `non-JSON response from ${url} (status ${res.status}): ${text.slice(0, 200)}`,
+      );
+    }
+  }
+  return { status: res.status, json: json as T };
+}
+
+async function getJson<T>(
+  fetchImpl: typeof fetch,
+  url: string,
+  bearer: string,
+): Promise<{ status: number; json: T }> {
+  const res = await fetchImpl(url, {
+    method: "GET",
+    headers: { accept: "application/json", authorization: `Bearer ${bearer}` },
+  });
+  const text = await res.text();
+  let json: unknown = null;
+  if (text.length > 0) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(
+        `non-JSON response from ${url} (status ${res.status}): ${text.slice(0, 200)}`,
+      );
+    }
+  }
+  return { status: res.status, json: json as T };
 }
 
 /**
@@ -119,56 +199,63 @@ export async function runLoginFlow(opts: LoginOptions): Promise<number> {
   const now = opts.now ?? Date.now;
   const open = opts.openBrowser ?? openInBrowser;
 
-  const startUrl = `${apiUrl}/api/cortex/device/start`;
-  const pollUrl = `${apiUrl}/api/cortex/device/poll`;
-
-  let start: DeviceStartResponse;
+  // Step 1 — start the device code.
+  let start: DeviceCodeStart;
   try {
-    const res = await fetchImpl(startUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ clientId: "cortex-cli", scope: "mcp", deviceName, packageName: PACKAGE_NAME }),
-    });
-    if (!res.ok) {
+    const { status, json } = await postJson<DeviceCodeStart & { error?: string }>(
+      fetchImpl,
+      `${apiUrl}/api/auth/device-code`,
+      {
+        device_name: deviceName,
+        package_name: PACKAGE_NAME,
+        scopes: SCOPES,
+      },
+    );
+    if (status < 200 || status >= 300) {
       process.stderr.write(
-        `cortex login: ${apiUrl} returned ${res.status} on device/start. Is this the right server?\n`,
+        `cortex login: ${apiUrl} returned ${status} on device-code start${
+          json?.error ? `: ${json.error}` : ""
+        }\n`,
       );
       return 1;
     }
-    start = (await res.json()) as DeviceStartResponse;
-    if (!start.deviceCode || !start.userCode || !start.verifyUrl) {
-      process.stderr.write(`cortex login: malformed device/start response from ${apiUrl}\n`);
+    if (!json.user_code || !json.device_code || !json.verification_url) {
+      process.stderr.write(`cortex login: malformed device-code response from ${apiUrl}\n`);
       return 1;
     }
+    start = json;
   } catch (err) {
     process.stderr.write(
-      `cortex login: couldn't reach ${startUrl}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `cortex login: couldn't reach ${apiUrl}/api/auth/device-code: ${
+        err instanceof Error ? err.message : String(err)
+      }\n`,
     );
     return 1;
   }
 
   process.stdout.write(
-    `\n  Open this URL in your browser:\n    ${start.verifyUrl}\n\n` +
-      `  Confirm this code:\n    ${start.userCode}\n\n` +
+    `\n  Open this URL in your browser:\n    ${start.verification_url}\n\n` +
+      `  Confirm this code:\n    ${start.user_code}\n\n` +
       `  Waiting for confirmation… (Ctrl+C to cancel)\n`,
   );
-  open(start.verifyUrl);
+  open(start.verification_url);
 
+  // Step 2 — poll until approved/denied/expired.
   const intervalMs = Math.max(1, start.interval) * 1000;
-  const expiresAt = now() + Math.max(60, start.expiresIn) * 1000;
+  const expiresAt = now() + Math.max(60, start.expires_in) * 1000;
+  let approved: Extract<DeviceCodePoll, { status: "approved" }> | null = null;
 
   while (now() < expiresAt) {
     await sleep(intervalMs);
     if (now() >= expiresAt) break;
 
-    let poll: DevicePollResponse;
+    let pollRes: { status: number; json: DeviceCodePoll };
     try {
-      const res = await fetchImpl(pollUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ deviceCode: start.deviceCode }),
-      });
-      poll = (await res.json()) as DevicePollResponse;
+      pollRes = await postJson<DeviceCodePoll>(
+        fetchImpl,
+        `${start.api_url ?? apiUrl}/api/auth/device-code/poll`,
+        { device_code: start.device_code },
+      );
     } catch (err) {
       process.stderr.write(
         `  …poll failed (will retry): ${err instanceof Error ? err.message : String(err)}\n`,
@@ -176,89 +263,133 @@ export async function runLoginFlow(opts: LoginOptions): Promise<number> {
       continue;
     }
 
-    if (poll.error) {
-      process.stderr.write(`\ncortex login: ${poll.error}\n`);
+    // 410 carries `{ status: "expired" }`.
+    if (pollRes.status === 410) {
+      process.stderr.write(`\ncortex login: device code expired. Run \`cortex login\` again.\n`);
       return 1;
     }
-    if (poll.pending) continue;
-    if (!poll.mcpUrl || !poll.bearer) {
+    if (pollRes.status < 200 || pollRes.status >= 300) {
       process.stderr.write(
-        `\ncortex login: server returned an incomplete response (missing mcpUrl or bearer)\n`,
+        `  …poll returned HTTP ${pollRes.status} (will retry)\n`,
       );
-      return 1;
+      continue;
     }
 
-    // Today's pyre-web returns single-tenant fields. Fold them into the
-    // tenants array so the file shape is forward-compatible with the
-    // multi-tenant /api/auth/device-code endpoint task #11 ships.
-    const slug = poll.tenantSlug && poll.tenantSlug.length > 0 ? poll.tenantSlug : "default";
-    const tenant: CortexTenant = {
-      slug,
-      mcp_url: poll.mcpUrl,
-      bearer: poll.bearer,
-    };
-
-    // Preserve engram/persona base fields. If pyre-web returned a
-    // canonical apiUrl (it should — the poll response is the source of
-    // truth, not what the user typed), use that. Don't clobber an
-    // existing engram label/api_url we don't own.
-    const file = readSharedCredentials(opts.credentialsFile) ?? {};
-    if (!file.label && poll.userEmail) {
-      file.label = poll.userEmail;
+    const body = pollRes.json;
+    switch (body.status) {
+      case "pending":
+        continue;
+      case "denied":
+        process.stderr.write(`\ncortex login: authorization denied.\n`);
+        return 1;
+      case "expired":
+        process.stderr.write(`\ncortex login: device code expired.\n`);
+        return 1;
+      case "approved":
+        approved = body;
+        break;
     }
-    if (poll.apiUrl) {
-      file.api_url = poll.apiUrl;
-    } else if (!file.api_url) {
-      file.api_url = apiUrl;
-    }
+    if (approved) break;
+  }
 
-    const existingTenants = file.cortex?.tenants ?? [];
-    const merged = mergeTenant(existingTenants, tenant);
-    file.cortex = {
-      ...(file.cortex ?? {}),
-      tenants: merged,
-      active_tenant: slug,
-    };
+  if (!approved) {
+    process.stderr.write(`\ncortex login: device code expired without confirmation.\n`);
+    return 1;
+  }
 
-    try {
-      writeSharedCredentials(file, opts.credentialsFile);
-    } catch (err) {
-      process.stderr.write(
-        `\ncortex login: could not write credentials: ${(err as Error).message}\n`,
-      );
-      return 1;
-    }
-
-    process.stdout.write(
-      `\n  ✓ Signed in${poll.userEmail ? ` as ${poll.userEmail}` : ""}` +
-        ` (tenant: ${slug})\n` +
-        `  Mode: cloud\n` +
-        `  MCP endpoint: ${poll.mcpUrl}\n` +
-        `  Wire into Claude Code:\n` +
-        `    claude mcp add cortex cortex -- serve\n\n`,
+  // Step 3 — enumerate tenants with the new user-token.
+  const canonicalApiUrl = approved.api_url.replace(/\/+$/, "");
+  let tenantsResp: TenantsResponse;
+  try {
+    const { status, json } = await getJson<TenantsResponse & { error?: string }>(
+      fetchImpl,
+      `${canonicalApiUrl}/api/cortex/tenants`,
+      approved.api_key,
     );
-    // saveCortexCredentials would re-read the file we just wrote — skip
-    // it; writeSharedCredentials above already covered the write.
-    void saveCortexCredentials; // satisfy unused-import scanner
+    if (status < 200 || status >= 300) {
+      process.stderr.write(
+        `cortex login: /api/cortex/tenants returned ${status}${
+          json?.error ? `: ${json.error}` : ""
+        }\n`,
+      );
+      return 1;
+    }
+    tenantsResp = json;
+  } catch (err) {
+    process.stderr.write(
+      `cortex login: couldn't reach ${canonicalApiUrl}/api/cortex/tenants: ${
+        err instanceof Error ? err.message : String(err)
+      }\n`,
+    );
+    return 1;
+  }
+
+  // Step 4 — write everything to the shared credentials file.
+  const file = readSharedCredentials(opts.credentialsFile) ?? {};
+  if (tenantsResp.user_email && !file.label) {
+    file.label = tenantsResp.user_email;
+  }
+  file.api_url = canonicalApiUrl;
+  file.api_key = approved.api_key;
+  if (approved.label && !file.label) file.label = approved.label;
+  if (approved.scopes && approved.scopes.length > 0) {
+    file.scopes = approved.scopes;
+  }
+  file.issued_at = new Date().toISOString();
+
+  const tenants: CortexTenant[] = tenantsResp.tenants.map((t) => ({
+    slug: t.slug,
+    mcp_url: t.mcp_url,
+    bearer: t.bearer,
+  }));
+  const activeTenant = tenants[0]?.slug;
+  file.cortex = {
+    ...(file.cortex ?? {}),
+    tenants,
+    ...(activeTenant ? { active_tenant: activeTenant } : {}),
+  };
+
+  try {
+    writeSharedCredentials(file, opts.credentialsFile);
+  } catch (err) {
+    process.stderr.write(
+      `\ncortex login: could not write credentials: ${(err as Error).message}\n`,
+    );
+    return 1;
+  }
+
+  // Step 5 — friendly success summary.
+  if (tenants.length === 0) {
+    process.stdout.write(
+      `\n  ✓ Signed in${tenantsResp.user_email ? ` as ${tenantsResp.user_email}` : ""}\n` +
+        `  No Cortex deployments are available for your account yet.\n` +
+        `  Provision one from your dashboard: ${canonicalApiUrl}/dashboard/cortex\n\n`,
+    );
     return 0;
   }
 
-  process.stderr.write(`\ncortex login: device code expired without confirmation.\n`);
-  return 1;
-}
+  if (tenants.length === 1) {
+    const t = tenants[0]!;
+    process.stdout.write(
+      `\n  ✓ Signed in${tenantsResp.user_email ? ` as ${tenantsResp.user_email}` : ""}\n` +
+        `  Tenant: ${t.slug}\n` +
+        `  MCP endpoint: ${t.mcp_url}\n\n` +
+        `  Wire into Claude Code:\n    claude mcp add cortex cortex -- serve\n\n`,
+    );
+    return 0;
+  }
 
-/**
- * Merge a freshly-issued tenant into the user's tenant list. If the
- * tenant is already known (by slug), update its mcp_url + bearer in
- * place — re-login refreshes the bearer without orphaning sibling
- * tenants the user belongs to.
- */
-function mergeTenant(existing: CortexTenant[], next: CortexTenant): CortexTenant[] {
-  const idx = existing.findIndex((t) => t.slug === next.slug);
-  if (idx < 0) return [...existing, next];
-  const copy = existing.slice();
-  copy[idx] = next;
-  return copy;
+  process.stdout.write(
+    `\n  ✓ Signed in${tenantsResp.user_email ? ` as ${tenantsResp.user_email}` : ""}\n` +
+      `  ${tenants.length} tenants available; active = ${activeTenant}.\n` +
+      `\n  Tenants:\n` +
+      tenants
+        .map((t) => `    ${t.slug === activeTenant ? "*" : " "} ${t.slug}  →  ${t.mcp_url}`)
+        .join("\n") +
+      `\n\n  Switch active tenant with:  cortex tenant switch <slug>\n\n` +
+      `  Wire into Claude Code:\n    claude mcp add cortex cortex -- serve\n\n`,
+  );
+  return 0;
 }
 
 /**

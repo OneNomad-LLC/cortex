@@ -19,6 +19,7 @@ import { runServe } from "./serve.js";
 import { runSmoke } from "./smoke.js";
 import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
+import { runTenant } from "./tenant.js";
 import { runUse } from "./use.js";
 import { runWhoami } from "./whoami.js";
 import { runWorkspace } from "./workspace/command.js";
@@ -54,6 +55,13 @@ Commands:
                                echoes the bearer.
   use local|cloud            Flip the mode flag. Cloud requires prior
                                login (or CORTEX_MCP_URL + CORTEX_MCP_TOKEN).
+  tenant list                List all tenants signed in on this machine.
+  tenant switch <slug>       Change the active tenant. \`cortex serve\` uses
+                               whichever tenant is active. Pure file edit,
+                               no network call.
+  tenant refresh             Re-fetch tenant list from pyre-web. Useful
+                               after an admin adds/removes you from a
+                               tenant without going through \`cortex login\`.
 
   up [-- args...]            Start the Docker stack in the background
                                (wraps \`docker compose up -d\`). Adds
@@ -200,6 +208,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "use":
       return runUse(rest);
+
+    case "tenant":
+      return runTenant(rest);
 
     case "up":
       return runDockerUp(rest);
