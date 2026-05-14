@@ -49,10 +49,12 @@ ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-# `git` powers `cortex module install <git-url>`. `ca-certificates`
-# is implicit in node:22-slim.
+# `git` powers `cortex module install <git-url>` and the `ingest_repo`
+# MCP tool's git-URL path. `ca-certificates` is NOT implicit in
+# node:22-slim — without it, git's TLS verification fails on every
+# clone with "server certificate verification failed. CAfile: none".
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
