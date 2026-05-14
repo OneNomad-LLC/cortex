@@ -164,10 +164,10 @@ describe("dashboard API", () => {
     const body = (await res.json()) as {
       widgets: Array<{ name: string; description: string }>;
     };
-    // Post-Phase-1B: priorities is gone; recent-decisions is the
-    // canonical knowledge-engine widget that should always be in the
-    // list.
-    expect(body.widgets.some((w) => w.name === "recent-decisions")).toBe(true);
+    // 2026-05-14 cleanup: who-knows / recent-decisions / code-activity
+    // were retired in favor of "one widget per adapter, when warranted."
+    // recent-activity is the only baseline widget that ships.
+    expect(body.widgets.some((w) => w.name === "recent-activity")).toBe(true);
   });
 
   it("serves /api/widgets/recent-activity grouped by project", async () => {
@@ -198,23 +198,7 @@ describe("dashboard API", () => {
     };
     expect(body.role).toBe("delivery");
     const names = body.widgets.map((w) => w.name);
-    expect(names).toContain("recent-decisions");
     expect(names).toContain("recent-activity");
-  });
-
-  it("serves /api/widgets/recent-decisions newest-first", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/widgets/recent-decisions?days=30`,
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      since: string;
-      rows: Array<{ content: string; people?: string[] }>;
-    };
-    expect(body.since).toBeTruthy();
-    expect(body.rows.length).toBe(1);
-    expect(body.rows[0]!.content).toContain("pricing tiers");
-    expect(body.rows[0]!.people).toEqual(["matt", "alex"]);
   });
 
   it("404s on unknown widgets", async () => {
@@ -223,7 +207,7 @@ describe("dashboard API", () => {
   });
 
   it("responds to CORS preflight", async () => {
-    const res = await fetch(`${baseUrl}/api/widgets/recent-decisions`, {
+    const res = await fetch(`${baseUrl}/api/widgets/recent-activity`, {
       method: "OPTIONS",
       headers: { origin: "http://localhost:3000" },
     });

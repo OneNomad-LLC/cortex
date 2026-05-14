@@ -21,11 +21,10 @@ describe("dashboard layout", () => {
   it("merges props for a matching preset entry", () => {
     const out = resolveLayout({
       role: "delivery",
-      widgets: [{ name: "recent-decisions", props: { limit: 42, days: 21 } }],
+      widgets: [{ name: "recent-activity", props: { days: 7, limit: 20 } }],
     });
-    const decisions = out.widgets.find((w) => w.name === "recent-decisions");
-    expect(decisions?.props).toEqual({ limit: 42, days: 21 });
-    // Other preset widgets are untouched.
+    const recent = out.widgets.find((w) => w.name === "recent-activity");
+    expect(recent?.props).toEqual({ days: 7, limit: 20 });
     expect(out.widgets.length).toBe(ROLE_PRESETS.delivery.length);
   });
 
@@ -42,14 +41,14 @@ describe("dashboard layout", () => {
     const out = resolveLayout({
       role: "custom",
       widgets: [
-        { name: "code-activity", props: { days: 5 } },
-        { name: "recent-decisions", props: {} },
+        { name: "future-adapter-widget", props: { days: 5 } },
+        { name: "recent-activity", props: {} },
       ],
     });
     expect(out.role).toBe("custom");
     expect(out.widgets.map((w) => w.name)).toEqual([
-      "code-activity",
-      "recent-decisions",
+      "future-adapter-widget",
+      "recent-activity",
     ]);
   });
 

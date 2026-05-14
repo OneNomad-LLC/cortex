@@ -1,12 +1,8 @@
 # syntax=docker/dockerfile:1.7
-# Unified Cortex Cloud image. Runs the MCP server + dashboard in a
-# single Node process via the server's auto-spawn of the dashboard
-# child (CORTEX_DASHBOARD_AUTOSTART=true). Suitable for Fly Machines
-# where one VM hosts everything for a single tenant.
-#
-# For docker-compose deploys where server and dashboard are separate
-# containers, the per-package Dockerfiles under packages/*/Dockerfile
-# still apply — this image is the single-process variant.
+# Cortex Cloud base image. Runs the MCP server + HTTP API (port 4141)
+# in a single Node process. The dashboard UI moved to pyre-web
+# (2026-05-14); pyre-web's per-tenant proxy talks to /api/* here, so
+# the runtime image no longer carries Next.js or the dashboard build.
 #
 # Build remotely on Fly (no local Docker required):
 #   fly deploy -a cortex-base --build-only --push
@@ -37,21 +33,14 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
-# `outputFileTracingIncludes` in dashboard's next.config.ts pulls
-# `../../docs/**/*.md` into the standalone output for the /docs route.
-COPY docs ./docs
 COPY config ./config
 COPY schemas ./schemas
 RUN pnpm install --frozen-lockfile
 
-# ── Stage 2: build the workspace + dashboard standalone bundle ──────
+# ── Stage 2: build the workspace ────────────────────────────────────
 FROM deps AS build
 WORKDIR /app
-# `CORTEX_API_URL` is baked into the Next standalone output by the
-# dashboard's next.config.ts rewrites(). Pin to localhost since the
-# dashboard child runs in the same process tree as the API server.
-ENV CORTEX_API_URL=http://127.0.0.1:4141
-RUN pnpm -r run build
+RUN pnpm -r --filter='!@onenomad/cortex-dashboard' run build
 
 # ── Stage 3: runtime image ──────────────────────────────────────────
 FROM node:22-slim AS runtime
@@ -60,58 +49,35 @@ ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-# `git` powers `cortex module install <git-url>` from the dashboard's
-# Modules page. `ca-certificates` is implicit in node:22-slim.
+# `git` powers `cortex module install <git-url>`. `ca-certificates`
+# is implicit in node:22-slim.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
-# Copy the entire built workspace so the server's `resolveDashboardDir`
-# walk can locate `packages/dashboard/.next/standalone/...` at runtime.
-# The standalone bundle already contains its trimmed node_modules.
-COPY --from=build /app /app
 # Prune the server package + its runtime deps into a self-contained
-# tree, then graft it back into the workspace under the same path so
-# the dashboard-child resolver still finds packages/dashboard alongside.
+# tree. With the dashboard gone, this is the entire runtime — no need
+# to graft anything back into a workspace layout.
+COPY --from=build /app /app
 RUN pnpm -r --prod deploy --filter=@onenomad/cortex /runtime-pkg \
     && rm -rf /app/packages/server/node_modules \
     && mv /runtime-pkg/node_modules /app/packages/server/node_modules
 
-# Next.js standalone output ships server.js + a trimmed node_modules,
-# but it doesn't include /.next/static or /public. The standalone
-# server.js resolves those relative to itself, so they have to land at
-# .../standalone/packages/dashboard/.next/static and /public for the
-# browser's /_next/static/* requests to find them. Without this step
-# every CSS + JS chunk 404s and the dashboard renders unstyled +
-# unhydrated.
-RUN cp -r /app/packages/dashboard/.next/static \
-       /app/packages/dashboard/.next/standalone/packages/dashboard/.next/static \
-    && if [ -d /app/packages/dashboard/public ]; then \
-         cp -r /app/packages/dashboard/public \
-              /app/packages/dashboard/.next/standalone/packages/dashboard/public; \
-       fi
-
 WORKDIR /app/packages/server
 
 # Defaults for Fly Machines. Auth tokens are injected per-tenant by the
-# pyre-web provisioner. The dashboard's autostart fires because both
-# CORTEX_API_AUTH_TOKEN and CORTEX_MCP_AUTH_TOKEN gate the public
-# surfaces — the local-host child needs no auth.
+# pyre-web provisioner. CORTEX_API_ENABLED flips on so pyre-web's
+# tenant proxy can reach /api/* — the committed cortex.yaml defaults
+# api.enabled to false for laptop installs.
 ENV CORTEX_MCP_TRANSPORT=http
 ENV CORTEX_MCP_HOST=0.0.0.0
 ENV CORTEX_MCP_PORT=3100
-# CORTEX_API_ENABLED must be true for the dashboard API + the autostart
-# of the dashboard child to fire. The committed cortex.yaml defaults
-# `api.enabled` to false (operator-must-opt-in posture for laptop
-# installs), so the production image flips it on via env.
 ENV CORTEX_API_ENABLED=true
 ENV CORTEX_API_HOST=0.0.0.0
 ENV CORTEX_API_PORT=4141
-ENV CORTEX_DASHBOARD_PORT=3030
-ENV CORTEX_DASHBOARD_AUTOSTART=true
 
-EXPOSE 3030 3100 4141
+EXPOSE 3100 4141
 
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["start"]

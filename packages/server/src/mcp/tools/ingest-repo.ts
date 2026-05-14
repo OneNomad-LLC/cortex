@@ -196,7 +196,7 @@ export async function shallowClone(args: {
       if (err) reject(err); else resolve();
     };
     const timer = setTimeout(() => {
-      try { child.kill("SIGTERM"); } catch {}
+      try { child.kill("SIGTERM"); } catch { /* child may already be dead */ }
       settle(new Error(`git clone timed out after ${args.timeoutMs}ms`));
     }, args.timeoutMs);
     child.stderr?.on("data", (d) => {
@@ -297,7 +297,7 @@ async function runIngestRepo(
       });
     } catch (err) {
       // Clone failed — clean up the tmpdir we created and surface.
-      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
       throw err;
     }
     cloned = true;
@@ -315,7 +315,7 @@ async function runIngestRepo(
     }, ctx);
   } finally {
     if (cloneTmpDir) {
-      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch {}
+      try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
     }
   }
 }

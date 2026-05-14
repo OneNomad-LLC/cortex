@@ -1,8 +1,7 @@
-{
+﻿{
   "name": "@onenomad/cortex-memory-pgvector",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Standalone hybrid-search memory backend for Cortex. Postgres + pgvector + tsvector, fused with reciprocal rank fusion. Cortex's canonical storage backend — supports embedded PGlite for personal installs and external Postgres for VPS / cloud deploys. Self-contained (Cortex-internal Xenova embedder; no external memory dependency).",
+  "version": "0.1.0",
+  "description": "Standalone hybrid-search memory backend for Cortex. Postgres + pgvector + tsvector, fused with reciprocal rank fusion. Cortex's canonical storage backend â€” supports embedded PGlite for personal installs and external Postgres for VPS / cloud deploys. Self-contained (Cortex-internal Xenova embedder; no external memory dependency).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -36,5 +35,19 @@
     "rimraf": "^6.0.1",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/memory-pgvector"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

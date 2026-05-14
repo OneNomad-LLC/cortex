@@ -1,4 +1,4 @@
-import { getCredentialsPath, loadCredentials } from "./credentials.js";
+import { getCredentialsPath, loadCortexCredentials } from "../auth/credentials.js";
 
 /**
  * `cortex whoami` — print the active credentials + mode. Useful for
@@ -10,16 +10,16 @@ import { getCredentialsPath, loadCredentials } from "./credentials.js";
  * can `cat` it themselves when they need to debug.
  */
 export async function runWhoami(_args: string[]): Promise<number> {
-  const creds = await loadCredentials();
+  const creds = loadCortexCredentials();
   if (creds.mode === "local") {
     process.stdout.write(
       `cortex whoami\n` +
         `  mode:        local\n` +
         `  endpoint:    in-process (cortex start / cortex serve)\n` +
         `  credentials: ${getCredentialsPath()} ${
-          creds.userEmail ? "(present but unused in local mode)" : "(not present)"
+          creds.user_email ? "(present but unused in local mode)" : "(not present)"
         }\n` +
-        `\nSwitch to cloud mode with:  cortex login\n`,
+        `\nSwitch to cloud mode with:  cortex login <pyre-web-url>\n`,
     );
     return 0;
   }
@@ -28,13 +28,13 @@ export async function runWhoami(_args: string[]): Promise<number> {
   process.stdout.write(
     `cortex whoami\n` +
       `  mode:        cloud${creds.fromEnv ? " (via env)" : ""}\n` +
-      (creds.userEmail ? `  signed in:   ${creds.userEmail}\n` : "") +
-      (creds.tenantSlug ? `  tenant:      ${creds.tenantSlug}\n` : "") +
-      `  endpoint:    ${creds.mcpUrl ?? "(missing)"}\n` +
+      (creds.user_email ? `  signed in:   ${creds.user_email}\n` : "") +
+      (creds.tenant_slug ? `  tenant:      ${creds.tenant_slug}\n` : "") +
+      (creds.tenant_count > 1 ? `  (${creds.tenant_count} tenants total — \`cortex tenant list\` to see all)\n` : "") +
+      `  endpoint:    ${creds.mcp_url ?? "(missing)"}\n` +
       `  bearer:      ${creds.bearer ? "*".repeat(8) + creds.bearer.slice(-4) : "(missing)"}\n` +
-      (creds.loginServer ? `  signed in via: ${creds.loginServer}\n` : "") +
+      (creds.login_server ? `  signed in via: ${creds.login_server}\n` : "") +
       `  credentials: ${source}\n` +
-      (creds.updatedAt ? `  updated:     ${creds.updatedAt}\n` : "") +
       `\nSwitch to local mode with:  cortex use local\n`,
   );
   return 0;

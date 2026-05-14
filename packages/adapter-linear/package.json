@@ -1,7 +1,6 @@
-{
+﻿{
   "name": "@onenomad/cortex-adapter-linear",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Linear source adapter for Cortex (GraphQL).",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +11,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist",
@@ -30,5 +32,19 @@
     "rimraf": "^6.0.1",
     "vitest": "^2.1.0",
     "eslint": "^9.12.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/adapter-linear"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

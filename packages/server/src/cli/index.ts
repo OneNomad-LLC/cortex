@@ -1,12 +1,11 @@
 import { runBackfillCli } from "./backfill.js";
-import { runDashboard } from "./dashboard.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
 import { runGithubLogin } from "./github-login.js";
 import { runInit } from "./init.js";
-import { runLogin } from "./login.js";
+import { runLogin } from "../auth/login.js";
 import { runLogout } from "./logout.js";
 import {
   runAdd,
@@ -19,6 +18,7 @@ import { runServe } from "./serve.js";
 import { runSmoke } from "./smoke.js";
 import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
+import { runTenant } from "./tenant.js";
 import { runUse } from "./use.js";
 import { runWhoami } from "./whoami.js";
 import { runWorkspace } from "./workspace/command.js";
@@ -40,18 +40,27 @@ Commands:
                                in MCP client configs:
                                  claude mcp add cortex cortex -- serve
 
-  login [--server <url>]     Device-code login to Cortex Cloud. Opens a
-                               browser to confirm; stores credentials
-                               at ~/.config/cortex/credentials.json with
-                               file perms 0600. --server defaults to
-                               https://getpyre.ai (overridable via
-                               CORTEX_LOGIN_SERVER).
-  logout                     Clear stored credentials. Falls back to
-                               local mode (or env-var overrides).
+  login <pyre-web-url>       Device-code login to Cortex Cloud. Opens a
+                               browser to confirm; stores credentials at
+                               ~/.pyre/credentials.json with file perms
+                               0600 (shared with engram-mcp + persona-mcp;
+                               one login per machine signs all three in).
+                               URL required — pass positional, --server
+                               <url>, or PYRE_API_URL env. No defaults.
+  logout                     Clear cortex section of stored credentials.
+                               Engram/persona credentials in the same
+                               file are preserved.
   whoami                     Print the active mode + endpoint. Never
                                echoes the bearer.
   use local|cloud            Flip the mode flag. Cloud requires prior
                                login (or CORTEX_MCP_URL + CORTEX_MCP_TOKEN).
+  tenant list                List all tenants signed in on this machine.
+  tenant switch <slug>       Change the active tenant. \`cortex serve\` uses
+                               whichever tenant is active. Pure file edit,
+                               no network call.
+  tenant refresh             Re-fetch tenant list from pyre-web. Useful
+                               after an admin adds/removes you from a
+                               tenant without going through \`cortex login\`.
 
   up [-- args...]            Start the Docker stack in the background
                                (wraps \`docker compose up -d\`). Adds
@@ -63,8 +72,6 @@ Commands:
   doctor [--connect]         Pre-flight checks: config, secrets, tokens, taxonomy.
                                --connect also probes Engram + Postgres live.
   smoke                      Run a live LLM probe against every enabled provider.
-  dashboard [--port N]       Launch the local web dashboard (Next.js). Pairs
-                               with \`cortex start --api\`.
   sync <adapter> [flags]     Run one adapter's full ingestion cycle once.
                                --since=ISO  only items updated after this date
                                --limit=N    cap items processed
@@ -138,9 +145,6 @@ export async function runCli(argv: string[]): Promise<number> {
     case "smoke":
       return runSmoke();
 
-    case "dashboard":
-      return runDashboard(rest);
-
     case "status":
       return runStatus();
 
@@ -198,6 +202,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "use":
       return runUse(rest);
+
+    case "tenant":
+      return runTenant(rest);
 
     case "up":
       return runDockerUp(rest);

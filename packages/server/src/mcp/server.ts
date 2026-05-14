@@ -19,7 +19,6 @@ import { createMemoryClient } from "../clients/memory.js";
 import { startStreamWorkers } from "../streams.js";
 import { createWebhookReceiver } from "../webhooks.js";
 import { createDashboardApi } from "../api/server.js";
-import { startDashboardChild } from "../dashboard-child.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
 import { seedSelfFromEnv } from "../cli/seed-self.js";
@@ -443,28 +442,11 @@ export async function startServer(): Promise<void> {
   // in the follow-up slice; the cron scheduler stays for adapter
   // sync schedules.
 
-  // Dashboard UI auto-start — spawn the Next.js dev server as a child
-  // when we're running as a daemon (HTTP MCP). When Cortex is spawned
-  // by Claude Code as a stdio subprocess, skip it: spawning Next
-  // inside Claude's process tree would be intrusive and noisy.
-  // In Docker, the dashboard runs as its own container, so the server
-  // sets CORTEX_DASHBOARD_AUTOSTART=false to opt out of the child.
-  const autoStartDashboard =
-    cfg.api.enabled &&
-    (process.env.CORTEX_MCP_TRANSPORT ?? "stdio") === "http" &&
-    process.env.CORTEX_DASHBOARD_AUTOSTART !== "false";
-  const dashboardChild = autoStartDashboard
-    ? await startDashboardChild({
-        logger: logger.child({ component: "dashboard-child" }),
-        apiHost: cfg.api.host,
-        apiPort: cfg.api.port,
-      }).catch((err) => {
-        logger.warn("dashboard.start_failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return undefined;
-      })
-    : undefined;
+  // Dashboard UI moved to pyre-web (2026-05-14). The legacy port-3030
+  // Next.js child process is no longer spawned here; pyre-web's
+  // /api/cortex/[tenantSlug] proxy reaches this server's /api/* surface
+  // directly. The dashboardApi HTTP server below still serves those
+  // endpoints — only the child UI process is gone.
 
   // Session garbage collection. In-memory session state is cheap but
   // not free — evict anything we haven't seen in 24h. Runs hourly.
@@ -538,7 +520,6 @@ export async function startServer(): Promise<void> {
     // notifications.stop() was here pre-Phase-1B; the bootstrap is gone.
     await Promise.all(streamWorkers.map((w) => w.stop()));
     if (webhookReceiver) await webhookReceiver.stop();
-    if (dashboardChild) await dashboardChild.stop();
     if (dashboardApi) await dashboardApi.stop();
     try {
       await transportHandle.close();

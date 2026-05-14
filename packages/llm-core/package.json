@@ -1,7 +1,6 @@
-{
+﻿{
   "name": "@onenomad/cortex-llm-core",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "LLM provider interface and per-task router for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
@@ -32,5 +31,19 @@
     "rimraf": "^6.0.1",
     "vitest": "^2.1.0",
     "eslint": "^9.12.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/llm-core"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

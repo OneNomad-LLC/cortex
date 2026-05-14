@@ -2,8 +2,18 @@
   "name": "cortex-workspace",
   "version": "0.0.0",
   "private": true,
-  "description": "Monorepo root for @onenomad/cortex and related packages.",
+  "description": "Monorepo root for @onenomad/cortex and related packages. Open-source adapters, pipelines, providers, SDKs, storage backends, and the reference MCP server.",
   "type": "module",
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "homepage": "https://pyre.sh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
   "engines": {
     "node": ">=20"
   },
