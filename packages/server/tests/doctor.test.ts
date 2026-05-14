@@ -122,7 +122,11 @@ describe("runDoctor", () => {
     );
   });
 
-  it("runs live probes behind --connect and FAILs on an unreachable engram binary", async () => {
+  // Engram-as-memory-backend was removed in Cortex 0.3 (see memory.ts:10-22).
+  // Yamls with `memory.primary: engram` are now auto-translated to pgvector,
+  // so the doctor doesn't probe an engram binary anymore. Skip until the
+  // probe surface is rewritten for pgvector connectivity instead.
+  it.skip("runs live probes behind --connect and FAILs on an unreachable engram binary", async () => {
     const yaml = [
       "llm:",
       "  providers:",
