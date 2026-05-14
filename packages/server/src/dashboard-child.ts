@@ -38,25 +38,45 @@ export async function startDashboardChild(
 
   const port = opts.port ?? 3030;
   const apiUrl = `http://${opts.apiHost === "0.0.0.0" ? "127.0.0.1" : opts.apiHost}:${opts.apiPort}`;
+  // Prefer the Next.js standalone build when it exists (production
+  // image). Falls back to `next dev` for local-dev installs where the
+  // dashboard hasn't been built. The standalone output places its
+  // server entry at `<dashboardDir>/.next/standalone/packages/dashboard/server.js`
+  // relative to where Next was invoked (the monorepo root).
+  const standaloneServer = path.join(
+    dashboardDir,
+    ".next",
+    "standalone",
+    "packages",
+    "dashboard",
+    "server.js",
+  );
+  const useStandalone = existsSync(standaloneServer);
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     CORTEX_API_URL: apiUrl,
+    PORT: String(port),
+    HOSTNAME: "0.0.0.0",
   };
+
+  const spawnCmd = useStandalone ? "node" : "npx";
+  const spawnArgs = useStandalone
+    ? [standaloneServer]
+    : ["next", "dev", "--port", String(port)];
+  const spawnCwd = useStandalone
+    ? path.dirname(standaloneServer)
+    : dashboardDir;
 
   // `stdio: "pipe"` so the daemon's own log stream captures Next's
   // output and tags it. stdio: "inherit" would interleave raw with
   // cortex's JSON logs and confuse anyone tailing.
-  const child: ChildProcess = spawn(
-    "npx",
-    ["next", "dev", "--port", String(port)],
-    {
-      cwd: dashboardDir,
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: process.platform === "win32",
-      windowsHide: true,
-    },
-  );
+  const child: ChildProcess = spawn(spawnCmd, spawnArgs, {
+    cwd: spawnCwd,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: process.platform === "win32",
+    windowsHide: true,
+  });
 
   child.stdout?.on("data", (chunk: Buffer) => {
     for (const line of chunk.toString("utf8").split(/\r?\n/)) {
