@@ -662,4 +662,8 @@ decisions that shaped this structure are in
 
 ## License
 
-Private project. Not for redistribution. Future commercial licensing TBD.
+Cortex is a commercial product. Source-available, **not open source**. The eventual public license will be the Business Source License (BSL) 1.1 with a multi-year change date to Apache 2.0; production use in a commercial product or service requires a separate commercial license.
+
+This is the only piece of the OneNomad stack that's commercial. The brain trio that Cortex composes with — [Engram](https://github.com/OneNomad-LLC/engram-mcp), [Persona](https://github.com/OneNomad-LLC/persona-mcp), and [Pyre Core](https://github.com/OneNomad-LLC/pyre) — are all open source under Apache License 2.0.
+
+For commercial licensing, partnerships, or design-partner inquiries: **matt@onenomad.dev**
