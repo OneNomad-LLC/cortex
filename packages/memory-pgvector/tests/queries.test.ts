@@ -138,7 +138,10 @@ describe("buildHybridSearchQuery", () => {
     expect(q.text).toContain("metadata->'project' @> to_jsonb(ARRAY[");
     expect(q.text).toContain("metadata->>'type' = $");
     expect(q.text).toContain("metadata->>'source' = $");
-    expect(q.text).toContain("(metadata->>'date')::timestamptz >= $");
+    // Date is stored + compared as text (ISO 8601 sorts the same as chrono);
+    // the schema rationale rejects ::timestamptz casts because text->timestamptz
+    // is STABLE and Postgres won't index STABLE expressions. See schema.ts.
+    expect(q.text).toContain("(metadata->>'date') >= $");
     // Filters live inside the CTEs so `AND embedding IS NOT NULL` / `AND tsv @@`
     // follow the shared WHERE — vec and txt both get pre-filtered.
     expect(q.text).toContain("AND embedding IS NOT NULL");
