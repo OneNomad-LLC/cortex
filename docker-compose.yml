@@ -1,9 +1,10 @@
 # docker compose recipe for Cortex (Personal / VPS deployment).
 #
-# Two services (default):
-#   cortex    - MCP + API server (engram backend by default — local
-#               Xenova embeddings, no LLM provider needed)
-#   dashboard - Next.js UI that proxies /api/cortex/* to the cortex API
+# One service (default): the cortex MCP + API server. The dashboard
+# UI moved to pyre-web (2026-05-14); for hosted use, pyre-web's
+# per-tenant proxy talks to /api/* here. For self-hosted, point any
+# MCP-aware client (Claude Code, Claude Desktop) at the MCP port and
+# use the cortex CLI for setup.
 #
 # Quick start:
 #   cp .env.example .env       # set OPENROUTER_API_KEY for LLM
@@ -11,11 +12,9 @@
 #                              # ingest + kb_search to work)
 #   docker compose up -d
 #
-# Remote VPS: put this behind Tailscale (dashboard + MCP stay on the
-# tailnet, no public auth needed) or a reverse proxy with TLS + bearer
-# auth. The exposed ports below publish on all interfaces so the
-# dashboard works on Docker Desktop for Windows (which can't reach
-# IPv4-only 127.0.0.1 binds); for a real VPS add a firewall.
+# Remote VPS: put this behind Tailscale or a reverse proxy with TLS +
+# bearer auth. The exposed ports below publish on all interfaces; for
+# a real VPS add a firewall.
 #
 # Workspaces + engram/persona data live under the CORTEX_HOME_HOST
 # directory bind-mounted below. Default is ./.cortex-data in the
@@ -46,8 +45,6 @@ services:
       - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-3100}
       - CORTEX_API_HOST=0.0.0.0
       - CORTEX_API_PORT=${CORTEX_API_PORT:-4141}
-      # Dashboard runs as its own service, not a child of cortex.
-      - CORTEX_DASHBOARD_AUTOSTART=false
       - CORTEX_WORKSPACE=${CORTEX_WORKSPACE:-}
       # Redirect engram + persona data dirs under the bind-mounted
       # /root/.cortex so their LanceDB + soul files survive restarts.
@@ -74,11 +71,10 @@ services:
       # Example:
       #   - ../cortex-private-myorg:/root/cortex-private-myorg:ro
       # Obsidian vault — set OBSIDIAN_VAULT_HOST in .env to your vault
-      # path to enable the obsidian adapter + dashboard /notes route.
-      # When unset, the mount falls back to the cortex data dir as a
-      # safe no-op so docker compose doesn't error. Inside the
-      # container, set the obsidian adapter's vaultPath to
-      # /root/obsidian-vault.
+      # path to enable the obsidian adapter. When unset, the mount
+      # falls back to the cortex data dir as a safe no-op so docker
+      # compose doesn't error. Inside the container, set the obsidian
+      # adapter's vaultPath to /root/obsidian-vault.
       - ${OBSIDIAN_VAULT_HOST:-./.cortex-data}:/root/obsidian-vault
     ports:
       # Publish on all interfaces so both IPv4 and IPv6 localhost work
@@ -88,26 +84,6 @@ services:
       # these ports should NOT be publicly reachable without auth.
       - "${CORTEX_MCP_PORT:-3100}:3100"
       - "${CORTEX_API_PORT:-4141}:4141"
-    restart: unless-stopped
-
-  dashboard:
-    image: cortex-dashboard:local
-    build:
-      context: .
-      dockerfile: packages/dashboard/Dockerfile
-    environment:
-      - NODE_ENV=production
-      - PORT=3030
-      - HOSTNAME=0.0.0.0
-      # Next.js runs rewrites on the server, so this hits cortex via
-      # the compose network without CORS.
-      - CORTEX_API_URL=http://cortex:${CORTEX_API_PORT:-4141}
-    ports:
-      # See the cortex service above for why IPv4-only localhost binds
-      # don't work on Docker Desktop for Windows.
-      - "${CORTEX_DASHBOARD_PORT:-3030}:3030"
-    depends_on:
-      - cortex
     restart: unless-stopped
 
   pgvector:
