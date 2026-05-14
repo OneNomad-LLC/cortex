@@ -32,36 +32,25 @@ export type Role = z.infer<typeof roleSchema>;
 export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;
 
 /**
- * Role presets. Baked in so `dashboard.yaml` is optional — if the user never
- * creates one, `loadDashboardLayout` returns the `delivery` preset as-is.
+ * Role presets. Baked in so `dashboard.yaml` is optional — if the user
+ * never creates one, `loadDashboardLayout` returns the `delivery` preset
+ * as-is.
  *
- * Matt's role is delivery/PM, so that's the default. Developer preset exists
- * for when another teammate (or future-Matt in a code-heavy stretch) wants
- * to flip it without editing widgets by hand.
+ * Widget catalog (2026-05-14): only `recent-activity` ships in the base
+ * cortex. New widgets land alongside new adapters/connectors — one
+ * widget per connector when warranted — not as a curated PM/developer
+ * surface. Both presets render the same single widget; the role enum
+ * is kept for forward compat with custom dashboards that want to
+ * pin a different surface later.
  *
- * Some widget names in these presets don't yet have server handlers
- * (today-meetings, recent-activity, code-activity). The dashboard renders
- * an "upcoming" placeholder for unknown names so presets can reference
- * widgets that ship in later sprints without breaking the page.
+ * The pyre-web dashboard (where the surface actually lives now) reads
+ * this same registry over /api/widgets and renders each entry. Names
+ * not in the registry render a placeholder so legacy `dashboard.yaml`
+ * files referencing the retired widgets don't crash the page.
  */
 export const ROLE_PRESETS: Record<Exclude<Role, "custom">, LayoutWidget[]> = {
-  // Knowledge-engine repositioning (Phase 1B, 2026-05-09): the personal-
-  // priority widgets (priorities, my-action-items, today-meetings,
-  // today-timeline, upcoming-briefs) are gone. Both presets now show
-  // ORG-knowledge surfaces only — recent decisions, recent activity,
-  // code activity, who-knows. Dashboard renders PlaceholderWidget for
-  // any unknown name so stale presets / experimental widget refs in
-  // user configs don't crash the page.
-  delivery: [
-    { name: "recent-decisions", props: { days: 7, limit: 15 } },
-    { name: "recent-activity", props: { days: 3 } },
-    { name: "who-knows", props: {} },
-  ],
-  developer: [
-    { name: "code-activity", props: { days: 3 } },
-    { name: "recent-decisions", props: { days: 14, limit: 15 } },
-    { name: "recent-activity", props: { days: 3 } },
-  ],
+  delivery: [{ name: "recent-activity", props: { days: 3 } }],
+  developer: [{ name: "recent-activity", props: { days: 3 } }],
 };
 
 /**

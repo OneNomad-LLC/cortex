@@ -1,10 +1,7 @@
 import type { CacheStorage } from "@onenomad/cortex-cache-sqlite";
 import type { Widget } from "../types.js";
 import { withCache, type WithCacheOptions } from "../cache/wrap.js";
-import { codeActivityWidget } from "./code-activity.js";
 import { recentActivityWidget } from "./recent-activity.js";
-import { recentDecisionsWidget } from "./recent-decisions.js";
-import { whoKnowsWidget } from "./who-knows.js";
 
 /**
  * Per-widget cache profiles (ADR-019 Phase 2). TTL is how long we treat
@@ -12,23 +9,14 @@ import { whoKnowsWidget } from "./who-knows.js";
  * value AND fires a background refresh, so steady-state dashboard
  * loads stay fast.
  *
- * Numbers reflect how often the underlying data actually changes, not
- * how often the dashboard polls:
- *   - decisions / activity: ~1-2 minutes — these update whenever a
- *     meeting transcript or doc lands in engram
- *   - code-activity / who-knows: a few minutes — bitbucket adapter
- *     polls on its own cadence
- *
- * Knowledge-engine repositioning (Phase 1B): personal-priority widgets
- * (priorities, my-action-items, today-meetings, today-timeline,
- * upcoming-briefs) were removed from this registry. The cache profile
- * map mirrors what's left.
+ * Knowledge-engine repositioning (2026-05-09 → 2026-05-14): the personal-
+ * priority widgets and the cross-project surfaces (who-knows,
+ * recent-decisions, code-activity) were both retired. Only
+ * `recent-activity` remains. New widgets land alongside new
+ * adapters/connectors, one widget per connector when warranted.
  */
 const WIDGET_CACHE_PROFILES: Record<string, WithCacheOptions> = {
-  "recent-decisions": { ttlSeconds: 120 },
   "recent-activity": { ttlSeconds: 120 },
-  "code-activity": { ttlSeconds: 180 },
-  "who-knows": { ttlSeconds: 300 },
 };
 
 /**
@@ -49,18 +37,12 @@ export function buildWidgetRegistry(cache?: CacheStorage): readonly Widget[] {
     if (!profile) return w;
     return withCache(w, cache, profile);
   }
-  return [
-    maybeCache(recentDecisionsWidget),
-    maybeCache(recentActivityWidget),
-    maybeCache(codeActivityWidget),
-    maybeCache(whoKnowsWidget),
-  ];
+  return [maybeCache(recentActivityWidget)];
 }
 
 /**
  * Default registry — used in contexts that import the widget list
- * statically (api/server.ts uses buildWidgetRegistry directly with the
- * cache). Always cache-less; this constant exists for backwards-compat
+ * statically. Always cache-less; this constant exists for back-compat
  * with any external import.
  */
 export const ALL_WIDGETS: readonly Widget[] = buildWidgetRegistry();
