@@ -1,20 +1,27 @@
 import type { z } from "zod";
 import type { LoadedTaxonomy } from "../taxonomy.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger, MemoryTypeRegistry } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { EnrichmentQueue } from "../enrichment.js";
-import type { PersonaClient } from "../clients/persona.js";
 
 /**
  * Execution context handed to every MCP tool. Thin by design — tools that
  * need more should take it at tool-construction time, not via this bag.
+ *
+ * Cortex 0.3+ is standalone: no subprocess MCP servers. The Engram /
+ * Persona companions are not spawned. `engram` here is the in-process
+ * pgvector-backed memory client (kept under that name to avoid a churn
+ * rename across the tool surface).
  */
 export interface ToolContext {
   taxonomy: LoadedTaxonomy;
+  /** Live memory-type registry. Tools that ingest go through
+   *  `memoryTypes.register()` instead of an ad-hoc enum check so the
+   *  customer-extensible taxonomy is honored everywhere. */
+  memoryTypes: MemoryTypeRegistry;
   logger: Logger;
   engram: EngramClient;
-  persona: PersonaClient;
   /** Optional — only present when an LLM is configured. Tools should
    *  handle its absence gracefully (fall back to non-LLM output). */
   llmRouter?: LLMRouter;

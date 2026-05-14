@@ -111,6 +111,27 @@ export const mcpConfigSchema = z
   })
   .default({});
 
+/**
+ * Customer-extensible memory taxonomy. Built-in canonical types are
+ * defined in `@onenomad/cortex-core > BUILT_IN_MEMORY_TYPES`; this
+ * stanza adds per-workspace types on top. `source: "auto"` entries
+ * are the ones the ingest path registered from unknown classifier
+ * output — operators promote them to `"config"` (or delete them) from
+ * the dashboard's Memory Types tab.
+ */
+export const customMemoryTypeSchema = z.object({
+  slug: z.string().min(1),
+  label: z.string().optional(),
+  description: z.string().optional(),
+  source: z.enum(["config", "auto"]).default("config"),
+});
+
+export const taxonomyConfigSchema = z
+  .object({
+    customTypes: z.array(customMemoryTypeSchema).default([]),
+  })
+  .default({});
+
 export const cortexConfigSchema = z.object({
   llm: z.object({
     providers: z.record(providerEntrySchema),
@@ -126,6 +147,7 @@ export const cortexConfigSchema = z.object({
   api: apiConfigSchema,
   mcp: mcpConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
+  taxonomy: taxonomyConfigSchema,
   /**
    * Absolute paths to private/personal Cortex module directories
    * loaded at startup. Each must contain a `dist/index.js` exporting
@@ -137,6 +159,8 @@ export const cortexConfigSchema = z.object({
 
 export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
+export type TaxonomyConfig = z.infer<typeof taxonomyConfigSchema>;
+export type CustomMemoryTypeConfig = z.infer<typeof customMemoryTypeSchema>;
 
 export type MemoryConfig = z.infer<typeof memoryConfigSchema>;
 export type MemoryBackendName = z.infer<typeof memoryBackendName>;

@@ -60,21 +60,9 @@
     },
     "type": {
       "type": "string",
-      "enum": [
-        "meeting",
-        "decision",
-        "action_item",
-        "doc",
-        "code",
-        "note",
-        "brief",
-        "digest",
-        "conversation",
-        "commit",
-        "event",
-        "reference",
-        "session_handoff"
-      ]
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Memory type. Validated at runtime against the live MemoryTypeRegistry (built-in canonical types + per-workspace customTypes from cortex.yaml). The canonical built-in set is meeting, decision, action_item, doc, code, note, brief, digest, conversation, commit, event, reference, session_handoff, ticket, incident, postmortem, runbook, spec, rfc, pr_review, contract, policy, customer_feedback, email, transcript. Anything else gets auto-registered as a custom type after normalization."
     },
     "people": {
       "type": "array",

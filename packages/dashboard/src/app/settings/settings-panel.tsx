@@ -28,6 +28,7 @@ import { invokeMcpTool } from "@/lib/api";
 
 import { ProjectsTab } from "./projects-tab";
 import { PeopleTab } from "./people-tab";
+import { MemoryTypesTab } from "./memory-types-tab";
 
 interface Workspace {
   slug: string;
@@ -43,6 +44,7 @@ export function SettingsPanel(): React.JSX.Element {
         <TabsTrigger value="workspaces">Workspaces</TabsTrigger>
         <TabsTrigger value="projects">Projects</TabsTrigger>
         <TabsTrigger value="people">People</TabsTrigger>
+        <TabsTrigger value="memory-types">Memory types</TabsTrigger>
         <TabsTrigger value="raw">Raw config</TabsTrigger>
       </TabsList>
       <TabsContent value="identity" className="mt-4">
@@ -56,6 +58,9 @@ export function SettingsPanel(): React.JSX.Element {
       </TabsContent>
       <TabsContent value="people" className="mt-4">
         <PeopleTab />
+      </TabsContent>
+      <TabsContent value="memory-types" className="mt-4">
+        <MemoryTypesTab />
       </TabsContent>
       <TabsContent value="raw" className="mt-4">
         <RawConfigTab />

@@ -36,23 +36,15 @@ export const memoryMetadataSchema = z.object({
    *  for callers who curate their own taxonomy. ingest_content omits
    *  it when the sentinel "default" project is in use. */
   project: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
-  type: z.enum([
-    "meeting",
-    "decision",
-    "action_item",
-    "doc",
-    "code",
-    "note",
-    "brief",
-    "digest",
-    "conversation",
-    "commit",
-    "event",
-    "reference",
-    // Cross-session handoffs — written by one Claude surface, read by
-    // the next so conversations survive a context switch.
-    "session_handoff",
-  ]),
+  // `type` is intentionally an open string here. The closed list lived
+  // at this layer until 0.4 — but customer-extensible taxonomy means
+  // the canonical built-in set isn't the whole truth. Validation now
+  // happens against a live `MemoryTypeRegistry` at the ingest boundary,
+  // which merges built-ins with per-workspace `customTypes` and auto-
+  // registers anything an LLM classifier emits (normalized first).
+  // See `packages/core/src/memory-types.ts` for the registry and
+  // `BUILT_IN_MEMORY_TYPES` for the canonical set.
+  type: z.string().min(1),
   /** Person slugs from config/people.yaml. May be empty. */
   people: z.array(z.string()),
   /** ISO 8601 timestamp of the content itself, not ingestion time. */

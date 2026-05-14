@@ -222,6 +222,35 @@ export const ingestContent: McpTool<typeof inputSchema, Output> = {
       // this memory back out of other-workspace sessions.
       mem.metadata = { ...mem.metadata, workspace: workspace.slug };
 
+      // Normalize + register the memory type before validation. The
+      // registry is customer-extensible (built-ins + per-workspace
+      // customTypes); anything new gets auto-registered with
+      // source="auto" so it survives a restart, with a log so the
+      // operator sees the drift. Garbage in -> we fall back to "note".
+      if (typeof mem.metadata.type === "string") {
+        const resolved = ctx.memoryTypes.register(mem.metadata.type, {
+          source: "auto",
+        });
+        if (resolved) {
+          if (!ctx.memoryTypes.isBuiltIn(resolved)) {
+            ctx.logger.info("ingest_content.memory_type.auto_registered", {
+              raw: mem.metadata.type,
+              normalized: resolved,
+              traceId,
+            });
+          }
+          mem.metadata = { ...mem.metadata, type: resolved };
+        } else {
+          // Unrecoverable type string (empty after normalization).
+          // Coerce to "note" rather than reject the whole memory.
+          ctx.logger.warn("ingest_content.memory_type.coerced_to_note", {
+            raw: mem.metadata.type,
+            traceId,
+          });
+          mem.metadata = { ...mem.metadata, type: "note" };
+        }
+      }
+
       const memSourceId =
         typeof mem.metadata.source_id === "string"
           ? mem.metadata.source_id

@@ -11,9 +11,12 @@
  *   built without custom triggers.
  * - JSONB expression indexes on the hot filters (project, type, source,
  *   domain) keep the prefilter stage cheap when the candidate set is big.
- * - `date` is cast to timestamptz at index time so `sinceIso` range queries
- *   use the index. Partial index on `metadata ? 'date'` avoids indexing the
- *   many rows that don't carry a date.
+ * - `date` is indexed as raw text. ISO 8601 strings sort lexicographically
+ *   the same as chronologically, so `sinceIso` range queries that compare
+ *   as text use the index. We don't cast to timestamptz at index time —
+ *   `text::timestamptz` is STABLE (depends on session DateStyle), and
+ *   Postgres rejects STABLE functions in index expressions. Partial index
+ *   on `metadata ? 'date'` avoids indexing rows that don't carry a date.
  */
 export function buildBootstrapSql(args: {
   table: string;
@@ -23,9 +26,10 @@ export function buildBootstrapSql(args: {
   if (!isSafeIdentifier(table)) {
     throw new Error(`memory-pgvector: unsafe table name '${table}'`);
   }
+  // `gen_random_uuid()` is in core Postgres since PG 13 (and bundled in PGlite),
+  // so we don't pull in pgcrypto — PGlite doesn't ship that extension.
   return `
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS ${table} (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,7 +87,7 @@ CREATE INDEX IF NOT EXISTS ${table}_source_idx
   ON ${table} ((metadata->>'source'));
 
 CREATE INDEX IF NOT EXISTS ${table}_date_idx
-  ON ${table} (((metadata->>'date')::timestamptz))
+  ON ${table} ((metadata->>'date'))
   WHERE metadata ? 'date';
 `.trim();
 }

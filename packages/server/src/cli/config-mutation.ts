@@ -522,3 +522,39 @@ async function atomicWrite(filePath: string, contents: string): Promise<void> {
   await writeFile(tmp, contents, "utf8");
   await rename(tmp, filePath);
 }
+
+/**
+ * Persist the live custom-memory-type set back to cortex.yaml's
+ * `taxonomy.customTypes` stanza. The MemoryTypeRegistry's `persist`
+ * callback points here, so an auto-add at ingest time survives a
+ * restart and an operator's UI edit lands in the same place.
+ *
+ * Takes the explicit config path (not just repoRoot) because we want
+ * to write into the workspace's cortex.yaml, not the committed
+ * template. The boot path wires its own resolved path.
+ */
+export async function persistCustomTypes(
+  configPath: string,
+  types: Array<{
+    slug: string;
+    label?: string | undefined;
+    description?: string | undefined;
+    source: "config" | "auto";
+  }>,
+): Promise<void> {
+  await mutateYaml(configPath, (doc) => {
+    const obj = (doc ?? {}) as Record<string, unknown>;
+    const taxonomy = ((obj.taxonomy as Record<string, unknown>) ?? {}) as Record<
+      string,
+      unknown
+    >;
+    taxonomy.customTypes = types.map((t) => ({
+      slug: t.slug,
+      ...(t.label !== undefined ? { label: t.label } : {}),
+      ...(t.description !== undefined ? { description: t.description } : {}),
+      source: t.source,
+    }));
+    obj.taxonomy = taxonomy;
+    return obj;
+  });
+}

@@ -2,6 +2,7 @@ import type { Logger } from "@onenomad/cortex-core";
 import type { LLMRouter } from "@onenomad/cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { LoadedTaxonomy } from "../taxonomy.js";
+import type { MemoryTypeRegistry } from "@onenomad/cortex-core";
 import type { Workspace } from "../cli/workspace/manager.js";
 
 /**
@@ -23,6 +24,10 @@ export interface WidgetContext {
    *  installed. Widgets that need it must check before calling. */
   llmRouter?: LLMRouter;
   taxonomy: LoadedTaxonomy;
+  /** Customer-extensible memory-type registry. The /api/types endpoint
+   *  reads from this; the MCP console's tool invoker threads it into
+   *  the ToolContext so auto-add works from dashboard-driven ingests. */
+  memoryTypes: MemoryTypeRegistry;
   workspace?: Workspace;
 }
 

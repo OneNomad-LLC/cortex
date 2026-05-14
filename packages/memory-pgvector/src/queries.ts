@@ -162,10 +162,11 @@ export function buildHybridSearchQuery(args: {
     where.push(`metadata->>'source' = ${push(args.search.source)}`);
   }
   if (args.search.sinceIso !== undefined) {
-    // metadata.date is ISO 8601 — parse lexicographically first (fast), then
-    // fall back to timestamptz compare for odd formats. The index targets
-    // the timestamptz cast, so the latter is what the planner picks.
-    where.push(`(metadata->>'date')::timestamptz >= ${push(args.search.sinceIso)}`);
+    // metadata.date is ISO 8601 — strings sort lexicographically the same
+    // as chronologically, so the text-only index on (metadata->>'date')
+    // serves this range query directly. Casting to timestamptz here would
+    // bypass the index; comparing as text doesn't.
+    where.push(`(metadata->>'date') >= ${push(args.search.sinceIso)}`);
   }
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
