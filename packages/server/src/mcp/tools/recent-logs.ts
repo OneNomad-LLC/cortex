@@ -75,7 +75,7 @@ export const recentLogsTool: McpTool<typeof inputSchema, Output> = {
     // file scans would hurt on long-running installs. JSON-line per
     // log line so partial first-line corruption from the slice is
     // skipped (parse failure → drop).
-    let diskLines: LogLine[] = [];
+    const diskLines: LogLine[] = [];
     if (existsSync(sourcePath)) {
       try {
         const buf = await readFile(sourcePath, "utf8");
