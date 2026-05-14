@@ -1,0 +1,50 @@
+## fly.toml — cortex-workers Fly app
+##
+## Worker fleet for the autoscale-to-zero job queue. Same Docker image
+## as cortex-base, different entrypoint (`cortex worker`). Polls
+## pyre-web's /api/cortex/jobs/claim, runs the ingest pipeline,
+## reports back. See Pyre Business Plan doc 25 for architecture.
+##
+## Deploy:
+##   cd cortex && flyctl deploy -c deploy/workers/fly.toml \
+##     -a cortex-workers --build-only --push
+##
+## Required secrets (set via `fly secrets set -a cortex-workers`):
+##   PYRE_WEB_URL=https://pyre.sh   # or https://dev.pyre.sh
+##   CORTEX_WORKER_SECRET=<32+byte hex; matches pyre-web's env var>
+
+app = "cortex-workers"
+primary_region = "iad"
+
+[build]
+  image = "registry.fly.io/cortex-base:latest"
+
+[processes]
+  worker = "node dist/index.js worker"
+
+[experimental]
+  auto_rollback = true
+
+## Autoscale-to-zero is the whole point. min_machines_running = 0 means
+## an idle queue costs us nothing. auto_start_machines wakes a machine
+## when there's work; auto_stop_machines parks it when there isn't.
+## CORTEX_WORKER_IDLE_EXIT_MS in worker.ts also makes the process exit
+## itself after a quiet period so Fly can park.
+[[services]]
+  internal_port = 8080            # unused — workers don't expose HTTP
+  protocol = "tcp"
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1
+    soft_limit = 1
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"
+
+## Workers are stateless — no volumes mounted. Job state lives entirely
+## in pyre-web's Postgres (cortex_jobs table). Restart loses nothing.

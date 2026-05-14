@@ -21,6 +21,7 @@ import { runSyncCli } from "./sync.js";
 import { runTenant } from "./tenant.js";
 import { runUse } from "./use.js";
 import { runWhoami } from "./whoami.js";
+import { runWorker } from "./worker.js";
 import { runWorkspace } from "./workspace/command.js";
 import { startServer } from "../mcp/server.js";
 
@@ -214,6 +215,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "logs":
       return runDockerLogs(rest);
+
+    case "worker":
+      return runWorker();
 
     default:
       process.stderr.write(`cortex: unknown command '${command}'\n\n`);
