@@ -5,28 +5,5 @@
     "outDir": "dist",
     "composite": true
   },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../adapter-sdk" },
-    { "path": "../llm-core" },
-    { "path": "../llm-sdk" },
-    { "path": "../memory-pgvector" },
-    { "path": "../pipeline-code" },
-    { "path": "../pipeline-conversation" },
-    { "path": "../pipeline-core" },
-    { "path": "../pipeline-doc" },
-    { "path": "../pipeline-meeting" },
-    { "path": "../provider-ollama" },
-    { "path": "../provider-openrouter" },
-    { "path": "../adapter-bitbucket" },
-    { "path": "../adapter-confluence" },
-    { "path": "../adapter-github" },
-    { "path": "../adapter-jira" },
-    { "path": "../adapter-linear" },
-    { "path": "../adapter-loom" },
-    { "path": "../adapter-notion" },
-    { "path": "../adapter-obsidian" },
-    { "path": "../adapter-slack" }
-  ]
+  "include": ["src/**/*"]
 }

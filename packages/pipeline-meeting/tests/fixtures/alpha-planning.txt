@@ -1,8 +1,0 @@
-Alex: Alright, we're here to lock down the Alpha v2 plan. Sarah, you're leading.
-Sarah: Thanks. So the scope is the rewrite of the billing module. We've agreed with product to ship by next Friday.
-Alex: Confirmed on next Friday. I'll handle the database migration. Sarah owns the API rewrite. Who takes the front-end?
-Sarah: I'll grab Priya on that — she has context from last quarter.
-Alex: Good. Decision: Priya leads front-end, reporting to Sarah.
-Sarah: One open item — do we keep the legacy endpoints for a week after cutover, or flip hard?
-Alex: Let's decide next meeting. We need to ask Karim.
-Sarah: Fine. I'll book a 30-min with Karim this week.
