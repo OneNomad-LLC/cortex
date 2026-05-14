@@ -6,6 +6,8 @@ import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
 import { runGithubLogin } from "./github-login.js";
 import { runInit } from "./init.js";
+import { runLogin } from "./login.js";
+import { runLogout } from "./logout.js";
 import {
   runAdd,
   runConfigure,
@@ -13,9 +15,12 @@ import {
   runList,
 } from "./module-commands.js";
 import { runModuleCommand } from "./module-install.js";
+import { runServe } from "./serve.js";
 import { runSmoke } from "./smoke.js";
 import { runStatus } from "./status.js";
 import { runSyncCli } from "./sync.js";
+import { runUse } from "./use.js";
+import { runWhoami } from "./whoami.js";
 import { runWorkspace } from "./workspace/command.js";
 import { startServer } from "../mcp/server.js";
 
@@ -29,6 +34,24 @@ Commands:
   start                      Boot Cortex in the foreground (stdio MCP by
                                default; dev / local-only). Ctrl+C to stop.
                                For a daemon, use \`cortex up\`.
+  serve                      Run the stdio MCP server in the current mode.
+                               Cloud mode: proxies to the remote Cortex.
+                               Local mode: same as \`cortex start\`. Use
+                               in MCP client configs:
+                                 claude mcp add cortex cortex -- serve
+
+  login [--server <url>]     Device-code login to Cortex Cloud. Opens a
+                               browser to confirm; stores credentials
+                               at ~/.config/cortex/credentials.json with
+                               file perms 0600. --server defaults to
+                               https://getpyre.ai (overridable via
+                               CORTEX_LOGIN_SERVER).
+  logout                     Clear stored credentials. Falls back to
+                               local mode (or env-var overrides).
+  whoami                     Print the active mode + endpoint. Never
+                               echoes the bearer.
+  use local|cloud            Flip the mode flag. Cloud requires prior
+                               login (or CORTEX_MCP_URL + CORTEX_MCP_TOKEN).
 
   up [-- args...]            Start the Docker stack in the background
                                (wraps \`docker compose up -d\`). Adds
@@ -160,6 +183,21 @@ export async function runCli(argv: string[]): Promise<number> {
     case "start":
       await startServer();
       return 0;
+
+    case "serve":
+      return runServe(rest);
+
+    case "login":
+      return runLogin(rest);
+
+    case "logout":
+      return runLogout(rest);
+
+    case "whoami":
+      return runWhoami(rest);
+
+    case "use":
+      return runUse(rest);
 
     case "up":
       return runDockerUp(rest);
