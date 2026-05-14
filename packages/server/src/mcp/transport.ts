@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Logger } from "@onenomad/cortex-core";
 import { enterSession, runWithSession } from "../session-context.js";
+import { verifyCookie } from "../api/cookie-session.js";
 
 export interface TransportHandle {
   kind: "stdio" | "http";
@@ -93,25 +94,46 @@ async function connectHttp(
   // constant-time comparison so an attacker can't time-sidechannel
   // the valid token.
   const authToken = process.env.CORTEX_MCP_AUTH_TOKEN;
+  const gatewaySecret = process.env.CORTEX_GATEWAY_SECRET;
   if (authToken && authToken.length < 16) {
     throw new Error(
       "CORTEX_MCP_AUTH_TOKEN must be at least 16 chars of entropy. " +
         "Generate one with `openssl rand -hex 32`.",
     );
   }
-  const authOk = (req: import("node:http").IncomingMessage): boolean => {
-    if (!authToken) return true;
-    const header = headerValue(req.headers["authorization"]);
-    if (!header) return false;
-    const match = /^Bearer\s+(.+)$/i.exec(header);
-    if (!match) return false;
-    const supplied = match[1]!;
-    if (supplied.length !== authToken.length) return false;
+  // Two-track auth, same shape as the dashboard API's gate. Either the
+  // user-facing bearer (Claude Code, scripts) or the pyre-web gateway
+  // secret passes. When neither env var is set, no gate (local dev).
+  const constantTimeEq = (a: string, b: string): boolean => {
+    if (a.length !== b.length) return false;
     let diff = 0;
-    for (let i = 0; i < authToken.length; i++) {
-      diff |= authToken.charCodeAt(i) ^ supplied.charCodeAt(i);
+    for (let i = 0; i < a.length; i++) {
+      diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
     }
     return diff === 0;
+  };
+  const authOk = (req: import("node:http").IncomingMessage): boolean => {
+    if (!authToken && !gatewaySecret) return true;
+
+    // Cookie session (browser handoff). Reuses the dashboard API's
+    // cookie verifier so a user with a valid Cortex session cookie
+    // can hit the MCP HTTP endpoint from a browser tab.
+    if (verifyCookie(req)) return true;
+
+    if (gatewaySecret) {
+      const gw = headerValue(req.headers["x-cortex-gateway-secret"]);
+      if (gw && constantTimeEq(gw, gatewaySecret)) return true;
+    }
+
+    if (authToken) {
+      const header = headerValue(req.headers["authorization"]);
+      if (header) {
+        const match = /^Bearer\s+(.+)$/i.exec(header);
+        if (match && constantTimeEq(match[1]!, authToken)) return true;
+      }
+    }
+
+    return false;
   };
 
   // One Server + Transport pair PER MCP session. The StreamableHTTP
