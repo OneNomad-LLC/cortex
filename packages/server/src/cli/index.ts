@@ -6,7 +6,7 @@ import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
 import { runGithubLogin } from "./github-login.js";
 import { runInit } from "./init.js";
-import { runLogin } from "./login.js";
+import { runLogin } from "../auth/login.js";
 import { runLogout } from "./logout.js";
 import {
   runAdd,
@@ -40,14 +40,16 @@ Commands:
                                in MCP client configs:
                                  claude mcp add cortex cortex -- serve
 
-  login [--server <url>]     Device-code login to Cortex Cloud. Opens a
-                               browser to confirm; stores credentials
-                               at ~/.config/cortex/credentials.json with
-                               file perms 0600. --server defaults to
-                               https://getpyre.ai (overridable via
-                               CORTEX_LOGIN_SERVER).
-  logout                     Clear stored credentials. Falls back to
-                               local mode (or env-var overrides).
+  login <pyre-web-url>       Device-code login to Cortex Cloud. Opens a
+                               browser to confirm; stores credentials at
+                               ~/.pyre/credentials.json with file perms
+                               0600 (shared with engram-mcp + persona-mcp;
+                               one login per machine signs all three in).
+                               URL required — pass positional, --server
+                               <url>, or PYRE_API_URL env. No defaults.
+  logout                     Clear cortex section of stored credentials.
+                               Engram/persona credentials in the same
+                               file are preserved.
   whoami                     Print the active mode + endpoint. Never
                                echoes the bearer.
   use local|cloud            Flip the mode flag. Cloud requires prior

@@ -1,4 +1,4 @@
-import { loadCredentials } from "./credentials.js";
+import { loadCortexCredentials } from "../auth/credentials.js";
 import { startServer } from "../mcp/server.js";
 
 /**
@@ -13,21 +13,21 @@ import { startServer } from "../mcp/server.js";
  * mode `cortex use ...` last selected.
  */
 export async function runServe(_args: string[]): Promise<number> {
-  const creds = await loadCredentials();
+  const creds = loadCortexCredentials();
   if (creds.mode === "local") {
     // Local: hand off to the existing server boot. Honors the stdio
     // default unless CORTEX_MCP_TRANSPORT overrides.
     await startServer();
     return 0;
   }
-  if (!creds.mcpUrl || !creds.bearer) {
+  if (!creds.mcp_url || !creds.bearer) {
     process.stderr.write(
       `cortex serve: mode=cloud but credentials are incomplete.\n` +
-        `Run \`cortex login\` to refresh, or set CORTEX_MCP_URL + CORTEX_MCP_TOKEN.\n`,
+        `Run \`cortex login <pyre-web-url>\` to refresh, or set CORTEX_MCP_URL + CORTEX_MCP_TOKEN.\n`,
     );
     return 1;
   }
-  await runCloudProxy({ remoteUrl: creds.mcpUrl, bearer: creds.bearer });
+  await runCloudProxy({ remoteUrl: creds.mcp_url, bearer: creds.bearer });
   return 0;
 }
 

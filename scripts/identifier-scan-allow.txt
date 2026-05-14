@@ -9,6 +9,8 @@
 # Placeholder email domains used in docs and fixtures
 @example.com
 @example.org
+@example
+@acme.example
 @cortex.local
 @company.com
 boss@co.com
