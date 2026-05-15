@@ -21,6 +21,7 @@ import { createWebhookReceiver } from "../webhooks.js";
 import { createDashboardApi } from "../api/server.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadTaxonomy } from "../taxonomy.js";
+import { seedLlmProviderFromEnv } from "../cli/seed-llm-provider.js";
 import { seedSelfFromEnv } from "../cli/seed-self.js";
 import { ALL_TOOLS } from "./tools/index.js";
 import { CORTEX_MCP_INSTRUCTIONS } from "./instructions.js";
@@ -170,6 +171,20 @@ export async function startServer(): Promise<void> {
   // via the MCP tool. See cli/seed-self.ts.
   await seedSelfFromEnv(logger).catch((err) => {
     logger.warn("seed_self.failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+
+  // Cortex Cloud LLM provider seed: when OPENROUTER_API_KEY is set in
+  // env (typically injected by pyre-web's deploy action), enable the
+  // openrouter provider and stamp the default task model so a fresh
+  // tenant comes up with enrichment-capable LLM routing — no SSH
+  // required. Reads CORTEX_LLM_BASE_URL + CORTEX_LLM_DEFAULT_MODEL too
+  // for Azure OpenAI / other compatible endpoints. See cli/seed-llm-
+  // provider.ts. MUST run before the LLM router builds, hence
+  // immediately after seed-self and before scheduler init below.
+  await seedLlmProviderFromEnv(logger).catch((err) => {
+    logger.warn("seed_llm_provider.failed", {
       error: err instanceof Error ? err.message : String(err),
     });
   });
