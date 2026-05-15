@@ -1,4 +1,8 @@
-import { applyWizardResult, setDefaultLlmTask } from "./config-mutation.js";
+import {
+  applyWizardResult,
+  setDefaultLlmTask,
+  setUseLocalEmbedder,
+} from "./config-mutation.js";
 import { getActiveWorkspace } from "./workspace/manager.js";
 import type { Logger } from "@onenomad/cortex-core";
 
@@ -70,6 +74,16 @@ export async function seedLlmProviderFromEnv(logger: Logger): Promise<void> {
       model: defaultModel,
       tasks: ["default", "structural", "synthesis", "brief", "classify", "extract"],
     });
+    // Force local Xenova embeddings. The provider behind the
+    // openrouter shim is almost always a chat-only model (Azure
+    // gpt-4o-mini, Anthropic Claude, etc.) — none of which support
+    // the OpenAI embeddings API. Without this, kb_search blows up.
+    // Operators who have a real embedding model configured can flip
+    // this off via the dashboard wizard later.
+    const embed = await setUseLocalEmbedder({
+      repoRoot: workspace.path,
+      value: true,
+    });
     // Make the secret visible to the in-process provider router that
     // boots after this — without this, the LLM router would build
     // with `apiKey: undefined` and fail every completion until the
@@ -79,7 +93,11 @@ export async function seedLlmProviderFromEnv(logger: Logger): Promise<void> {
       provider: "openrouter",
       baseUrl,
       defaultModel,
-      filesWritten: [...provided.filesWritten, ...tasked.filesWritten],
+      filesWritten: [
+        ...provided.filesWritten,
+        ...tasked.filesWritten,
+        ...embed.filesWritten,
+      ],
     });
   } catch (err) {
     logger.warn("seed_llm_provider.failed", {

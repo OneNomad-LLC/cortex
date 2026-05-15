@@ -80,9 +80,21 @@ export async function createMemoryClient(args: {
   //     model (LOCAL_EMBEDDING_DIM = 384). The Zod-defaulted 768 would
   //     mismatch and every embed() call rejects with a dim error, so we
   //     pin to 384 here and warn if the operator wrote something else.
+  // useLocalEmbedder forces the local Xenova model for embeddings even
+  // when an LLM router is configured. Operators set this when their
+  // chosen LLM provider doesn't have an embedding model — most common
+  // case: Azure OpenAI behind the openrouter shim, where the configured
+  // chat model (gpt-4o-mini) is not an embedding model and Azure
+  // embedding deployments are a separate resource. Without this flag,
+  // every kb_search query fails with `Provider does not support
+  // embeddings`. Defaults to false to preserve the existing behavior
+  // for operators with embedding-capable providers configured.
+  const useLocalEmbedder = memory.pgvector?.useLocalEmbedder === true;
+  const effectiveRouter = useLocalEmbedder ? undefined : llmRouter;
+
   const configuredDim = memory.pgvector?.embeddingDim;
   let embeddingDim: number;
-  if (llmRouter) {
+  if (effectiveRouter) {
     embeddingDim =
       configuredDim && configuredDim > 0 ? configuredDim : LOCAL_EMBEDDING_DIM;
   } else {
@@ -96,7 +108,7 @@ export async function createMemoryClient(args: {
         configured: configuredDim,
         used: LOCAL_EMBEDDING_DIM,
         reason:
-          "No LLM router wired; embeddings come from the local Xenova model. " +
+          "Embeddings come from the local Xenova model. " +
           "Set memory.pgvector.embeddingDim to 384 (or omit it) to silence this warning.",
       });
     }
@@ -119,7 +131,7 @@ export async function createMemoryClient(args: {
         table,
         embeddingDim,
         embedTask,
-        ...(llmRouter ? { llmRouter } : {}),
+        ...(effectiveRouter ? { llmRouter: effectiveRouter } : {}),
         logger,
       })
     : await createPgVectorClient({
@@ -128,7 +140,7 @@ export async function createMemoryClient(args: {
         table,
         embeddingDim,
         embedTask,
-        ...(llmRouter ? { llmRouter } : {}),
+        ...(effectiveRouter ? { llmRouter: effectiveRouter } : {}),
         ...(pendingRestore ? { loadFromBlob: pendingRestore } : {}),
         logger,
       });
@@ -145,7 +157,7 @@ export async function createMemoryClient(args: {
   logger.info("memory.ready", {
     selected: "pgvector",
     mode: useExternal ? "external" : "embedded",
-    embedder: llmRouter ? "llm-router" : "local-xenova",
+    embedder: effectiveRouter ? "llm-router" : "local-xenova",
     ...(pendingRestore ? { restoredFromBackup: true } : {}),
   });
 

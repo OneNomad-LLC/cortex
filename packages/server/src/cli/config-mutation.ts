@@ -111,6 +111,31 @@ export async function setDefaultLlmTask(opts: {
 }
 
 /**
+ * Set memory.pgvector.useLocalEmbedder. Used by the env-driven
+ * bootstrap to pin embeddings to the local Xenova model when the
+ * configured LLM provider can't do embeddings (Azure chat-only,
+ * Anthropic, etc.). See clients/memory.ts for how this is honored.
+ */
+export async function setUseLocalEmbedder(opts: {
+  repoRoot: string
+  value: boolean
+}): Promise<{ filesWritten: string[] }> {
+  const configPath = await ensureLocalCopy(
+    path.join(opts.repoRoot, "config", "cortex.yaml"),
+  )
+  await mutateYaml(configPath, (doc) => {
+    const cfg = (doc ?? {}) as Record<string, unknown>
+    const memory = ((cfg.memory as Record<string, unknown>) ?? {}) as Record<string, unknown>
+    const pgvector = ((memory.pgvector as Record<string, unknown>) ?? {}) as Record<string, unknown>
+    pgvector.useLocalEmbedder = opts.value
+    memory.pgvector = pgvector
+    cfg.memory = memory
+    return cfg
+  })
+  return { filesWritten: [configPath] }
+}
+
+/**
  * Flip a module off. Leaves its config in place so re-enabling doesn't
  * lose settings. Only touches cortex.local.yaml.
  */

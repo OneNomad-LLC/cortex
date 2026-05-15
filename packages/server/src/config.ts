@@ -57,6 +57,19 @@ export const memoryConfigSchema = z
         embeddingDim: z.number().int().positive().default(768),
         /** Task id to use when calling router.embed(). Default: 'embed'. */
         embedTask: z.string().default("embed"),
+        /**
+         * Force the bundled local Xenova embedder even when an LLM router
+         * is configured. Set true when your chosen LLM provider doesn't
+         * have an embedding model — most common case: Azure OpenAI behind
+         * the openrouter shim, where the configured chat model
+         * (gpt-4o-mini) is not an embedding model and Azure embedding
+         * deployments are a separate resource. Without this, every
+         * kb_search query 500s with `Provider does not support embeddings`.
+         * Default false to preserve behavior for operators with
+         * embedding-capable providers (real OpenRouter, Ollama with an
+         * embedding model loaded, etc.).
+         */
+        useLocalEmbedder: z.boolean().default(false),
       })
       .default({}),
   })
