@@ -162,7 +162,7 @@ export async function startServer(): Promise<void> {
   const configPath = resolveConfigPath();
 
   logger.info("startup.begin", { configPath });
-  const cfg = await loadCortexConfig(configPath);
+  let cfg = await loadCortexConfig(configPath);
 
   // Cortex Cloud seed: when CORTEX_SEED_SELF_* env vars are present,
   // ensure the active workspace has a `self` person matching the env
@@ -183,11 +183,31 @@ export async function startServer(): Promise<void> {
   // for Azure OpenAI / other compatible endpoints. See cli/seed-llm-
   // provider.ts. MUST run before the LLM router builds, hence
   // immediately after seed-self and before scheduler init below.
-  await seedLlmProviderFromEnv(logger).catch((err) => {
-    logger.warn("seed_llm_provider.failed", {
-      error: err instanceof Error ? err.message : String(err),
+  const llmSeeded = await seedLlmProviderFromEnv(logger)
+    .then(() => true)
+    .catch((err) => {
+      logger.warn("seed_llm_provider.failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return false;
     });
-  });
+
+  // The seed writes cortex.local.yaml on disk. The `cfg` we loaded above
+  // doesn't see those edits, which means downstream initialization
+  // (LLM router, memory client) would build against the pre-seed
+  // config — empty providers, anthropic default model, no
+  // useLocalEmbedder flag. Reload after every seed that mutates disk
+  // so the rest of startup sees the post-seed state. Only triggers
+  // when seedLlmProvider actually ran (OPENROUTER_API_KEY was set);
+  // self-hosted installs without env-driven config skip the reload.
+  if (llmSeeded && process.env.OPENROUTER_API_KEY) {
+    cfg = await loadCortexConfig(configPath);
+    logger.info("startup.config_reloaded_after_seed", {
+      providersConfigured: Object.keys(cfg.llm.providers).length,
+      defaultModel: cfg.llm.tasks.default?.model,
+      useLocalEmbedder: cfg.memory.pgvector?.useLocalEmbedder ?? false,
+    });
+  }
 
   // Rehydrate session→workspace bindings from the last run. Dropping
   // sessions older than 24h keeps the file bounded; anything active
