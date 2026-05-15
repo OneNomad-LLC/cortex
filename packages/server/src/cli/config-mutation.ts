@@ -69,6 +69,48 @@ export async function applyWizardResult(
 }
 
 /**
+ * Set the default LLM task to a specific provider+model. Writes to
+ * `cortex.local.yaml` so the change survives base-template rewrites.
+ *
+ * Used by the env-driven bootstrap path (`seedLlmProviderFromEnv`)
+ * for per-tenant Cortex Cloud deployments where pyre-web injects
+ * the provider config via env at machine create time. Without this,
+ * a fresh tenant comes up with the bootstrap default model
+ * ("anthropic/claude-haiku-4.5") even when the configured provider
+ * is Azure OpenAI behind the openrouter shim — which would 404 on
+ * any LLM call. Idempotent.
+ */
+export async function setDefaultLlmTask(opts: {
+  repoRoot: string
+  provider: string
+  model: string
+  /**
+   * Apply the same provider+model to these named tasks too. Defaults
+   * to ['default'] only; pass extra task purposes (extract, classify,
+   * summarize, brief, structural, synthesis) when you want them to
+   * route to the same model.
+   */
+  tasks?: readonly string[]
+}): Promise<{ filesWritten: string[] }> {
+  const configPath = await ensureLocalCopy(
+    path.join(opts.repoRoot, "config", "cortex.yaml"),
+  )
+  const tasks = opts.tasks ?? ["default"]
+  await mutateYaml(configPath, (doc) => {
+    const cfg = (doc ?? {}) as Record<string, unknown>
+    const llm = ((cfg.llm as Record<string, unknown>) ?? {}) as Record<string, unknown>
+    const taskMap = ((llm.tasks as Record<string, unknown>) ?? {}) as Record<string, unknown>
+    for (const taskName of tasks) {
+      taskMap[taskName] = { provider: opts.provider, model: opts.model }
+    }
+    llm.tasks = taskMap
+    cfg.llm = llm
+    return cfg
+  })
+  return { filesWritten: [configPath] }
+}
+
+/**
  * Flip a module off. Leaves its config in place so re-enabling doesn't
  * lose settings. Only touches cortex.local.yaml.
  */
