@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Auto-enrichment on `ingest_content`** — when the workspace has an LLM router wired and the content type is `doc` / `note` / `meeting` / `conversation`, every successful ingest now fires a one-shot extraction pass that pulls structured items out of the body and persists each as its own memory:
+  - **action_items** with `owner:<slug>`, `due:<iso>`, `priority:P*`, `status:open` tags so the dashboard's by-type widgets pick them up
+  - **decisions** with the summary as title and optional context appended
+  - **entities** (people / projects / products / companies / events) — counted in the response, not persisted yet (would flood the KB; routing into `add_person` / `add_project` is a follow-up)
+  - Cost: one LLM call per ingest, ~$0.0002 at gpt-4o-mini Azure pricing. Skipped silently when no router is configured. Failure does NOT fail the ingest — raw chunks always land first; enrichment is a layered side-effect.
+  - Implementation: new `enrichment/extract-structured-items.ts` runs the prompt + parses JSON with tolerant cleanup, hooked into `ingest_content` after the chunk write loop. `ingest_repo` / `ingest_url` / `ingest_file` inherit enrichment automatically since they route through `ingest_content`.
+  - Response shape gains an `enriched: { actionItems, decisions, entities }` block so callers can see what extracted.
+- **`memory.pgvector.useLocalEmbedder` config flag** — pin embeddings to the bundled Xenova model even when an LLM router is wired. Required when the configured provider is chat-only (Azure gpt-4o-mini, Anthropic). Set automatically by `seedLlmProviderFromEnv` since the openrouter-shim path is almost always pointed at a chat model.
+- **`seedLlmProviderFromEnv`** — env-driven LLM provider bootstrap so a fresh Cortex Cloud tenant comes up enrichment-capable without an SSH-and-patch step. Reads `OPENROUTER_API_KEY` + `CORTEX_LLM_BASE_URL` + `CORTEX_LLM_DEFAULT_MODEL`, applies the openrouter wizard, stamps the default LLM task, pins local embeddings.
+- **`setDefaultLlmTask` + `setUseLocalEmbedder` helpers** in `cli/config-mutation.ts` — programmatic config writes that other parts of the system (CLI, tests, future admin endpoints) can reuse.
 - **`cortex worker` subcommand** — long-running entrypoint for the cortex-workers Fly fleet. Polls pyre-web's `/api/cortex/jobs/claim` endpoint, executes claimed jobs by calling back to the tenant's MCP server's `/api/mcp/tools/{kind}/invoke` (gateway-secret-authed, runs inline), reports results via `/api/cortex/jobs/complete`. Idle-exits after `CORTEX_WORKER_IDLE_EXIT_MS` (default 60s) so Fly's `auto_stop_machines` can park the machine. See Pyre Business Plan doc 25.
 - `deploy/workers/fly.toml` — autoscale-to-zero Fly app config for the worker fleet (`min_machines_running=0`, `auto_start_machines=true`, `auto_stop_machines=stop`, `shared-cpu-2x@2GB`).
 - Required env on worker machines: `PYRE_WEB_URL`, `CORTEX_WORKER_SECRET`. Optional: `WORKER_ID`, `CORTEX_WORKER_POLL_MS`, `CORTEX_WORKER_IDLE_EXIT_MS`.

@@ -11,8 +11,28 @@ import {
   type SourceType,
 } from "@onenomad/cortex-core";
 import { buildPipelineContext } from "../../sync.js";
+import {
+  extractStructuredItems,
+  slugify,
+  type ActionItem,
+  type Decision,
+  type Entity,
+} from "../../enrichment/extract-structured-items.js";
 import { requireSessionWorkspace } from "../../session-workspace-helpers.js";
 import type { McpTool } from "../tool.js";
+
+// Content types that benefit from LLM extraction. Source code, briefs,
+// digests, and the structured-item types themselves (action_item /
+// decision / event / reference) are skipped — the first because there
+// are no human commitments hiding in source files, the rest because
+// they ARE the extracted output and feeding them back through the
+// extractor would cycle.
+const ENRICHABLE_TYPES = new Set<string>([
+  "doc",
+  "note",
+  "meeting",
+  "conversation",
+]);
 
 const inputSchema = z.object({
   content: z
@@ -117,6 +137,24 @@ interface Output {
     source_id: string;
     error: string;
   }>;
+  /**
+   * Counts of items the auto-enrichment pipeline produced from this
+   * ingest. Each action_item / decision becomes its own memory with
+   * the right type — searchable via kb_search type:action_item or
+   * surfaced in the Cortex dashboard's by-type breakdown. Entities
+   * are counted but not yet persisted (they would flood the KB
+   * with low-signal rows; routing them into add_person / add_project
+   * is a follow-up).
+   *
+   * Zero across all three when the LLM router isn't wired, when the
+   * type isn't enrichable (code / brief / digest / etc.), or when
+   * any of the raw chunk writes failed.
+   */
+  enriched?: {
+    actionItems: number;
+    decisions: number;
+    entities: number;
+  };
 }
 
 /**
@@ -303,12 +341,115 @@ export const ingestContent: McpTool<typeof inputSchema, Output> = {
       }
     }
 
+    // Auto-enrichment. After the raw chunks are stored, pull
+    // structured items (action_items, decisions, entities) out of the
+    // original content via the LLM router. Each extracted item lands
+    // as its own memory with the right `type` so dashboard widgets
+    // that filter by type pick them up. See AGENTS.md "one memory
+    // per item" rule.
+    //
+    // Skipped when:
+    //   - the LLM router isn't wired (workspace has no provider)
+    //   - the type is not in ENRICHABLE_TYPES (source code, briefs,
+    //     and the structured-item types themselves get nothing)
+    //   - any of the raw chunk writes failed (don't enrich a partial
+    //     ingest — the next retry will re-enrich cleanly)
+    //
+    // Synchronous in v1 — runs inline before the response returns.
+    // Cost: one LLM call per ingest, ~$0.0002 at gpt-4o-mini Azure
+    // pricing. Backpressure is the per-process job concurrency cap
+    // applied to ingest_repo / ingest_url; ingest_content callers
+    // are typically single chunks at human pace.
+    let enrichedActionItems = 0;
+    let enrichedDecisions = 0;
+    let enrichedEntities = 0;
+    if (
+      ingested > 0 &&
+      errors.length === 0 &&
+      ctx.llmRouter &&
+      ENRICHABLE_TYPES.has(input.type)
+    ) {
+      try {
+        const extracted = await extractStructuredItems({
+          content: input.content,
+          llmRouter: ctx.llmRouter,
+          logger: ctx.logger,
+          ...(traceId ? { traceId } : {}),
+        });
+
+        const baseTags = [
+          ...input.tags,
+          `extracted-from:${input.sourceId}`,
+          "auto-enriched",
+        ];
+
+        for (let i = 0; i < extracted.actionItems.length; i++) {
+          await persistActionItem({
+            item: extracted.actionItems[i]!,
+            index: i,
+            parentSourceId: input.sourceId,
+            workspaceSlug: workspace.slug,
+            project: projectSlug,
+            sourceUrl: input.sourceUrl,
+            sourceType: input.source as SourceType,
+            now,
+            traceId,
+            tags: baseTags,
+            ctx,
+          });
+          enrichedActionItems++;
+        }
+        for (let i = 0; i < extracted.decisions.length; i++) {
+          await persistDecision({
+            item: extracted.decisions[i]!,
+            index: i,
+            parentSourceId: input.sourceId,
+            workspaceSlug: workspace.slug,
+            project: projectSlug,
+            sourceUrl: input.sourceUrl,
+            sourceType: input.source as SourceType,
+            now,
+            traceId,
+            tags: baseTags,
+            ctx,
+          });
+          enrichedDecisions++;
+        }
+        // Entities aren't persisted as memories — they'd flood the
+        // KB with low-signal "Matt is a person" rows. They get
+        // surfaced in the response so a future taxonomy auto-suggest
+        // can use them, and a follow-up PR can wire them into
+        // add_person / add_project for high-confidence cases.
+        enrichedEntities = extracted.entities.length;
+
+        ctx.logger.info("ingest_content.enriched", {
+          sourceId: input.sourceId,
+          actionItems: enrichedActionItems,
+          decisions: enrichedDecisions,
+          entities: enrichedEntities,
+          traceId,
+        });
+      } catch (err) {
+        // Enrichment failure must NOT fail the ingest — the raw
+        // chunks are already stored, the user got their content in.
+        // Log + carry on.
+        ctx.logger.warn("ingest_content.enrichment_failed", {
+          sourceId: input.sourceId,
+          error: err instanceof Error ? err.message : String(err),
+          traceId,
+        });
+      }
+    }
+
     ctx.logger.info("ingest_content.done", {
       sourceId: input.sourceId,
       project: projectSlug,
       type: input.type,
       ingested,
       failed: errors.length,
+      enrichedActionItems,
+      enrichedDecisions,
+      enrichedEntities,
       traceId,
     });
 
@@ -319,9 +460,106 @@ export const ingestContent: McpTool<typeof inputSchema, Output> = {
       type: input.type,
       memories: preview,
       errors,
+      enriched: {
+        actionItems: enrichedActionItems,
+        decisions: enrichedDecisions,
+        entities: enrichedEntities,
+      },
     };
   },
 };
+
+interface PersistArgs {
+  index: number;
+  parentSourceId: string;
+  workspaceSlug: string;
+  project: string;
+  sourceUrl: string;
+  sourceType: SourceType;
+  now: Date;
+  traceId: string | undefined;
+  tags: string[];
+  ctx: Parameters<NonNullable<typeof ingestContent.handler>>[1];
+}
+
+async function persistActionItem(
+  args: PersistArgs & { item: ActionItem },
+): Promise<void> {
+  const { item } = args;
+  const ownerSlug = item.owner ? slugify(item.owner) : null;
+  const tags = [
+    ...args.tags,
+    "type:action_item",
+    "status:open",
+    ...(ownerSlug ? [`owner:${ownerSlug}`] : []),
+    ...(item.due ? [`due:${item.due}`] : []),
+    ...(item.priority ? [`priority:${item.priority}`] : []),
+  ];
+  const metadata = {
+    domain: "work" as const,
+    source: args.sourceType,
+    source_id: `${args.parentSourceId}#action-${args.index}`,
+    source_url: args.sourceUrl || "manual://enrichment",
+    project: args.project,
+    type: "action_item",
+    people: ownerSlug ? [ownerSlug] : [],
+    date: args.now.toISOString(),
+    confidence: 0.7,
+    title: item.description.slice(0, 120),
+    tags,
+    workspace: args.workspaceSlug,
+    ...(args.traceId ? { trace_id: args.traceId } : {}),
+  };
+  const parsed = memoryMetadataSchema.safeParse(metadata);
+  if (!parsed.success) {
+    args.ctx.logger.warn("ingest_content.enrichment.action_item_invalid", {
+      sourceId: metadata.source_id,
+      issues: parsed.error.issues.map((i) => i.message),
+    });
+    return;
+  }
+  await args.ctx.engram.ingest({
+    content: item.description,
+    metadata: parsed.data,
+  });
+}
+
+async function persistDecision(
+  args: PersistArgs & { item: Decision },
+): Promise<void> {
+  const { item } = args;
+  const tags = [...args.tags, "type:decision"];
+  const body = item.context
+    ? `${item.summary}\n\n${item.context}`
+    : item.summary;
+  const metadata = {
+    domain: "work" as const,
+    source: args.sourceType,
+    source_id: `${args.parentSourceId}#decision-${args.index}`,
+    source_url: args.sourceUrl || "manual://enrichment",
+    project: args.project,
+    type: "decision",
+    people: [],
+    date: args.now.toISOString(),
+    confidence: 0.7,
+    title: item.summary.slice(0, 120),
+    tags,
+    workspace: args.workspaceSlug,
+    ...(args.traceId ? { trace_id: args.traceId } : {}),
+  };
+  const parsed = memoryMetadataSchema.safeParse(metadata);
+  if (!parsed.success) {
+    args.ctx.logger.warn("ingest_content.enrichment.decision_invalid", {
+      sourceId: metadata.source_id,
+      issues: parsed.error.issues.map((i) => i.message),
+    });
+    return;
+  }
+  await args.ctx.engram.ingest({
+    content: body,
+    metadata: parsed.data,
+  });
+}
 
 function toContentType(t: z.infer<typeof inputSchema>["type"]): ContentType {
   // ClassifiedItem.contentType accepts the same enum strings.
