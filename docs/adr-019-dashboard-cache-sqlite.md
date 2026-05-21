@@ -17,7 +17,7 @@ Re-fetching the same data on every page render is wasteful for an ambient dashbo
 
 ## Decision
 
-Add a **read-model cache in SQLite** between the widget sidecar handlers and the dashboard. New package `@onenomad/cortex-cache-sqlite`.
+Add a **read-model cache in SQLite** between the widget sidecar handlers and the dashboard. New package `@onenomad/przm-cortex-cache-sqlite`.
 
 ### Storage model
 
@@ -93,7 +93,7 @@ Per agreed design (Q3 from coordination):
 ### Migration path
 
 1. Land workspace-bleed fix (Phase 1, in flight). Without it, cache caches wrong data.
-2. Add `@onenomad/cortex-cache-sqlite` package with schema migrations.
+2. Add `@onenomad/przm-cortex-cache-sqlite` package with schema migrations.
 3. Add refresher to `cortex start` scheduler.
 4. Wrap each widget sidecar handler with cache lookup. The wrapper is generic — handlers don't change.
 5. Backfill: first dashboard load after upgrade triggers synchronous compute + write per widget. Subsequent loads hit cache.
@@ -121,7 +121,7 @@ Per agreed design (Q3 from coordination):
 **Open questions:**
 1. **Should cache writes go through a transaction queue or direct SQLite WAL writes?** Lean direct WAL for simplicity; refresher is single-process so no contention.
 2. **Schema-per-widget vs single payload-blob table?** Drafted as per-widget tables for indexability. If a widget gains rich filters (e.g., action-items by owner), per-row decomposition wins. If always-blob is fine, single table cuts schema migration cost. Lean per-widget tables given the existing typed Output interfaces.
-3. **Multi-host federation?** Out of scope for this ADR; addressed by ADR-016 (`@onenomad/cortex-memory-remote`) at the Engram layer, not the dashboard cache.
+3. **Multi-host federation?** Out of scope for this ADR; addressed by ADR-016 (`@onenomad/przm-cortex-memory-remote`) at the Engram layer, not the dashboard cache.
 4. **Cache for the layout endpoint itself?** `fetchLayoutServer` runs on every render. Probably yes — same package, fixed-key row.
 
 ## Cross-references

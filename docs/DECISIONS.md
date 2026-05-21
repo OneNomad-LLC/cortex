@@ -155,19 +155,19 @@ codebase, adding or removing sources becomes structurally expensive.
 
 **Decision**: Every source is a standalone package in an npm workspace
 monorepo. Adapters implement a shared `SourceAdapter` interface from
-`@onenomad/cortex-core`. The Cortex server has a registry that loads enabled adapters
+`@onenomad/przm-cortex-core`. The Cortex server has a registry that loads enabled adapters
 at startup based on `config/cortex.yaml`. Pipelines (meeting extraction, doc
 chunking, code indexing) are also modular packages that adapters declare
 they use.
 
 Package layout:
-- `@onenomad/cortex-core` — shared types, interfaces, context
-- `@onenomad/cortex-adapter-sdk` — base classes, retry, rate-limit, idempotency,
+- `@onenomad/przm-cortex-core` — shared types, interfaces, context
+- `@onenomad/przm-cortex-adapter-sdk` — base classes, retry, rate-limit, idempotency,
   default classifiers
-- `@onenomad/cortex-pipeline-core` — generic pipeline framework
-- `@onenomad/cortex-pipeline-*` — specific pipelines (meeting, doc, code, ...)
-- `@onenomad/cortex-adapter-*` — specific adapters (loom, confluence, obsidian, ...)
-- `@onenomad/cortex-server` — MCP server, registry, scheduler, clients
+- `@onenomad/przm-cortex-pipeline-core` — generic pipeline framework
+- `@onenomad/przm-cortex-pipeline-*` — specific pipelines (meeting, doc, code, ...)
+- `@onenomad/przm-cortex-adapter-*` — specific adapters (loom, confluence, obsidian, ...)
+- `@onenomad/przm-cortex-server` — MCP server, registry, scheduler, clients
 
 **Consequences**:
 - New adapters are contained projects, not structural changes. A well-scoped
@@ -232,17 +232,17 @@ The right abstraction is a provider interface, not hardcoded clients.
 
 **Decision**: An LLM provider layer modeled on the adapter framework (ADR-008).
 
-- `@onenomad/cortex-llm-core` — defines `LLMProvider` interface, request/response types,
+- `@onenomad/przm-cortex-llm-core` — defines `LLMProvider` interface, request/response types,
   and a `LLMRouter` that resolves each call to a provider based on the task
   purpose (e.g., `structural`, `synthesis`, `brief`, `classify`) with a
   fallback chain.
-- `@onenomad/cortex-llm-sdk` — base classes, retry, rate-limit, OpenAI-compatible
+- `@onenomad/przm-cortex-llm-sdk` — base classes, retry, rate-limit, OpenAI-compatible
   helper (reused by OpenRouter/OpenAI/Anthropic-compat/Google-compat).
-- `@onenomad/cortex-provider-ollama` — local, always available as primary in the
+- `@onenomad/przm-cortex-provider-ollama` — local, always available as primary in the
   author's setup.
-- `@onenomad/cortex-provider-openrouter` — cloud aggregator, one key covers many models.
-- Future: `@onenomad/cortex-provider-anthropic`, `@onenomad/cortex-provider-openai`,
-  `@onenomad/cortex-provider-google` for BYOK direct providers.
+- `@onenomad/przm-cortex-provider-openrouter` — cloud aggregator, one key covers many models.
+- Future: `@onenomad/przm-cortex-provider-anthropic`, `@onenomad/przm-cortex-provider-openai`,
+  `@onenomad/przm-cortex-provider-google` for BYOK direct providers.
 
 Configuration is declarative in `config/cortex.yaml` under an `llm:` section:
 
@@ -250,12 +250,12 @@ Configuration is declarative in `config/cortex.yaml` under an `llm:` section:
 llm:
   providers:
     ollama:
-      package: "@onenomad/cortex-provider-ollama"
+      package: "@onenomad/przm-cortex-provider-ollama"
       enabled: true
       config:
         host: "${OLLAMA_HOST}"
     openrouter:
-      package: "@onenomad/cortex-provider-openrouter"
+      package: "@onenomad/przm-cortex-provider-openrouter"
       enabled: true
       config:
         apiKey: "${OPENROUTER_API_KEY}"
@@ -275,7 +275,7 @@ llm:
   quality/cost tuning without touching pipelines.
 - Each provider is a standalone package: install only what you use, upgrade
   independently, clean dependency trees.
-- Testing: a `@onenomad/cortex-provider-mock` fixture package is trivial.
+- Testing: a `@onenomad/przm-cortex-provider-mock` fixture package is trivial.
 - Small complexity overhead in routing logic, paid once in `llm-core`.
 - Supersedes ADR-004's "Ollama primary, OpenRouter fallback" as a hardcoded
   architecture. The defaults in cortex.yaml encode ADR-004's recommendation
@@ -311,12 +311,12 @@ Three shapes were considered:
 **Decision**: Go with (3).
 
 - **New content type**: `reference`. Added to `ContentType` in
-  `@onenomad/cortex-core`, to `memoryMetadataSchema`, and to the JSON schema
+  `@onenomad/przm-cortex-core`, to `memoryMetadataSchema`, and to the JSON schema
   at `schemas/memory-metadata.json`. Reference memories are intended
   for the `reference` cognitive layer proposed upstream in ADR-002;
   until Engram has that, they live in `semantic` with low decay.
 
-- **New pipeline**: `@onenomad/cortex-pipeline-research`. Takes a `{topic,
+- **New pipeline**: `@onenomad/przm-cortex-pipeline-research`. Takes a `{topic,
   retrievedContext[]}` input and emits:
   - One `reference` memory holding the synthesized brief.
   - N `reference` memories for the key facts/findings (one each,
@@ -342,7 +342,7 @@ Three shapes were considered:
 - **No external web in v1**. Retrieval uses only memories already
   ingested (Confluence, Notion, Loom, etc.) plus whatever the user
   passes inline via `sources`. Web fetching is a later enhancement
-  behind a new `@onenomad/cortex-adapter-web` or similar — the research flow
+  behind a new `@onenomad/przm-cortex-adapter-web` or similar — the research flow
   doesn't have to be tied to its arrival.
 
 **Consequences**:
@@ -351,7 +351,7 @@ Three shapes were considered:
   pulls from ingested Confluence/Notion/Loom memories, synthesizes a
   brief, and stores it. Next time someone asks a related question the
   brief + findings surface automatically.
-- No new dependencies — `pipeline-research` reuses `@onenomad/cortex-pipeline-core`
+- No new dependencies — `pipeline-research` reuses `@onenomad/przm-cortex-pipeline-core`
   and the LLM router just like every other pipeline.
 - Reference material is finally distinguishable from transient content.
   Retrieval-quality improves because search can filter on
@@ -377,7 +377,7 @@ MCP. Two gaps:
 
 **Decision**:
 
-- New package `@onenomad/cortex-memory-pgvector`. Implements the same ingest/search/
+- New package `@onenomad/przm-cortex-memory-pgvector`. Implements the same ingest/search/
   healthCheck shape as the Engram MCP client using Postgres + `pgvector` for
   vector similarity and `tsvector` for full-text, fused via reciprocal rank
   fusion (k=60).
@@ -406,7 +406,7 @@ MCP. Two gaps:
 - Cortex can now run without Engram installed at all, using pgvector as the
   primary. Also inverts: if the user prefers Engram's cognitive layers as
   primary and wants pgvector as a safety net, one line of config flips it.
-- Adds a real (non-MCP) dep on `pg`. Kept inside `@onenomad/cortex-memory-pgvector`;
+- Adds a real (non-MCP) dep on `pg`. Kept inside `@onenomad/przm-cortex-memory-pgvector`;
   core packages stay clean.
 - `embed` is now a first-class TaskPurpose. Adapters and pipelines could
   consume it later (semantic dedup during ingest, for example) without
@@ -484,7 +484,7 @@ drift from the CLI version.
 
 **Decision**: Two pieces, one source of truth:
 
-- **`WizardModule` — declarative spec in `@onenomad/cortex-core/wizard`.** Each
+- **`WizardModule` — declarative spec in `@onenomad/przm-cortex-core/wizard`.** Each
   module exports a `WizardModule` describing its steps, secrets,
   category, and an optional `derivedTaxonomy` hook. Step kinds are a
   closed enum (`text`, `password`, `boolean`, `select`, `list`,
@@ -568,14 +568,14 @@ Three shape questions decided up-front because they're hard to reverse:
   The sidecar is bound to `127.0.0.1` by default. Tailscale reachability
   is opt-in via a host override — the same posture as webhooks.
 
-- **Flat React components, one package.** `@onenomad/cortex-dashboard` is a single
+- **Flat React components, one package.** `@onenomad/przm-cortex-dashboard` is a single
   Next.js 15 app. Widgets are React components in `src/widgets/`, each
   with a typed data contract matching the sidecar's JSON response. No
   plugin registry, no runtime discovery. Adding a widget: write a route
   handler server-side, write a component client-side, register it in
   `config/dashboard.yaml`.
 
-  The "extract `@onenomad/cortex-widget-core` later" option stays open — the
+  The "extract `@onenomad/przm-cortex-widget-core` later" option stays open — the
   signal will be a second consumer (e.g. a team leaderboard fed by the
   federation layer). Until then, it's premature.
 
@@ -608,7 +608,7 @@ Three shape questions decided up-front because they're hard to reverse:
 - The HTTP sidecar reuses the exact same Engram client, LLM router, and
   taxonomy as `cortex start`'s MCP tools — any query a widget runs is
   writable as an MCP tool and vice versa. No duplicated query logic.
-- Dashboard deploys are `pnpm --filter @onenomad/cortex-dashboard build` +
+- Dashboard deploys are `pnpm --filter @onenomad/przm-cortex-dashboard build` +
   `cortex dashboard` — no Vercel, no Docker required. Users who want
   hosted access point a reverse proxy at the local instance themselves.
 - The HTTP port is a new surface. Defaulting to localhost-only mitigates
@@ -618,7 +618,7 @@ Three shape questions decided up-front because they're hard to reverse:
 - If the v1 widget set proves wrong, we replace widgets, not
   architecture — the sidecar contract and layout YAML absorb the churn.
 
-## ADR-016: Federated memory with `@onenomad/cortex-memory-remote` (2026-04-22)
+## ADR-016: Federated memory with `@onenomad/przm-cortex-memory-remote` (2026-04-22)
 
 **Status**: Accepted
 
@@ -651,7 +651,7 @@ Options considered:
 
 **Decision**:
 
-- **`@onenomad/cortex-memory-remote`** is a new package that implements the same
+- **`@onenomad/przm-cortex-memory-remote`** is a new package that implements the same
   `EngramClient` interface as the local stdio client, but over HTTP.
   It talks to Engram's existing HTTP MCP transport (already supported
   upstream) or a thin JSON shim in front of it — whichever turns out
@@ -719,7 +719,7 @@ Options considered:
 - Cache coherence is a non-problem because we chose fan-out over
   cache. The cost is one network round-trip per query per remote,
   paid in parallel.
-- A future `@onenomad/cortex-memory-pgvector-remote` or any other backend is
+- A future `@onenomad/przm-cortex-memory-pgvector-remote` or any other backend is
   the same shape: implement `EngramClient`, register in `memory.remotes`.
 
 **Open for v1 impl**:
@@ -737,7 +737,7 @@ Options considered:
 **Status**: Accepted
 
 **Context**: Cortex started as "install globally with `npm install -g
-@onenomad/cortex`, run `cortex start` on your laptop." On Windows
+@onenomad/przm-cortex`, run `cortex start` on your laptop." On Windows
 that story broke repeatedly: PowerShell's `Start-Process` detach
 semantics, console-job cascades that killed "detached" children when
 the parent terminal closed, and the `spawnSync` hangs that motivated
@@ -771,7 +771,7 @@ Options considered:
   cover the daemon case. The detach plumbing (detach.ts,
   pid-file.ts, restart.ts) is removed.
 
-- **Workspace state bind-mounts to `CORTEX_HOME_HOST`.** The user
+- **Workspace state bind-mounts to `PRZM_CORTEX_HOME_HOST`.** The user
   points the env var at a host path (default `./.cortex-data`).
   Workspaces, OAuth tokens, and engram/persona LanceDB data all
   persist there. Matt can point it at his existing `~/.cortex` to
@@ -800,7 +800,7 @@ Options considered:
   the system gets simpler afterwards.
 - Windows users aren't second-class anymore. The container runs
   identically on Docker Desktop (Windows/Mac) and native Linux.
-- The `@onenomad/cortex` npm package still ships for folks who want
+- The `@onenomad/przm-cortex` npm package still ships for folks who want
   to embed Cortex as a library or run it in their own orchestrator,
   but the documented path is `docker compose up`.
 - Obsidian adapter (Phase 9) now needs a filesystem bridge —

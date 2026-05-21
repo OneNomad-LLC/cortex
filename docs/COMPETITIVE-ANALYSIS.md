@@ -30,7 +30,7 @@ No incumbent occupies the position Cortex is building toward: **a composable, se
 
 - **No GTM motion or distribution.** Solo-built, private repo, no marketing site, no growth funnel.
 - **Setup friction is high.** Node, pnpm, Docker, Tailscale, Postgres, OAuth flows, YAML configs — orders of magnitude harder than "sign up to Glean."
-- **Multi-user / team features are roadmapped but unshipped.** Federation (`@onenomad/cortex-memory-remote`) is ADR-only. Today Cortex is a power-user product, not a team product.
+- **Multi-user / team features are roadmapped but unshipped.** Federation (`@onenomad/przm-cortex-memory-remote`) is ADR-only. Today Cortex is a power-user product, not a team product.
 
 **Strategic recommendation:** Anchor Cortex's first commercial wedge in **the developer / AI-power-user segment** — people already running Claude Code and Claude Desktop, already using MCP, already invested in agentic workflows, who need a serious memory and knowledge layer they actually control. From there, the natural commercial expansion is **on-prem self-hosted team deployments** (10-200 person companies in regulated industries — legal, healthcare, defense contractors, finance) where data sovereignty is non-negotiable and where Glean / M365 Copilot is rejected because of cloud-only architecture.
 
@@ -50,7 +50,7 @@ The brief is honest about state. Most of what follows is shipped and tested; a f
 
 **MCP tool surface (~30 tools):** project context, knowledge search, action items, digests, briefs, notes CRUD, session handoffs, workspace switching, identity, enrichment protocol, ingestion (content / file / repo / URL), knowledge-base management. Tools are independently testable, one per file.
 
-**Memory backend:** Engram (primary, stdio subprocess) + `@onenomad/cortex-memory-pgvector` (native Postgres + pgvector + tsvector hybrid search via RRF) as health-check fallback. `@onenomad/cortex-memory-remote` skeleton ready for federated personal-local + shared-team Engram (ADR-016 pending).
+**Memory backend:** Engram (primary, stdio subprocess) + `@onenomad/przm-cortex-memory-pgvector` (native Postgres + pgvector + tsvector hybrid search via RRF) as health-check fallback. `@onenomad/przm-cortex-memory-remote` skeleton ready for federated personal-local + shared-team Engram (ADR-016 pending).
 
 **LLM provider layer:** pluggable, per-task routing. Ollama (local) and OpenRouter (cloud aggregator BYOK) shipped. Anthropic / OpenAI / Google direct providers on roadmap. **Or no LLM at all** — Cortex 0.2's Enrichment Protocol delegates LLM work to the connected MCP client.
 
@@ -68,7 +68,7 @@ The brief is honest about state. Most of what follows is shipped and tested; a f
 
 ### Roadmapped (not yet shipped)
 
-- **Federation (ADR-016)** — `@onenomad/cortex-memory-remote` for hybrid personal-local + shared-team Engram. This is the unlock for team / multi-user deployment.
+- **Federation (ADR-016)** — `@onenomad/przm-cortex-memory-remote` for hybrid personal-local + shared-team Engram. This is the unlock for team / multi-user deployment.
 - **Engram `reference` cognitive layer (ADR-002)** — long-tail work reference (Confluence docs, ADRs, code) that doesn't decay like episodic memory.
 - **Wizard-spec-driven admin forms** — finish the dashboard's setup/configure UI path (widget grid is done; forms aren't).
 - **Live smoke** against real Confluence and real Google OAuth consent.
@@ -385,7 +385,7 @@ Watch carefully: ChatGPT and Claude **expanding memory persistence** (e.g. Claud
 - **AI sovereignty trend.** EU AI Act, US state-level data residency laws, board-level fear of LLM data leakage. The market for "AI that runs on your hardware" expands rapidly through 2026-2028.
 - **Glean / Microsoft pricing creates an opening for the middle market.** Companies of 50-500 people who can't justify $240K Glean ACVs are underserved. Cortex (self-hosted) at fraction of the price is a credible alternative *if* an enterprise bundle ships.
 - **ADHD / neurodivergent professional segment.** Real, underserved, growing tooling category (e.g. Sunsama, Akiflow, Reclaim, Llama Life). Cortex's design choices (digest, brief, capture, prompt, workspaces) match this audience precisely.
-- **Open-source distribution loop.** If `@onenomad/cortex` flips to a permissive license, GitHub stars / Hacker News / Show HN / Reddit / X are zero-cost distribution channels for technically-credible audiences.
+- **Open-source distribution loop.** If `@onenomad/przm-cortex` flips to a permissive license, GitHub stars / Hacker News / Show HN / Reddit / X are zero-cost distribution channels for technically-credible audiences.
 - **Enterprise on-prem variant.** Hetzner / VPS / Tailscale-deployed multi-tenant Cortex is a paid SKU waiting to be packaged.
 - **Marketplace economics.** Each adapter is a npm package. A "Cortex adapter marketplace" — paid premium adapters (Salesforce, Hubspot, ServiceNow, etc.) sold via Stripe — is technically a small lift.
 - **Vertical-specific Cortex.** "Cortex for healthcare" (Loom-style consult ingest + Epic / Cerner connectors), "Cortex for law firms" (case file ingest + court calendar), "Cortex for investment teams" (deal flow + memos). Each vertical has $50K-$500K ACV potential.

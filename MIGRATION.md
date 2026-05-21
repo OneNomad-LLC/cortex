@@ -33,12 +33,12 @@ dashboard widget endpoint directly.
 Cortex Core runs with zero LLM. Storage, retrieval, and adapters all
 work without one.
 
-**Provider packages** (`@onenomad/cortex-provider-ollama`,
-`@onenomad/cortex-provider-openrouter`, `@onenomad/cortex-llm-sdk`)
+**Provider packages** (`@onenomad/przm-cortex-provider-ollama`,
+`@onenomad/przm-cortex-provider-openrouter`, `@onenomad/przm-cortex-llm-sdk`)
 moved from `dependencies` to `optionalDependencies` in
-`@onenomad/cortex` (the server package). `pnpm install` will still
+`@onenomad/przm-cortex` (the server package). `pnpm install` will still
 resolve them inside the workspace, but a bare `npm i -g
-@onenomad/cortex` (when published) will skip them by default.
+@onenomad/przm-cortex` (when published) will skip them by default.
 
 **Pipelines that needed an LLM** (meeting, research, conversation
 signal extraction) now check for it and fall back to one of two
@@ -99,7 +99,7 @@ if (ctx.llm) {
 }
 ```
 
-The `@onenomad/cortex-adapter-sdk` `classifier-llm.ts` already
+The `@onenomad/przm-cortex-adapter-sdk` `classifier-llm.ts` already
 handles this for the most common case (LLM classification fallback).
 
 ### `PipelineContext.llm` is now optional, plus new `enrichment` field

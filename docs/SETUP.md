@@ -50,9 +50,9 @@ For local development, run Cortex as an HTTP daemon. This also starts
 the dashboard at <http://localhost:3030> automatically:
 
 ```bash
-CORTEX_MCP_TRANSPORT=http \
-CORTEX_MCP_HOST=127.0.0.1 \
-CORTEX_MCP_PORT=3100 \
+PRZM_CORTEX_MCP_TRANSPORT=http \
+PRZM_CORTEX_MCP_HOST=127.0.0.1 \
+PRZM_CORTEX_MCP_PORT=3100 \
 node packages/server/dist/index.js start
 ```
 
@@ -111,12 +111,12 @@ Set these in the shell that starts the daemon, or in
 
 | Variable | Purpose |
 |---|---|
-| `CORTEX_MCP_TRANSPORT` | `stdio` (default, single-client) or `http` (multi-client) |
-| `CORTEX_MCP_HOST` | Bind address when `transport=http`. Default `127.0.0.1` |
-| `CORTEX_MCP_PORT` | Port when `transport=http`. Default `3100` |
-| `CORTEX_API_PORT` | Dashboard API sidecar port. Default `4141` |
-| `CORTEX_DASHBOARD_PORT` | Dashboard UI port. Default `3030` |
-| `CORTEX_WORKSPACE` | Pin a specific workspace at boot, overriding the active pointer |
+| `PRZM_CORTEX_MCP_TRANSPORT` | `stdio` (default, single-client) or `http` (multi-client) |
+| `PRZM_CORTEX_MCP_HOST` | Bind address when `transport=http`. Default `127.0.0.1` |
+| `PRZM_CORTEX_MCP_PORT` | Port when `transport=http`. Default `3100` |
+| `PRZM_CORTEX_API_PORT` | Dashboard API sidecar port. Default `4141` |
+| `PRZM_CORTEX_DASHBOARD_PORT` | Dashboard UI port. Default `3030` |
+| `PRZM_CORTEX_WORKSPACE` | Pin a specific workspace at boot, overriding the active pointer |
 | `OPENROUTER_API_KEY` | OpenRouter BYOK key (recommended provider) |
 | `OLLAMA_HOST` | Ollama server URL when using local inference |
 

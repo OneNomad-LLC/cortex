@@ -8,9 +8,6 @@ is delegated to the connected MCP client (Pyre, Claude Desktop,
 custom agents) via the Cortex Enrichment Protocol, OR handled
 in-process when an LLM provider is installed.
 
-Built as an orchestration layer on top of Engram (memory) and
-Persona (communication style).
-
 ## What This Project Is
 
 Cortex ingests from Loom, Confluence, Bitbucket, Obsidian, GitHub,
@@ -30,9 +27,8 @@ and `docs/enrichment-protocol.md`.
 
 ## What This Project Is NOT
 
-- Not a fork of Engram or Persona. Those are consumed as MCP services.
-- Not a general-purpose memory system. That's Engram's job.
-- Not a communication-style learner. That's Persona's job.
+- Not a general-purpose memory system. Use a dedicated vector store or Engram for that.
+- Not a communication-style learner.
 - Not a replacement for Claude Code or Claude.ai. Those are the interfaces.
 
 ## Architecture
@@ -42,18 +38,16 @@ User (via Claude Code / Claude.ai)
             |
             v
        Cortex MCP  <- work-specific tools
-       /    |    \
-      v     v     v
-  Engram  Persona  Source Adapters
-   MCP     MCP     (Loom, Confluence,
-                    Bitbucket, Obsidian,
-                    Calendar)
+            |
+            v
+      Source Adapters + Memory Backend
+      (Loom, Confluence, Bitbucket,
+       Obsidian, Calendar, pgvector)
 ```
 
 Cortex exposes domain-specific tools (projects, meetings, briefs, action items).
-Internally it calls Engram's MCP for storage/retrieval and Persona's MCP for
-style adaptation. Source adapters pull data from external services and route
-it through extraction pipelines before ingesting into Engram with structured
+Source adapters pull data from external services and route it through extraction
+pipelines before ingesting into the configured memory backend with structured
 metadata.
 
 See `docs/ARCHITECTURE.md` for detailed component responsibilities and data flow.
@@ -77,7 +71,7 @@ unified queue across all projects. Owner, source, status, optional due date.
 
 ## Memory Metadata Contract
 
-Every memory ingested into Engram must carry the following metadata:
+Every memory ingested into the memory backend must carry the following metadata:
 
 ```json
 {
@@ -100,9 +94,8 @@ See `schemas/memory-metadata.json` for the authoritative schema.
 
 ## Tech Stack
 
-- **Language**: TypeScript (matches Engram and Persona)
+- **Language**: TypeScript
 - **MCP SDK**: `@modelcontextprotocol/sdk`
-- **Engram/Persona**: consumed over MCP, not imported
 - **LLM for pipelines**: pluggable provider layer. Toggle between local
   (Ollama) and BYOK cloud providers (OpenRouter, Anthropic, OpenAI, Google, or
   any OpenAI-compatible endpoint). Configurable per pipeline step, with a
@@ -126,7 +119,7 @@ cortex/
   package.json                    # workspace root
   pnpm-workspace.yaml
   tsconfig.base.json
-  docker-compose.yml              # runs Cortex + Engram + Persona together
+  docker-compose.yml              # runs Cortex (+ optional pgvector/ollama profiles)
   .env.example
 
   config/
@@ -138,14 +131,14 @@ cortex/
     memory-metadata.json          # JSON schema for the metadata contract
 
   packages/
-    core/                         # @onenomad/cortex-core
+    core/                         # @onenomad/przm-cortex-core
       src/
         adapter.ts                # SourceAdapter interface
         types.ts                  # NormalizedItem, ClassifiedItem, enums
         context.ts                # AdapterContext
         capabilities.ts           # AdapterCapabilities
 
-    adapter-sdk/                  # @onenomad/cortex-adapter-sdk
+    adapter-sdk/                  # @onenomad/przm-cortex-adapter-sdk
       src/
         base-adapter.ts           # abstract base class
         retry.ts
@@ -154,51 +147,50 @@ cortex/
         classifier-llm.ts         # default LLM classifier
         classifier-rule.ts        # rule-based classifier
 
-    pipeline-core/                # @onenomad/cortex-pipeline-core
+    pipeline-core/                # @onenomad/przm-cortex-pipeline-core
       src/
         pipeline.ts               # generic pipeline framework
 
-    llm-core/                     # @onenomad/cortex-llm-core
+    llm-core/                     # @onenomad/przm-cortex-llm-core
       src/
         provider.ts               # LLMProvider interface
         router.ts                 # per-task routing + fallback chain
         types.ts                  # LLMRequest, LLMResponse, TaskPurpose
 
-    llm-sdk/                      # @onenomad/cortex-llm-sdk
+    llm-sdk/                      # @onenomad/przm-cortex-llm-sdk
       src/
         base-provider.ts
         openai-compatible.ts      # reused by most cloud providers
         retry.ts
         rate-limit.ts
 
-    provider-ollama/              # @onenomad/cortex-provider-ollama
-    provider-openrouter/          # @onenomad/cortex-provider-openrouter
+    provider-ollama/              # @onenomad/przm-cortex-provider-ollama
+    provider-openrouter/          # @onenomad/przm-cortex-provider-openrouter
     provider-anthropic/           # (future)
     provider-openai/              # (future)
     provider-google/              # (future)
 
-    pipeline-meeting/             # @onenomad/cortex-pipeline-meeting (Phase 3)
+    pipeline-meeting/             # @onenomad/przm-cortex-pipeline-meeting (Phase 3)
       src/
         prompts/                  # all prompts as .md files for review
         ...
 
-    pipeline-doc/                 # @onenomad/cortex-pipeline-doc (Phase 5)
-    pipeline-code/                # @onenomad/cortex-pipeline-code (Phase 10)
+    pipeline-doc/                 # @onenomad/przm-cortex-pipeline-doc (Phase 5)
+    pipeline-code/                # @onenomad/przm-cortex-pipeline-code (Phase 10)
 
-    adapter-loom/                 # @onenomad/cortex-adapter-loom (Phase 4)
-    adapter-confluence/           # @onenomad/cortex-adapter-confluence (Phase 5)
-    adapter-calendar/             # @onenomad/cortex-adapter-calendar (Phase 6)
-    adapter-obsidian/             # @onenomad/cortex-adapter-obsidian (Phase 9)
-    adapter-bitbucket/            # @onenomad/cortex-adapter-bitbucket (Phase 10)
+    adapter-loom/                 # @onenomad/przm-cortex-adapter-loom (Phase 4)
+    adapter-confluence/           # @onenomad/przm-cortex-adapter-confluence (Phase 5)
+    adapter-calendar/             # @onenomad/przm-cortex-adapter-calendar (Phase 6)
+    adapter-obsidian/             # @onenomad/przm-cortex-adapter-obsidian (Phase 9)
+    adapter-bitbucket/            # @onenomad/przm-cortex-adapter-bitbucket (Phase 10)
 
-    server/                       # @onenomad/cortex (the CLI + MCP server)
+    server/                       # @onenomad/przm-cortex (the CLI + MCP server)
       src/
         mcp/
           server.ts               # MCP server entry
           tools/                  # one file per tool
         clients/
-          engram.ts               # typed client for Engram MCP
-          persona.ts              # typed client for Persona MCP
+          memory.ts               # typed client for memory backend
         registry/
           adapters.ts             # adapter discovery and lifecycle
           providers.ts            # LLM provider discovery and wiring
@@ -223,7 +215,7 @@ touching logic. See ADR-007.
 
 **Every ingestion path is idempotent.** Re-running an adapter on the same
 content updates existing memories, never duplicates. Use `source_id` as the
-dedup key via Engram's duplicate detection.
+dedup key via the memory backend's duplicate detection.
 
 **Secrets live in `.env`, never in config files.** Config files are checked
 in; `.env` is not. `.env.example` shows required variables.
@@ -231,15 +223,14 @@ in; `.env` is not. `.env.example` shows required variables.
 **One MCP tool per file.** Tools are independently testable.
 
 **Tests alongside code where practical.** Integration tests that hit real
-Engram/Persona use docker-compose for setup.
+storage backends use docker-compose for setup.
 
 ## Build Order
 
 See `docs/ROADMAP.md` for the canonical, up-to-date order and current state.
 Summary:
 
-1. Monorepo foundation, typed Engram/Persona clients, Ollama + OpenRouter
-   clients, empty MCP server
+1. Monorepo foundation, memory backend, Ollama + OpenRouter clients, empty MCP server
 2. Project taxonomy (config + `list_projects` + `get_project_context` tools)
 3. Meeting pipeline on fixtures (3-pass: structural -> synthesis -> brief)
 4. Loom adapter (applies pipeline to real data)
@@ -254,14 +245,9 @@ Each step should be independently useful. Don't build #10 before #5 works.
 
 ## What Claude Code Should Not Do
 
-- Do not import Engram or Persona code directly. They are consumed over MCP.
 - Do not commit `.env`, API keys, or any secrets.
 - Do not modify the memory metadata contract without updating every adapter
   and this file.
-- Do not add new cognitive layers to Engram from here. Propose those upstream
-  to the Engram repo.
-- Do not mix work-specific logic into the Engram or Persona clients. Those
-  are thin wrappers.
 - Do not use prompts inline; keep them in `packages/pipeline-*/src/prompts/`.
 - Do not skip tests on ingestion adapters. They fail silently and corrupt
   retrieval quality.
