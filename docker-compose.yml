@@ -16,9 +16,9 @@
 # bearer auth. The exposed ports below publish on all interfaces; for
 # a real VPS add a firewall.
 #
-# Workspaces + engram/persona data live under the CORTEX_HOME_HOST
+# Workspaces + engram/persona data live under the PRZM_CORTEX_HOME_HOST
 # directory bind-mounted below. Default is ./.cortex-data in the
-# repo; set CORTEX_HOME_HOST in .env to reuse an existing workspace.
+# repo; set PRZM_CORTEX_HOME_HOST in .env to reuse an existing workspace.
 #
 # Optional profiles:
 #   docker compose --profile pgvector up
@@ -40,12 +40,12 @@ services:
       dockerfile: packages/server/Dockerfile
     environment:
       - NODE_ENV=production
-      - CORTEX_MCP_TRANSPORT=http
-      - CORTEX_MCP_HOST=0.0.0.0
-      - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-3100}
-      - CORTEX_API_HOST=0.0.0.0
-      - CORTEX_API_PORT=${CORTEX_API_PORT:-4141}
-      - CORTEX_WORKSPACE=${CORTEX_WORKSPACE:-}
+      - PRZM_CORTEX_MCP_TRANSPORT=http
+      - PRZM_CORTEX_MCP_HOST=0.0.0.0
+      - PRZM_CORTEX_MCP_PORT=${PRZM_CORTEX_MCP_PORT:-3100}
+      - PRZM_CORTEX_API_HOST=0.0.0.0
+      - PRZM_CORTEX_API_PORT=${PRZM_CORTEX_API_PORT:-4141}
+      - PRZM_CORTEX_WORKSPACE=${PRZM_CORTEX_WORKSPACE:-}
       # Redirect engram + persona data dirs under the bind-mounted
       # /root/.cortex so their LanceDB + soul files survive restarts.
       # (Default for both is ~/.claude/<name>, which isn't mounted.)
@@ -63,7 +63,7 @@ services:
       # Docker Desktop does on Mac/Windows. Harmless elsewhere.
       - "host.docker.internal:host-gateway"
     volumes:
-      - ${CORTEX_HOME_HOST:-./.cortex-data}:/root/.cortex
+      - ${PRZM_CORTEX_HOME_HOST:-./.cortex-data}:/root/.cortex
       # Private modules (optional) — each is its own sibling repo,
       # mounted read-only so the running server can import compiled
       # dist/ files. Uncomment + add a line per module; point
@@ -82,8 +82,8 @@ services:
       # only, which breaks browsers that resolve `localhost` to ::1).
       # For VPS deployments put Tailscale or a reverse proxy in front —
       # these ports should NOT be publicly reachable without auth.
-      - "${CORTEX_MCP_PORT:-3100}:3100"
-      - "${CORTEX_API_PORT:-4141}:4141"
+      - "${PRZM_CORTEX_MCP_PORT:-3100}:3100"
+      - "${PRZM_CORTEX_API_PORT:-4141}:4141"
     restart: unless-stopped
 
   pgvector:

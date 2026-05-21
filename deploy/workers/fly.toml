@@ -1,23 +1,23 @@
-## fly.toml — cortex-workers Fly app
+## fly.toml — przm-cortex-workers Fly app
 ##
 ## Worker fleet for the autoscale-to-zero job queue. Same Docker image
-## as cortex-base, different entrypoint (`cortex worker`). Polls
+## as przm-cortex-base, different entrypoint (`przm-cortex worker`). Polls
 ## pyre-web's /api/cortex/jobs/claim, runs the ingest pipeline,
 ## reports back. See Pyre Business Plan doc 25 for architecture.
 ##
 ## Deploy:
 ##   cd cortex && flyctl deploy -c deploy/workers/fly.toml \
-##     -a cortex-workers --build-only --push
+##     -a przm-cortex-workers --build-only --push
 ##
-## Required secrets (set via `fly secrets set -a cortex-workers`):
+## Required secrets (set via `fly secrets set -a przm-cortex-workers`):
 ##   PYRE_WEB_URL=https://pyre.sh   # or https://dev.pyre.sh
-##   CORTEX_WORKER_SECRET=<32+byte hex; matches pyre-web's env var>
+##   PRZM_CORTEX_WORKER_SECRET=<32+byte hex; matches pyre-web's env var>
 
-app = "cortex-workers"
+app = "przm-cortex-workers"
 primary_region = "iad"
 
 [build]
-  image = "registry.fly.io/cortex-base:latest"
+  image = "registry.fly.io/przm-cortex-base:latest"
 
 [processes]
   worker = "node dist/index.js worker"
@@ -28,7 +28,7 @@ primary_region = "iad"
 ## Autoscale-to-zero is the whole point. min_machines_running = 0 means
 ## an idle queue costs us nothing. auto_start_machines wakes a machine
 ## when there's work; auto_stop_machines parks it when there isn't.
-## CORTEX_WORKER_IDLE_EXIT_MS in worker.ts also makes the process exit
+## PRZM_CORTEX_WORKER_IDLE_EXIT_MS in worker.ts also makes the process exit
 ## itself after a quiet period so Fly can park.
 [[services]]
   internal_port = 8080            # unused — workers don't expose HTTP

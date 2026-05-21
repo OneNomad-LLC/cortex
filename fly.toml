@@ -1,23 +1,23 @@
 # Fly.io manifest for publishing the unified Cortex Cloud base image.
 #
-# This file is intentionally minimal — the `cortex-base` Fly app exists
+# This file is intentionally minimal — the `przm-cortex-base` Fly app exists
 # only as an image registry target. Per-tenant Cortex instances are
 # provisioned programmatically by pyre-web's deploy server action,
 # which creates its own Fly apps with their own configuration.
 #
 # Publish a new base image:
-#   fly deploy -a cortex-base --build-only --push
+#   fly deploy -a przm-cortex-base --build-only --push
 #
 # That builds the Dockerfile remotely on Fly's builder, tags the result
-# as `registry.fly.io/cortex-base:latest`, and pushes it. pyre-web's
+# as `registry.fly.io/przm-cortex-base:latest`, and pushes it. pyre-web's
 # provisioner references that tag via FLY_CORTEX_IMAGE.
 #
 # If you need a different tag (preview, pinned version):
-#   fly deploy -a cortex-base --build-only --push --image-label v0.4
-# then set `FLY_CORTEX_IMAGE=registry.fly.io/cortex-base:v0.4` in
+#   fly deploy -a przm-cortex-base --build-only --push --image-label v0.4
+# then set `FLY_CORTEX_IMAGE=registry.fly.io/przm-cortex-base:v0.4` in
 # pyre-web's env.
 
-app = "cortex-base"
+app = "przm-cortex-base"
 primary_region = "iad"
 
 [build]

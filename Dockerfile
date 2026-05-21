@@ -5,12 +5,12 @@
 # the runtime image no longer carries Next.js or the dashboard build.
 #
 # Build remotely on Fly (no local Docker required):
-#   fly deploy -a cortex-base --build-only --push
+#   fly deploy -a przm-cortex-base --build-only --push
 #
 # Or build + push locally if Docker is installed:
-#   docker build -t registry.fly.io/cortex-base:latest .
+#   docker build -t registry.fly.io/przm-cortex-base:latest .
 #   fly auth docker
-#   docker push registry.fly.io/cortex-base:latest
+#   docker push registry.fly.io/przm-cortex-base:latest
 
 # ── Stage 1: install workspace dependencies ─────────────────────────
 FROM node:22-slim AS deps
@@ -40,7 +40,7 @@ RUN pnpm install --frozen-lockfile
 # ── Stage 2: build the workspace ────────────────────────────────────
 FROM deps AS build
 WORKDIR /app
-RUN pnpm -r --filter='!@onenomad/cortex-dashboard' run build
+RUN pnpm -r --filter='!@onenomad/przm-cortex-dashboard' run build
 
 # ── Stage 3: runtime image ──────────────────────────────────────────
 FROM node:22-slim AS runtime
@@ -62,22 +62,22 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # tree. With the dashboard gone, this is the entire runtime — no need
 # to graft anything back into a workspace layout.
 COPY --from=build /app /app
-RUN pnpm -r --prod deploy --filter=@onenomad/cortex /runtime-pkg \
+RUN pnpm -r --prod deploy --filter=@onenomad/przm-cortex /runtime-pkg \
     && rm -rf /app/packages/server/node_modules \
     && mv /runtime-pkg/node_modules /app/packages/server/node_modules
 
 WORKDIR /app/packages/server
 
 # Defaults for Fly Machines. Auth tokens are injected per-tenant by the
-# pyre-web provisioner. CORTEX_API_ENABLED flips on so pyre-web's
+# pyre-web provisioner. PRZM_CORTEX_API_ENABLED flips on so pyre-web's
 # tenant proxy can reach /api/* — the committed cortex.yaml defaults
 # api.enabled to false for laptop installs.
-ENV CORTEX_MCP_TRANSPORT=http
-ENV CORTEX_MCP_HOST=0.0.0.0
-ENV CORTEX_MCP_PORT=3100
-ENV CORTEX_API_ENABLED=true
-ENV CORTEX_API_HOST=0.0.0.0
-ENV CORTEX_API_PORT=4141
+ENV PRZM_CORTEX_MCP_TRANSPORT=http
+ENV PRZM_CORTEX_MCP_HOST=0.0.0.0
+ENV PRZM_CORTEX_MCP_PORT=3100
+ENV PRZM_CORTEX_API_ENABLED=true
+ENV PRZM_CORTEX_API_HOST=0.0.0.0
+ENV PRZM_CORTEX_API_PORT=4141
 
 EXPOSE 3100 4141
 

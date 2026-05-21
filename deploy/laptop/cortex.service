@@ -15,7 +15,7 @@
 #        systemctl daemon-reload
 #        systemctl enable --now cortex
 #
-# CORTEX_HOME and the install path are kept as drop-in-overridable
+# PRZM_CORTEX_HOME and the install path are kept as drop-in-overridable
 # variables so the same unit serves /opt/cortex, /srv/cortex, or any
 # customer-specific layout. Override via:
 #   systemctl edit cortex
@@ -23,7 +23,7 @@
 
 [Unit]
 Description=Cortex MCP server (org knowledge base)
-Documentation=https://github.com/OneNomad-LLC/cortex
+Documentation=https://github.com/OneNomad-LLC/przm-cortex
 After=network-online.target
 Wants=network-online.target
 
@@ -33,15 +33,15 @@ User=cortex
 Group=cortex
 
 # Install dir. Override via `systemctl edit cortex` for non-default paths.
-Environment=CORTEX_HOME=/opt/cortex
+Environment=PRZM_CORTEX_HOME=/opt/cortex
 
 # Bind MCP HTTP transport on loopback only — terminate TLS at the
 # reverse proxy (Caddy / nginx / Traefik) so this never directly faces
 # the internet. Customer-specific domain lives in the proxy config, not
 # here, which keeps the unit identical across deployments.
-Environment=CORTEX_MCP_TRANSPORT=http
-Environment=CORTEX_MCP_HOST=127.0.0.1
-Environment=CORTEX_MCP_PORT=3100
+Environment=PRZM_CORTEX_MCP_TRANSPORT=http
+Environment=PRZM_CORTEX_MCP_HOST=127.0.0.1
+Environment=PRZM_CORTEX_MCP_PORT=3100
 
 # Per-host secrets / overrides (DATABASE_URL, OPENROUTER_API_KEY, etc.).
 # EnvironmentFile is optional with the leading '-' so the unit boots

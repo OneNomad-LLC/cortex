@@ -8,7 +8,7 @@ Cortex ships in two distinct deployment shapes. Each lives in its own subdirecto
 |---|---|---|
 | Login + dashboard | `pyre.sh` | `dev.pyre.sh` |
 | Per-tenant Cortex (MCP + API) | `<tenant-slug>.cortex.pyre.sh` | `<tenant-slug>.cortex-dev.pyre.sh` |
-| Cortex base image (Fly registry) | `registry.fly.io/cortex-base` (internal) | same |
+| Cortex base image (Fly registry) | `registry.fly.io/przm-cortex-base` (internal) | same |
 
 URLs are documentation only — per the no-hardcoded-environment-URLs policy, no source code references these as constants. Users type the pyre-web URL at login; tenant URLs come back from pyre-web in the device-poll response.
 
@@ -18,31 +18,31 @@ This is the **production** path. pyre-web's tenant provisioner is the only thing
 
 **Build target lives at the repo root** (not under `deploy/fly/`) because Fly's build context defaults to the directory containing `fly.toml`, and the Dockerfile needs the whole monorepo as its context:
 
-- `<repo-root>/fly.toml` — Fly app manifest for the **base image** (`cortex-base`). Build-only; nothing actually runs in this app.
+- `<repo-root>/fly.toml` — Fly app manifest for the **base image** (`przm-cortex-base`). Build-only; nothing actually runs in this app.
 - `<repo-root>/Dockerfile` — multi-stage build that assembles the unified server + dashboard image.
 
 ### Publish a new base image
 
 ```sh
 # From the repo root:
-fly deploy -a cortex-base --build-only --push
+fly deploy -a przm-cortex-base --build-only --push
 ```
 
-That builds the Dockerfile remotely on Fly's builder, tags the result as `registry.fly.io/cortex-base:latest`, and pushes it. pyre-web's provisioner references that tag via `FLY_CORTEX_IMAGE`.
+That builds the Dockerfile remotely on Fly's builder, tags the result as `registry.fly.io/przm-cortex-base:latest`, and pushes it. pyre-web's provisioner references that tag via `FLY_PRZM_CORTEX_IMAGE`.
 
 ### Tagged builds (preview, pinned versions)
 
 ```sh
-fly deploy -a cortex-base --build-only --push --image-label v0.4
+fly deploy -a przm-cortex-base --build-only --push --image-label v0.4
 ```
 
-Then set `FLY_CORTEX_IMAGE=registry.fly.io/cortex-base:v0.4` in pyre-web's env.
+Then set `FLY_PRZM_CORTEX_IMAGE=registry.fly.io/przm-cortex-base:v0.4` in pyre-web's env.
 
 ### How tenant deploys actually happen
 
 1. User signs up for Pyre Enterprise on `pyre.sh`
 2. pyre-web's tenant provisioner (`fly apps create cortex-<slug>`) spins up a new app from the base image
-3. pyre-web injects per-tenant secrets (`CORTEX_API_AUTH_TOKEN`, `CORTEX_MCP_AUTH_TOKEN`, Postgres connection string)
+3. pyre-web injects per-tenant secrets (`PRZM_CORTEX_API_AUTH_TOKEN`, `PRZM_CORTEX_MCP_AUTH_TOKEN`, Postgres connection string)
 4. pyre-web assigns the custom domain (`fly certs add <slug>.cortex.pyre.sh`)
 5. Tenant's Cortex is reachable at `<slug>.cortex.pyre.sh`
 
@@ -52,17 +52,17 @@ The cortex repo never knows about individual tenants; it only publishes the imag
 
 | Variable | Purpose |
 |---|---|
-| `CORTEX_MCP_TRANSPORT` | `http` for hosted; defaults to `stdio` for laptop |
-| `CORTEX_MCP_HOST` / `CORTEX_MCP_PORT` | Where the MCP server binds (3100) |
-| `CORTEX_MCP_AUTH_TOKEN` | Bearer required to call the MCP HTTP transport |
-| `CORTEX_API_ENABLED` | Must be `true` for the dashboard API + child to come up |
-| `CORTEX_API_HOST` / `CORTEX_API_PORT` | Dashboard API bind (4141) |
-| `CORTEX_API_AUTH_TOKEN` | Bearer required to call the dashboard API |
-| `CORTEX_DASHBOARD_PORT` | Where the dashboard child Next.js listens (3030) |
-| `CORTEX_DASHBOARD_AUTOSTART` | Whether the server spawns the dashboard child |
+| `PRZM_CORTEX_MCP_TRANSPORT` | `http` for hosted; defaults to `stdio` for laptop |
+| `PRZM_CORTEX_MCP_HOST` / `PRZM_CORTEX_MCP_PORT` | Where the MCP server binds (3100) |
+| `PRZM_CORTEX_MCP_AUTH_TOKEN` | Bearer required to call the MCP HTTP transport |
+| `PRZM_CORTEX_API_ENABLED` | Must be `true` for the dashboard API + child to come up |
+| `PRZM_CORTEX_API_HOST` / `PRZM_CORTEX_API_PORT` | Dashboard API bind (4141) |
+| `PRZM_CORTEX_API_AUTH_TOKEN` | Bearer required to call the dashboard API |
+| `PRZM_CORTEX_DASHBOARD_PORT` | Where the dashboard child Next.js listens (3030) |
+| `PRZM_CORTEX_DASHBOARD_AUTOSTART` | Whether the server spawns the dashboard child |
 | `DATABASE_URL` | Postgres + pgvector connection string (per-tenant) |
 
-Future: extract this contract into a shared `@onenomad/cortex-env-types` package so pyre-web's TypeScript build fails when cortex changes the contract incompatibly. Tracked under task #8.
+Future: extract this contract into a shared `@onenomad/przm-cortex-env-types` package so pyre-web's TypeScript build fails when cortex changes the contract incompatibly. Tracked under task #8.
 
 ## `laptop/` — Self-hosted on a single machine
 
@@ -76,7 +76,7 @@ Reverse-proxy + systemd assets for users who want to run Cortex on their own box
 
 ```sh
 # 1. Install cortex globally (or symlink from a checkout)
-npm install -g @onenomad/cortex
+npm install -g @onenomad/przm-cortex
 
 # 2. Copy + edit the env template
 sudo cp deploy/laptop/cortex.env.template /etc/cortex.env
