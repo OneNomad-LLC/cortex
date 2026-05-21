@@ -443,11 +443,26 @@ export async function startServer(): Promise<void> {
   // ADR-019 Phase 1 — open the SQLite widget cache when the dashboard
   // API is enabled. Lives at $PRZM_CORTEX_HOME/dashboard-cache.db; tests
   // override via PRZM_CORTEX_DASHBOARD_CACHE_PATH.
-  const dashboardCache = cfg.api.enabled
-    ? (await import("@onenomad/przm-cortex-cache-sqlite")).openCache(
-        (await import("../cli/workspace/state.js")).dashboardCachePath(),
-      )
+  const cacheSqliteMod = cfg.api.enabled
+    ? await import("@onenomad/przm-cortex-cache-sqlite")
     : undefined;
+  const cachePath = cfg.api.enabled
+    ? (await import("../cli/workspace/state.js")).dashboardCachePath()
+    : undefined;
+  const dashboardCache = cacheSqliteMod && cachePath
+    ? cacheSqliteMod.openCache(cachePath)
+    : undefined;
+  // Persistent JobRegistry shadow — same SQLite file, separate table
+  // (`cache_jobs`). Wired into the singleton so every ingest_url /
+  // ingest_repo / ingest_file lifecycle event mirrors to disk and
+  // survives a restart. Sessions without a workspace stamp with "".
+  const jobsStorage = cacheSqliteMod && cachePath
+    ? cacheSqliteMod.openJobsStorage(cachePath)
+    : null;
+  if (jobsStorage) {
+    const { jobs: jobsRegistry } = await import("./jobs.js");
+    jobsRegistry.setStorage(jobsStorage);
+  }
 
   const dashboardApi = cfg.api.enabled
     ? createDashboardApi({
