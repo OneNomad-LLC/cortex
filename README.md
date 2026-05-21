@@ -342,7 +342,7 @@ back to walk-up / home / cwd.
 
 ```bash
 # Adopt the repo's current config as your first workspace
-cortex workspace add elevate --from .
+cortex workspace add onenomad --from .
 
 # Create a blank one for personal projects and switch
 cortex workspace add one-nomad
@@ -350,7 +350,7 @@ cortex workspace switch one-nomad
 cortex init            # fresh LLM/adapter setup inside one-nomad
 
 # Later
-cortex workspace switch elevate
+cortex workspace switch onenomad
 ```
 
 Manage from Claude instead of the terminal:
@@ -657,8 +657,6 @@ decisions that shaped this structure are in
 
 ## License
 
-Cortex is a commercial product. Source-available, **not open source**. The eventual public license will be the Business Source License (BSL) 1.1 with a multi-year change date to Apache 2.0; production use in a commercial product or service requires a separate commercial license.
+Cortex (`@onenomad/przm-cortex`) is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for the full text.
 
-This is the only piece of the OneNomad stack that's commercial. The brain trio that Cortex composes with — [Engram](https://github.com/OneNomad-LLC/engram-mcp), [Persona](https://github.com/OneNomad-LLC/persona-mcp), and [Pyre Core](https://github.com/OneNomad-LLC/pyre) — are all open source under Apache License 2.0.
-
-For commercial licensing, partnerships, or design-partner inquiries: **matt@onenomad.dev**
+For commercial licensing, partnerships, or design-partner inquiries: **hello@onenomad.dev**

@@ -11,8 +11,8 @@ import { parseDotEnv } from "./cli/dotenv.js";
  * Cortex's MCP server serves many concurrent clients (each Claude
  * Code instance, Claude Desktop, the browser extension — all share
  * the same server process). A single "active workspace" tracked at
- * process level fails that model: Claude A in workspace onenomad and
- * Claude B in workspace elevatedigital need independent views of
+ * process level fails that model: Claude A in workspace alpha and
+ * Claude B in workspace beta need independent views of
  * memory, taxonomy, and adapter state.
  *
  * Solution: AsyncLocalStorage carries the session id across every

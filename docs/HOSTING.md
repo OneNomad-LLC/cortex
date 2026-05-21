@@ -36,10 +36,11 @@ Hetzner has the best price-to-performance ratio for small VPS workloads. The
 CPX21 is comfortably specced for three Node services plus LanceDB. NVMe SSD
 matters for LanceDB performance.
 
-Tailscale keeps the MCP endpoints private to the author's devices without
+Tailscale keeps the MCP endpoints private to a user's own devices without
 needing to mess with firewall rules or public DNS. Free for personal use.
 
-US region matters for latency when the author's company tooling is also US.
+Pick a US region if your other tooling and SaaS lives in the US — it
+matters for latency.
 
 ## Alternatives Considered
 

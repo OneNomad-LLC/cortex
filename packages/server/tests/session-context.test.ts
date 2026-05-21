@@ -74,12 +74,12 @@ describe("runWithSession + get helpers", () => {
 
   it("isolates sessions", () => {
     runWithSession("a", () => setSessionWorkspace("a", "onenomad"));
-    runWithSession("b", () => setSessionWorkspace("b", "elevatedigital"));
+    runWithSession("b", () => setSessionWorkspace("b", "acmeco"));
     runWithSession("a", () => {
       expect(getCurrentWorkspace()).toBe("onenomad");
     });
     runWithSession("b", () => {
-      expect(getCurrentWorkspace()).toBe("elevatedigital");
+      expect(getCurrentWorkspace()).toBe("acmeco");
     });
   });
 

@@ -7,7 +7,7 @@ projects: []
   #   description: "One-sentence description."
   #   active: true
   #   aliases: ["Alpha", "Proj A"]
-  #   people: [matt]
+  #   people: [alice]
   #   sources:
   #     confluence_space: "ALPHA"
   #     bitbucket_repos: ["alpha-backend"]

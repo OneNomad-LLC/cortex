@@ -181,7 +181,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   }
 
   const slug = await input({
-    message: "Workspace slug (kebab-case — e.g. elevate, one-nomad, personal)",
+    message: "Workspace slug (kebab-case — e.g. onenomad, acme, personal)",
     validate: (v) => {
       const trimmed = v.trim();
       if (!trimmed) return "required";

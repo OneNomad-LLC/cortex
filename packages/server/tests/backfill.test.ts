@@ -67,9 +67,9 @@ describe("buildBackfillReport", () => {
   it("counts unstamped, matching-slug, and different-slug separately", async () => {
     const rows = [
       memory("u1", []),
-      memory("u2", ["owner:matt"]), // tags but no workspace:*
+      memory("u2", ["owner:alice"]), // tags but no workspace:*
       memory("w1", ["workspace:work"]),
-      memory("w2", ["workspace:work", "owner:matt"]),
+      memory("w2", ["workspace:work", "owner:alice"]),
       memory("o1", ["workspace:side-project"]),
     ];
     const report = await buildBackfillReport(fakeEngram(rows), { slug: "work", limit: 100 });

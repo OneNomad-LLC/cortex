@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "@onenomad/przm-cortex",
-  "version": "0.0.0",
+  "version": "0.4.0",
   "description": "przm Cortex MCP server: unified work-knowledge layer.",
   "keywords": [
     "mcp",
@@ -10,7 +10,7 @@
     "memory"
   ],
   "author": "OneNomad",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -75,5 +75,8 @@
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

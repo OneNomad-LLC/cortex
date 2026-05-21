@@ -51,13 +51,13 @@ describe("workspaces", () => {
 
   describe("validateSlug", () => {
     it("accepts kebab-case slugs", () => {
-      expect(validateSlug("elevate-digital")).toEqual({ ok: true });
+      expect(validateSlug("acme-co")).toEqual({ ok: true });
       expect(validateSlug("alpha")).toEqual({ ok: true });
       expect(validateSlug("a1b2")).toEqual({ ok: true });
     });
 
     it("rejects bad shapes", () => {
-      expect(validateSlug("Elevate").ok).toBe(false);
+      expect(validateSlug("Acme").ok).toBe(false);
       expect(validateSlug("has spaces").ok).toBe(false);
       expect(validateSlug("-leading").ok).toBe(false);
       expect(validateSlug("").ok).toBe(false);
@@ -88,10 +88,10 @@ describe("workspaces", () => {
 
   describe("manager", () => {
     it("createWorkspace scaffolds a config dir and lists the workspace", async () => {
-      const ws = await createWorkspace({ slug: "elevate" });
-      expect(ws.slug).toBe("elevate");
+      const ws = await createWorkspace({ slug: "acme" });
+      expect(ws.slug).toBe("acme");
       const list = await listWorkspaces();
-      expect(list.map((w) => w.slug)).toEqual(["elevate"]);
+      expect(list.map((w) => w.slug)).toEqual(["acme"]);
       const cfg = await readFile(ws.configPath, "utf8");
       expect(cfg).toContain("New workspace");
     });

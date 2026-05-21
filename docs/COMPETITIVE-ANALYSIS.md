@@ -365,7 +365,7 @@ Watch carefully: ChatGPT and Claude **expanding memory persistence** (e.g. Claud
 - **Self-hosted by default.** Among 16+ competitors profiled, only Reor (unmaintained) and Cortex are truly local-first. Among actively-developed competitors, Cortex is the only one shipping on-prem + cross-source + agent-ready.
 - **Twelve adapters today, growing.** Strong adapter contract means new sources are 1-day work, not 1-month projects. Roadmap velocity will compound.
 - **Workspace isolation.** Per-context memory and config — the killer feature for consultants, multi-employer workers, and side-project owners.
-- **Backed by real daily-driver use.** Single-user but real usage shapes the product against actual ADHD-class friction. Reduces the risk of building for hypothetical users.
+- **Backed by real daily-driver use.** Single-user but real usage shapes the product against actual context-switching friction. Reduces the risk of building for hypothetical users.
 
 ### Weaknesses
 
@@ -384,7 +384,7 @@ Watch carefully: ChatGPT and Claude **expanding memory persistence** (e.g. Claud
 - **MCP becomes the agent protocol.** If MCP wins, Cortex is one of the few MCP-native end-user systems shipping. The narrative writes itself.
 - **AI sovereignty trend.** EU AI Act, US state-level data residency laws, board-level fear of LLM data leakage. The market for "AI that runs on your hardware" expands rapidly through 2026-2028.
 - **Glean / Microsoft pricing creates an opening for the middle market.** Companies of 50-500 people who can't justify $240K Glean ACVs are underserved. Cortex (self-hosted) at fraction of the price is a credible alternative *if* an enterprise bundle ships.
-- **ADHD / neurodivergent professional segment.** Real, underserved, growing tooling category (e.g. Sunsama, Akiflow, Reclaim, Llama Life). Cortex's design choices (digest, brief, capture, prompt, workspaces) match this audience precisely.
+- **Neurodivergent professional segment.** Real, underserved, growing tooling category (e.g. Sunsama, Akiflow, Reclaim, Llama Life). Cortex's design choices (digest, brief, capture, prompt, workspaces) match this audience precisely.
 - **Open-source distribution loop.** If `@onenomad/przm-cortex` flips to a permissive license, GitHub stars / Hacker News / Show HN / Reddit / X are zero-cost distribution channels for technically-credible audiences.
 - **Enterprise on-prem variant.** Hetzner / VPS / Tailscale-deployed multi-tenant Cortex is a paid SKU waiting to be packaged.
 - **Marketplace economics.** Each adapter is a npm package. A "Cortex adapter marketplace" — paid premium adapters (Salesforce, Hubspot, ServiceNow, etc.) sold via Stripe — is technically a small lift.
@@ -416,7 +416,7 @@ Watch carefully: ChatGPT and Claude **expanding memory persistence** (e.g. Claud
 
 1. **Wedge: AI-power-user developers.** Already using Claude Code + Claude Desktop. Already in MCP. Already self-hosting some stack. Cortex is the obvious next install. Reach via HN, X, dev podcasts, /r/LocalLLaMA, /r/ClaudeAI.
 2. **Expansion-1: Multi-context knowledge workers.** Consultants, freelancers, multi-employer ICs, people-with-side-projects. Cortex workspaces solve a real pain. Reach via Indie Hackers, Twitter / X dev community.
-3. **Expansion-2: ADHD / neurodivergent professionals.** Active capture, brief, digest, prompt-loops match the operating system this audience needs. Reach via productivity newsletters, ADHD-positive YouTube, Sunsama-adjacent communities.
+3. **Expansion-2: Neurodivergent professionals.** Active capture, brief, digest, prompt-loops match the operating system this audience needs. Reach via productivity newsletters, neurodivergent-friendly YouTube, Sunsama-adjacent communities.
 4. **Expansion-3: Regulated mid-market companies (50-500 ppl).** Healthcare, legal, finance, defense. Reject SaaS. Reach via vertical conferences, partnerships, design partners. Requires the enterprise bundle to ship first.
 
 ### 9.3 Messaging architecture

@@ -42,7 +42,7 @@ describe("config-mutation", () => {
       { repoRoot: root },
       {
         moduleId: "confluence",
-        config: { workspace: "elevate-digital", spaces: ["DrivenBrands"] },
+        config: { workspace: "acme-co", spaces: ["ExampleCorp"] },
         secrets: {},
       },
     );
@@ -57,7 +57,7 @@ describe("config-mutation", () => {
     expect(local).toContain("confluence:");
     expect(local).toContain("package: \"@onenomad/przm-cortex-adapter-confluence\"");
     expect(local).toContain("enabled: true");
-    expect(local).toContain("elevate-digital");
+    expect(local).toContain("acme-co");
   });
 
   it("merges secrets into .env, creating it if absent", async () => {

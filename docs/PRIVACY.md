@@ -99,9 +99,9 @@ Historical audit (2026-04-22) scrubbed five spots:
 - `packages/server/src/cli/write-config.ts` — wizard no longer emits a
   personal referer URL
 
-Git commit author metadata (`Matt Stvartak <hello@mattstvartak.com>`) is left
-in place; rewriting history would be destructive and the product author's
-byline in commits is standard practice for a closed-source commercial project.
+Git commit author metadata (name + email from local git config) is left
+in place; rewriting history would be destructive and an author byline in
+commits is standard practice for a commercial project.
 
 ## When a real customer onboards
 

@@ -92,7 +92,7 @@ describe("dashboard API", () => {
             source: "meeting",
             source_url: "https://example.com/m1",
             date: now,
-            tags: ["owner:matt", "due:2099-01-01", "status:open"],
+            tags: ["owner:alice", "due:2099-01-01", "status:open"],
           },
         },
         {
@@ -116,7 +116,7 @@ describe("dashboard API", () => {
             project: "alpha",
             source: "note",
             date: now,
-            tags: ["owner:matt", "status:done"],
+            tags: ["owner:alice", "status:done"],
           },
         },
         {
@@ -129,7 +129,7 @@ describe("dashboard API", () => {
             source: "meeting",
             source_url: "https://example.com/d1",
             date: now,
-            people: ["matt", "alex"],
+            people: ["alice", "alex"],
             tags: ["type:decision"],
           },
         },

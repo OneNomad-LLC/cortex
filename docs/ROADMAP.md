@@ -248,8 +248,8 @@ The author will build a note-taking habit over time; by then, the adapter
 will be ready to plug in.
 
 Calendar (pre-meeting briefs) comes before daily digest because walking into
-a meeting already oriented is the single highest-leverage feature for an
-ADHD-shaped brain. Digest is a nice-to-have by comparison.
+a meeting already oriented is the single highest-leverage feature for a
+context-switching workload. Digest is a nice-to-have by comparison.
 
 Action items are broken out as Phase 8 even though extraction happens earlier
 (in Phase 3). Phase 8 is the UX layer: queue management, status tracking,

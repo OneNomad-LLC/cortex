@@ -12,7 +12,7 @@ interface Output {
 
 /**
  * Return the currently active workspace. Useful at session start so
- * Claude can say "you're in the elevate workspace" before answering
+ * Claude can say "you're in the onenomad workspace" before answering
  * project-scoped questions.
  */
 export const currentWorkspaceTool: McpTool<typeof inputSchema, Output> = {

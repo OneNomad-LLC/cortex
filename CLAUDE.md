@@ -264,7 +264,6 @@ Each step should be independently useful. Don't build #10 before #5 works.
 
 ## Owner / Context
 
-Single-user project, private repo. Author has ADHD and works across a dozen
-concurrent projects at a new job. The system is the author's daily driver,
-so reliability and low cognitive overhead are paramount. Features that require
-constant manual curation will not be used and therefore should not be built.
+Single-user project. The system is the author's daily driver, so reliability
+and low cognitive overhead are paramount. Features that require constant
+manual curation will not be used and therefore should not be built.

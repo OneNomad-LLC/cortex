@@ -434,7 +434,7 @@ function parseFlags(args: readonly string[]): InstallFlags {
     else if (a.startsWith("--name=")) flags.name = a.slice("--name=".length);
     else if (a.startsWith("--")) {
       // Unknown flag — tolerate silently so a future flag doesn't crash
-      // an older binary. Matt would rather see the module install than
+      // an older binary. The user would rather see the module install than
       // a parse error.
       continue;
     } else if (!flags.source) flags.source = a;

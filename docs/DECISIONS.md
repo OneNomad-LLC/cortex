@@ -541,7 +541,7 @@ drift from the CLI version.
 inside Claude Code, but there's a class of information — "what do I owe
 people today?", "what meetings do I have and am I prepped?", "what changed
 across my 12 projects since yesterday?" — where a glanceable dashboard beats
-a prompt round-trip. ADHD-friendly UX: scannable, no typing, low-friction.
+a prompt round-trip. Low-friction UX: scannable, no typing.
 
 Three shape questions decided up-front because they're hard to reverse:
 
@@ -623,14 +623,14 @@ Three shape questions decided up-front because they're hard to reverse:
 **Status**: Accepted
 
 **Context**: Cortex runs Engram as a local stdio subprocess — personal
-memory, single-user, private. That's the right default for an ADHD
-daily driver. But two scenarios break the single-Engram model:
+memory, single-user, private. That's the right default for a heads-down
+personal daily driver. But two scenarios break the single-Engram model:
 
 1. **Team knowledge.** Shared decisions, meeting outcomes, and project
    docs are useful across a team. "Was that decision we made on alpha
    last quarter in my notes or was it in Jake's?" is a question you
    want to answer without pinging Jake.
-2. **Multi-machine continuity.** Matt works across a laptop and a
+2. **Multi-machine continuity.** Users work across a laptop and a
    desktop. Personal memory that only lives on one host is a regression
    from the Obsidian-sync world where notes travel.
 
@@ -639,7 +639,7 @@ Options considered:
 - **A. Single backend.** Pick one — personal local OR team remote.
   Simplest, but forces a false choice.
 - **B. Workspace switch.** User toggles between "personal" and "team"
-  contexts. Loses cross-workspace search, which is the ADHD-relevant
+  contexts. Loses cross-workspace search, which is the multi-context
   use case ("remind me of that thing — was it in a meeting or in my
   notes?").
 - **C. Hybrid cache.** Team Engram as source of truth, local as
@@ -660,7 +660,7 @@ Options considered:
 - **Multiple backends per Cortex instance.** `cortex.yaml` grows a
   `memory.remotes[]` list. Each entry has a slug, a URL, optional
   auth, and a list of `domain` tags it owns (e.g. `team-alpha` or
-  `drivenbrands`). The existing `memory.engram` + `memory.pgvector`
+  `examplecorp`). The existing `memory.engram` + `memory.pgvector`
   stays as the personal backend.
 
 - **Read = parallel fan-out.** `search()` dispatches the query to
@@ -741,7 +741,7 @@ Options considered:
 that story broke repeatedly: PowerShell's `Start-Process` detach
 semantics, console-job cascades that killed "detached" children when
 the parent terminal closed, and the `spawnSync` hangs that motivated
-this ADR. Matt's laptop sleeps, closes, moves — an always-on daemon
+this ADR. A laptop sleeps, closes, moves — an always-on daemon
 on the laptop is the wrong shape anyway.
 
 Options considered:
@@ -774,8 +774,8 @@ Options considered:
 - **Workspace state bind-mounts to `PRZM_CORTEX_HOME_HOST`.** The user
   points the env var at a host path (default `./.cortex-data`).
   Workspaces, OAuth tokens, and engram/persona LanceDB data all
-  persist there. Matt can point it at his existing `~/.cortex` to
-  reuse workspaces he already built.
+  persist there. Users can point it at an existing `~/.cortex` to
+  reuse workspaces they already built.
 
 - **Dashboard is its own compose service.** Not a child process of
   cortex. Lets the dashboard restart independently, exposes
@@ -822,10 +822,10 @@ browser extension, another Claude Code session in a different repo)
 all connect to the *same* MCP server process concurrently.
 
 The "one active workspace per process" model is wrong for that topology.
-Matt has `onenomad` and `elevatedigital` workspaces; a Claude Code
-session inside `~/work/onenomad` should see onenomad memories, while a
-second session inside `~/work/elevate` should see elevatedigital
-memories — simultaneously, in the same server process.
+A user might have two workspaces (e.g. `alpha` and `beta`); a Claude Code
+session inside `~/work/alpha` should see alpha memories, while a
+second session inside `~/work/beta` should see beta memories —
+simultaneously, in the same server process.
 
 Tools that read per-workspace state:
 - Memory search (project taxonomy, ingest, search filters)

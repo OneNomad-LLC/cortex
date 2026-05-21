@@ -262,7 +262,7 @@ Accepted file types: .vtt, .srt, .md, .txt (plain transcript text).
 
 Examples:
   cortex import meeting ./loom-kickoff.vtt --project alpha \\
-    --date 2026-04-22 --attendees matt,alex \\
+    --date 2026-04-22 --attendees alice,alex \\
     --source loom --source-url https://www.loom.com/share/xxxxxxxx
   cortex import meeting notes.md --project alpha --dry-run`;
 

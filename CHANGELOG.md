@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-21
+
+### Changed
+- **Brand rename: `cortex` → `przm-cortex`.** The npm package previously published (or scheduled to publish) as `@onenomad/cortex` is now `@onenomad/przm-cortex`. Every internal workspace package follows the same pattern: `@onenomad/cortex-*` → `@onenomad/przm-cortex-*`. The cortex CLI binary keeps the unscoped `cortex` alias for backward compatibility, with `przm-cortex` as the canonical name. Brings cortex into the przm-* family alongside `@onenomad/przm-memory` and `@onenomad/przm-voice`.
+- **Environment variable prefix: `CORTEX_*` → `PRZM_CORTEX_*`.** All runtime env vars (`CORTEX_HOME`, `CORTEX_MCP_TRANSPORT`, `CORTEX_MCP_PORT`, `CORTEX_MCP_AUTH_TOKEN`, etc.) renamed to `PRZM_CORTEX_*`. Self-host operators upgrading from 0.3.x: update systemd unit `Environment=` lines and any `.env` files.
+- **First public release of the workspace packages.** Every package previously at `0.1.0` (workspace-internal) is now `0.4.0` and published to npm under the Apache-2.0 license. The server (`@onenomad/przm-cortex`) ships with `publishConfig.access: public` so global install (`npm install -g @onenomad/przm-cortex`) works end-to-end.
+
+### Fixed
+- **Stale "built on top of Engram/Persona" claims** in `README.md`, `CLAUDE.md`, and `AGENTS.md` removed. As of ADR-012 (2026-04-22), cortex no longer consumes Engram (now `@onenomad/przm-memory`) at runtime — its memory layer is the bundled pgvector backend. Docs now reflect that.
+
+### Removed
+- `docs/handoffs/cortex-evaluation-2026-05-21.md` — internal work-in-progress note that shouldn't have shipped publicly.
+
 ### Added
 - **Auto-enrichment on `ingest_content`** — when the workspace has an LLM router wired and the content type is `doc` / `note` / `meeting` / `conversation`, every successful ingest now fires a one-shot extraction pass that pulls structured items out of the body and persists each as its own memory:
   - **action_items** with `owner:<slug>`, `due:<iso>`, `priority:P*`, `status:open` tags so the dashboard's by-type widgets pick them up

@@ -8,7 +8,7 @@
  *   {
  *     "api_url":   "https://pyre.sh",          // engram/persona base
  *     "api_key":   "sk_pyre_...",
- *     "label":     "matt-laptop",
+ *     "label":     "my-laptop",
  *     "scopes":    ["engram", "persona", "cortex"],
  *     "issued_at": "2026-05-14T...",
  *     "cortex": {                              // cortex-specific section

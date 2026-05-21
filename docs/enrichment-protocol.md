@@ -217,7 +217,7 @@ Extract named entities from content.
     { "name": "Sarah Khan",   "type": "person",  "confidence": 0.93 },
     { "name": "Cortex",       "type": "product", "confidence": 0.88 },
     { "name": "OneNomad",     "type": "company", "confidence": 0.95 },
-    { "name": "elevate",      "type": "project", "confidence": 0.71 }
+    { "name": "acme",         "type": "project", "confidence": 0.71 }
   ]
 }
 ```
