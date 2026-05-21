@@ -5,6 +5,9 @@ import { AppShell } from "@/components/shell/AppShell";
 import { AuthErrorBoundary } from "@/components/auth/AuthErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/lib/auth-context";
+import { AdapterAddPage } from "@/pages/AdapterAddPage";
+import { AdapterDetailPage } from "@/pages/AdapterDetailPage";
+import { AdaptersListPage } from "@/pages/AdaptersListPage";
 import { IdentityPage } from "@/pages/IdentityPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage, PlaceholderPage } from "@/pages/PlaceholderPage";
@@ -18,11 +21,11 @@ import { WorkspacesPage } from "@/pages/WorkspacesPage";
  * Surface map:
  *   /login                  → LoginPage (no auth, no shell chrome)
  *   /                       → redirect to /adapters
- *   /adapters{,/...}        → wizard teammate's pages (placeholders for now)
- *   /logs, /jobs, /stats,   → ops teammate's pages (placeholders)
+ *   /adapters{,/new,/:id}   → adapter management (wizard)
+ *   /logs, /jobs, /stats,   → ops pages (mounted in a follow-up merge)
  *   /ingest, /memories      ↳
- *   /workspaces             → WorkspacesPage (shell)
- *   /identity               → IdentityPage (shell)
+ *   /workspaces             → WorkspacesPage
+ *   /identity               → IdentityPage
  *   *                       → 404
  *
  * <AuthProvider> wraps the whole tree so login + protected routes
@@ -47,30 +50,12 @@ export default function App(): React.ReactElement {
                       <Redirect to="/adapters" />
                     </Route>
 
-                    {/* Wizard teammate slice — placeholders only. */}
-                    <Route path="/adapters">
-                      <PlaceholderPage
-                        title="Adapters"
-                        owner="wizard"
-                        description="Adapters list, configuration, and run logs."
-                      />
-                    </Route>
-                    <Route path="/adapters/new">
-                      <PlaceholderPage
-                        title="New adapter"
-                        owner="wizard"
-                        description="Adapter onboarding wizard."
-                      />
-                    </Route>
-                    <Route path="/adapters/:id">
-                      <PlaceholderPage
-                        title="Adapter detail"
-                        owner="wizard"
-                        description="Per-adapter config + run history."
-                      />
-                    </Route>
+                    {/* Adapter management (wizard). */}
+                    <Route path="/adapters" component={AdaptersListPage} />
+                    <Route path="/adapters/new" component={AdapterAddPage} />
+                    <Route path="/adapters/:id" component={AdapterDetailPage} />
 
-                    {/* Ops teammate slice — placeholders only. */}
+                    {/* Ops slice — pages mount in the ops merge. */}
                     <Route path="/logs">
                       <PlaceholderPage title="Logs" owner="ops" />
                     </Route>
@@ -87,7 +72,7 @@ export default function App(): React.ReactElement {
                       <PlaceholderPage title="Memories" owner="ops" />
                     </Route>
 
-                    {/* Shell slice — fully implemented here. */}
+                    {/* Shell slice. */}
                     <Route path="/workspaces">
                       <WorkspacesPage />
                     </Route>

@@ -1,27 +1,24 @@
-import * as React from "react";
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
-/**
- * Plain <label> wrapper — same visual contract as shadcn's Radix-based
- * Label, without the Radix dependency. We don't need the
- * focus-management features of `@radix-ui/react-label` yet; if/when
- * that shows up (combobox label-clicks etc.) swap this for the
- * official primitive.
- */
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+)
+
 const Label = React.forwardRef<
-  HTMLLabelElement,
-  React.LabelHTMLAttributes<HTMLLabelElement>
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
+    VariantProps<typeof labelVariants>
 >(({ className, ...props }, ref) => (
-  <label
+  <LabelPrimitive.Root
     ref={ref}
-    className={cn(
-      "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-      className,
-    )}
+    className={cn(labelVariants(), className)}
     {...props}
   />
-));
-Label.displayName = "Label";
+))
+Label.displayName = LabelPrimitive.Root.displayName
 
-export { Label };
+export { Label }

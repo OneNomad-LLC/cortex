@@ -63,6 +63,8 @@ import * as authGithubRoute from "./routes/auth-github.js";
 import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
 import * as dashboardWorkspacesRoute from "./routes/dashboard-workspaces.js";
 import * as dashboardIdentityRoute from "./routes/dashboard-identity.js";
+import * as dashboardWizardRoute from "./routes/dashboard-wizard.js";
+import * as dashboardAdaptersRoute from "./routes/dashboard-adapters.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -149,6 +151,8 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
   { name: "dashboard-workspaces", handle: dashboardWorkspacesRoute.handle },
   { name: "dashboard-identity", handle: dashboardIdentityRoute.handle },
+  { name: "dashboard-wizard", handle: dashboardWizardRoute.handle },
+  { name: "dashboard-adapters", handle: dashboardAdaptersRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -366,6 +370,15 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "GET /api/dashboard/identity",
         "POST /api/dashboard/identity/self",
         "POST /api/dashboard/identity/job-profile",
+        "GET /api/dashboard/wizard/list",
+        "GET /api/dashboard/wizard/spec/:moduleKind/:moduleId",
+        "POST /api/dashboard/wizard/run",
+        "GET /api/dashboard/adapters",
+        "GET /api/dashboard/adapters/:id",
+        "POST /api/dashboard/adapters/:id/pause",
+        "POST /api/dashboard/adapters/:id/resume",
+        "POST /api/dashboard/adapters/:id/trigger-fetch",
+        "DELETE /api/dashboard/adapters/:id",
       ];
     },
   };
