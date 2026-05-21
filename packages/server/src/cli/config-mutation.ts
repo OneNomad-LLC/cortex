@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { DerivedTaxonomy, WizardResult } from "@onenomad/cortex-core";
+import type { DerivedTaxonomy, WizardResult } from "@onenomad/przm-cortex-core";
 
 /**
  * Atomic multi-file config mutation for Cortex.
@@ -272,7 +272,7 @@ const DEFAULT_SCHEDULES: Record<string, string> = {
 
 function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
   const entry: Record<string, unknown> = {
-    package: `@onenomad/cortex-adapter-${result.moduleId}`,
+    package: `@onenomad/przm-cortex-adapter-${result.moduleId}`,
     enabled: true,
     config: result.config as Record<string, unknown>,
   };
@@ -283,7 +283,7 @@ function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
 
 function buildProviderEntry(result: WizardResult): Record<string, unknown> {
   return {
-    package: `@onenomad/cortex-provider-${result.moduleId}`,
+    package: `@onenomad/przm-cortex-provider-${result.moduleId}`,
     enabled: true,
     config: result.config as Record<string, unknown>,
   };

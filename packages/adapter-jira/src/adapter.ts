@@ -7,8 +7,8 @@ import type {
   NormalizedItem,
   ProjectCandidate,
   RawSourceItem,
-} from "@onenomad/cortex-core";
-import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter } from "@onenomad/przm-cortex-adapter-sdk";
 import { adfToMarkdown } from "./adf.js";
 import { JiraClient, type JiraIssue } from "./client.js";
 
@@ -69,7 +69,7 @@ export class JiraAdapter extends BaseAdapter {
   readonly configSchema = jiraConfigSchema;
   readonly requiredSecrets = ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-doc"] as const;
 
   private client!: JiraClient;
   private cfg!: JiraConfig;

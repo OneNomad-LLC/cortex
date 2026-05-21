@@ -16,14 +16,14 @@ export async function runServe(_args: string[]): Promise<number> {
   const creds = loadCortexCredentials();
   if (creds.mode === "local") {
     // Local: hand off to the existing server boot. Honors the stdio
-    // default unless CORTEX_MCP_TRANSPORT overrides.
+    // default unless PRZM_CORTEX_MCP_TRANSPORT overrides.
     await startServer();
     return 0;
   }
   if (!creds.mcp_url || !creds.bearer) {
     process.stderr.write(
       `cortex serve: mode=cloud but credentials are incomplete.\n` +
-        `Run \`cortex login <pyre-web-url>\` to refresh, or set CORTEX_MCP_URL + CORTEX_MCP_TOKEN.\n`,
+        `Run \`cortex login <pyre-web-url>\` to refresh, or set PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN.\n`,
     );
     return 1;
   }

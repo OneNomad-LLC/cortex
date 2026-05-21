@@ -110,7 +110,7 @@ export async function runInit(args: InitArgs): Promise<number> {
 
   if (shouldSmoke) {
     section("Smoke test");
-    process.env.CORTEX_CONFIG_PATH = result.configPath;
+    process.env.PRZM_CORTEX_CONFIG_PATH = result.configPath;
     // Propagate the secrets we just collected directly into the current
     // process environment. loadDotEnv alone isn't enough — a parent shell
     // may already have these vars set to empty, which makes loadDotEnv skip

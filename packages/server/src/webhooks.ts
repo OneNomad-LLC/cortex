@@ -5,8 +5,8 @@ import type {
   SourceAdapter,
   WebhookHandler,
   WebhookRequest,
-} from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
+} from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import type { HeartbeatWriter } from "./heartbeat.js";
 import {

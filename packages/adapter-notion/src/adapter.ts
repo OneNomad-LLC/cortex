@@ -6,8 +6,8 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
-} from "@onenomad/cortex-core";
-import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter } from "@onenomad/przm-cortex-adapter-sdk";
 import { blocksToMarkdown, type NotionBlock } from "./blocks.js";
 import { NotionClient, type NotionPage } from "./client.js";
 
@@ -47,7 +47,7 @@ export class NotionAdapter extends BaseAdapter {
   readonly configSchema = notionConfigSchema;
   readonly requiredSecrets = ["NOTION_API_KEY"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-doc"] as const;
 
   private client!: NotionClient;
   private cfg!: NotionConfig;

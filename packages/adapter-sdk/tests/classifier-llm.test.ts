@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NormalizedItem, Project, TaxonomyReader } from "@onenomad/cortex-core";
+import type { NormalizedItem, Project, TaxonomyReader } from "@onenomad/przm-cortex-core";
 import { LLMClassifier } from "../src/classifier-llm.js";
 
 function fakeTaxonomy(projects: Project[]): TaxonomyReader {

@@ -24,7 +24,7 @@ export async function runWhoami(_args: string[]): Promise<number> {
     return 0;
   }
 
-  const source = creds.fromEnv ? "env (CORTEX_MCP_URL + CORTEX_MCP_TOKEN)" : getCredentialsPath();
+  const source = creds.fromEnv ? "env (PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN)" : getCredentialsPath();
   process.stdout.write(
     `cortex whoami\n` +
       `  mode:        cloud${creds.fromEnv ? " (via env)" : ""}\n` +

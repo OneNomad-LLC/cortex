@@ -9,7 +9,7 @@
 llm:
   providers:
     openrouter:
-      package: "@onenomad/cortex-provider-openrouter"
+      package: "@onenomad/przm-cortex-provider-openrouter"
       enabled: true
       config:
         appTitle: "Cortex"

@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { createCodePipeline } from "@onenomad/cortex-pipeline-code";
-import { createConversationPipeline } from "@onenomad/cortex-pipeline-conversation";
-import { createDocPipeline } from "@onenomad/cortex-pipeline-doc";
+import { createCodePipeline } from "@onenomad/przm-cortex-pipeline-code";
+import { createConversationPipeline } from "@onenomad/przm-cortex-pipeline-conversation";
+import { createDocPipeline } from "@onenomad/przm-cortex-pipeline-doc";
 import {
   memoryMetadataSchema,
   type ClassifiedItem,
   type ContentType,
   type MemoryMetadata,
   type SourceType,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import { buildPipelineContext } from "../../sync.js";
 import {
   extractStructuredItems,

@@ -4,7 +4,7 @@ import {
   defaultTokenPath,
   tryReadGithubToken,
   writeGithubToken,
-} from "@onenomad/cortex-github-auth";
+} from "@onenomad/przm-cortex-github-auth";
 import { openBrowser } from "./open-browser.js";
 
 /**
@@ -12,13 +12,13 @@ import { openBrowser } from "./open-browser.js";
  * require the secret — the user's consent at
  * github.com/login/device is what authorizes the token.
  *
- * Overridable via CORTEX_GITHUB_CLIENT_ID so operators forking Cortex
+ * Overridable via PRZM_CORTEX_GITHUB_CLIENT_ID so operators forking Cortex
  * can register their own app without editing source.
  */
 const DEFAULT_CLIENT_ID = "Ov23lidpaSywVEHtcXa4";
 
 export async function runGithubLogin(args: readonly string[]): Promise<number> {
-  const clientId = process.env.CORTEX_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
+  const clientId = process.env.PRZM_CORTEX_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
   const scopes = parseScopes(args) ?? ["repo"];
 
   const tokenPath = defaultTokenPath();

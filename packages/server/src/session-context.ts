@@ -69,10 +69,10 @@ const contextStorage = new AsyncLocalStorage<{ sessionId: string }>();
  * deploys run the server as a long-lived container; a crash or redeploy
  * wipes in-memory state otherwise, silently unbinding every live
  * Claude session. Skip persistence entirely by setting
- * `CORTEX_SESSION_STATE_PATH=`.
+ * `PRZM_CORTEX_SESSION_STATE_PATH=`.
  */
 function sessionStatePath(): string | undefined {
-  const explicit = process.env.CORTEX_SESSION_STATE_PATH;
+  const explicit = process.env.PRZM_CORTEX_SESSION_STATE_PATH;
   if (explicit === "") return undefined;
   if (explicit) return explicit;
   return path.join(os.homedir(), ".cortex", "sessions.json");
@@ -242,7 +242,7 @@ export function setSessionWorkspace(
   // to the newly-bound workspace; null workspace clears the bag.
   if (typeof workspace === "string") {
     const root =
-      process.env.CORTEX_WORKSPACES_ROOT ??
+      process.env.PRZM_CORTEX_WORKSPACES_ROOT ??
       path.join(os.homedir(), ".cortex", "workspaces");
     const envPath = path.join(root, workspace, ".env");
     state.envBag = parseDotEnv(envPath);

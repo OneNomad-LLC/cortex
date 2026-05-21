@@ -21,31 +21,31 @@ import { resolveConfigPath } from "../src/cli/config-path.js";
 /**
  * Workspace tests manipulate `~/.cortex/state.json` + the workspaces
  * root, so each test gets its own tmp dir for both — and the env
- * overrides we ship (`CORTEX_STATE_PATH`, `CORTEX_WORKSPACES_ROOT`)
+ * overrides we ship (`PRZM_CORTEX_STATE_PATH`, `PRZM_CORTEX_WORKSPACES_ROOT`)
  * redirect every code path to that tmp dir.
  */
 describe("workspaces", () => {
   let tmp: string;
-  const originalState = process.env.CORTEX_STATE_PATH;
-  const originalRoot = process.env.CORTEX_WORKSPACES_ROOT;
-  const originalConfig = process.env.CORTEX_CONFIG_PATH;
+  const originalState = process.env.PRZM_CORTEX_STATE_PATH;
+  const originalRoot = process.env.PRZM_CORTEX_WORKSPACES_ROOT;
+  const originalConfig = process.env.PRZM_CORTEX_CONFIG_PATH;
   const originalCwd = process.cwd();
 
   beforeEach(async () => {
     tmp = await mkdtemp(path.join(os.tmpdir(), "cortex-ws-"));
-    process.env.CORTEX_STATE_PATH = path.join(tmp, "state.json");
-    process.env.CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
-    delete process.env.CORTEX_CONFIG_PATH;
+    process.env.PRZM_CORTEX_STATE_PATH = path.join(tmp, "state.json");
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
+    delete process.env.PRZM_CORTEX_CONFIG_PATH;
   });
 
   afterEach(async () => {
     process.chdir(originalCwd);
-    if (originalState === undefined) delete process.env.CORTEX_STATE_PATH;
-    else process.env.CORTEX_STATE_PATH = originalState;
-    if (originalRoot === undefined) delete process.env.CORTEX_WORKSPACES_ROOT;
-    else process.env.CORTEX_WORKSPACES_ROOT = originalRoot;
-    if (originalConfig === undefined) delete process.env.CORTEX_CONFIG_PATH;
-    else process.env.CORTEX_CONFIG_PATH = originalConfig;
+    if (originalState === undefined) delete process.env.PRZM_CORTEX_STATE_PATH;
+    else process.env.PRZM_CORTEX_STATE_PATH = originalState;
+    if (originalRoot === undefined) delete process.env.PRZM_CORTEX_WORKSPACES_ROOT;
+    else process.env.PRZM_CORTEX_WORKSPACES_ROOT = originalRoot;
+    if (originalConfig === undefined) delete process.env.PRZM_CORTEX_CONFIG_PATH;
+    else process.env.PRZM_CORTEX_CONFIG_PATH = originalConfig;
     await rm(tmp, { recursive: true, force: true });
   });
 
@@ -172,13 +172,13 @@ describe("workspaces", () => {
       expect(resolved).toBe(repoConfig);
     });
 
-    it("CORTEX_CONFIG_PATH still wins over an active workspace", async () => {
+    it("PRZM_CORTEX_CONFIG_PATH still wins over an active workspace", async () => {
       await createWorkspace({ slug: "alpha" });
       await switchWorkspace("alpha");
       const override = path.join(tmp, "override", "cortex.yaml");
       await mkdir(path.dirname(override), { recursive: true });
       await writeFile(override, "", "utf8");
-      process.env.CORTEX_CONFIG_PATH = override;
+      process.env.PRZM_CORTEX_CONFIG_PATH = override;
       expect(resolveConfigPath()).toBe(override);
     });
   });

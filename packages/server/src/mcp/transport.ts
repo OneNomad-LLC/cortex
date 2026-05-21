@@ -3,11 +3,11 @@ import { randomUUID } from "node:crypto";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import { enterSession, runWithSession, setSessionToolAllowList } from "../session-context.js";
 import { verifyCookie } from "../api/cookie-session.js";
 import { verifyScopeToken } from "../api/scope-token.js";
-import { expandScopes } from "@onenomad/cortex-core";
+import { expandScopes } from "@onenomad/przm-cortex-core";
 
 export interface TransportHandle {
   kind: "stdio" | "http";
@@ -32,7 +32,7 @@ export interface ConnectTransportArgs {
 }
 
 /**
- * Dispatch on CORTEX_MCP_TRANSPORT (stdio | http).
+ * Dispatch on PRZM_CORTEX_MCP_TRANSPORT (stdio | http).
  *
  * stdio (default): what Claude Code spawns as a subprocess.
  * http: used by containerized deployments — Cortex binds to a port and
@@ -42,11 +42,11 @@ export interface ConnectTransportArgs {
 export async function connectConfiguredTransport(
   args: ConnectTransportArgs,
 ): Promise<TransportHandle> {
-  const mode = (process.env.CORTEX_MCP_TRANSPORT ?? "stdio").toLowerCase();
+  const mode = (process.env.PRZM_CORTEX_MCP_TRANSPORT ?? "stdio").toLowerCase();
   if (mode === "http") return connectHttp(args);
   if (mode === "stdio") return connectStdio(args);
   throw new Error(
-    `CORTEX_MCP_TRANSPORT='${mode}' is not supported. Use 'stdio' or 'http'.`,
+    `PRZM_CORTEX_MCP_TRANSPORT='${mode}' is not supported. Use 'stdio' or 'http'.`,
   );
 }
 
@@ -81,13 +81,13 @@ interface HttpSession {
 async function connectHttp(
   args: ConnectTransportArgs,
 ): Promise<TransportHandle> {
-  const port = Number(process.env.CORTEX_MCP_PORT ?? "3100");
+  const port = Number(process.env.PRZM_CORTEX_MCP_PORT ?? "3100");
   if (!Number.isFinite(port) || port < 0) {
-    throw new Error(`CORTEX_MCP_PORT must be a number, got '${process.env.CORTEX_MCP_PORT}'`);
+    throw new Error(`PRZM_CORTEX_MCP_PORT must be a number, got '${process.env.PRZM_CORTEX_MCP_PORT}'`);
   }
-  const host = process.env.CORTEX_MCP_HOST ?? "0.0.0.0";
+  const host = process.env.PRZM_CORTEX_MCP_HOST ?? "0.0.0.0";
 
-  // Optional shared-secret auth. When CORTEX_MCP_AUTH_TOKEN is set,
+  // Optional shared-secret auth. When PRZM_CORTEX_MCP_AUTH_TOKEN is set,
   // every HTTP request must carry `Authorization: Bearer <token>`.
   // The StreamableHTTP session id is a 128-bit randomUUID minted by
   // the SDK, but sessions are keyed in-memory and the header is
@@ -95,11 +95,11 @@ async function connectHttp(
   // defense when the MCP port is exposed beyond localhost. Use a
   // constant-time comparison so an attacker can't time-sidechannel
   // the valid token.
-  const authToken = process.env.CORTEX_MCP_AUTH_TOKEN;
-  const gatewaySecret = process.env.CORTEX_GATEWAY_SECRET;
+  const authToken = process.env.PRZM_CORTEX_MCP_AUTH_TOKEN;
+  const gatewaySecret = process.env.PRZM_CORTEX_GATEWAY_SECRET;
   if (authToken && authToken.length < 16) {
     throw new Error(
-      "CORTEX_MCP_AUTH_TOKEN must be at least 16 chars of entropy. " +
+      "PRZM_CORTEX_MCP_AUTH_TOKEN must be at least 16 chars of entropy. " +
         "Generate one with `openssl rand -hex 32`.",
     );
   }

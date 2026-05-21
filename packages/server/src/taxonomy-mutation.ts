@@ -7,7 +7,7 @@ import {
   type JobProfile,
   type Person,
   type Project,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { ensureLocalCopy } from "./cli/config-mutation.js";
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WizardModule } from "@onenomad/cortex-core";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
 import { linearConfigSchema, type LinearConfig } from "./adapter.js";
 
 /**

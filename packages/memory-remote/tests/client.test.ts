@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRemoteEngramClient } from "../src/client.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {
@@ -42,7 +42,7 @@ function mockFetch(
   };
 }
 
-describe("@onenomad/cortex-memory-remote exports", () => {
+describe("@onenomad/przm-cortex-memory-remote exports", () => {
   it("exports createRemoteEngramClient as a function", () => {
     expect(typeof createRemoteEngramClient).toBe("function");
   });

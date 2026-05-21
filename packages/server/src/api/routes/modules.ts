@@ -184,7 +184,7 @@ export async function handle(
 /**
  * Best-effort host-path reconstruction for the GET /api/modules
  * response. Mirrors the convention used by `cortex module install`:
- * modules installed under $CORTEX_HOME_HOST/modules/<name> appear
+ * modules installed under $PRZM_CORTEX_HOME_HOST/modules/<name> appear
  * inside the container at /root/.cortex/modules/<name>. Anything
  * outside that root returns the container path as-is — the UI shows
  * "host path unknown" when it differs.
@@ -194,8 +194,8 @@ function toHostPathGuess(containerPath: string): string {
   const cRoot = "/root/.cortex/modules";
   if (normalized.startsWith(cRoot)) {
     const rel = normalized.slice(cRoot.length).replace(/^\/+/, "");
-    const hostRoot = process.env.CORTEX_HOME_HOST
-      ? path.resolve(process.env.CORTEX_HOME_HOST, "modules")
+    const hostRoot = process.env.PRZM_CORTEX_HOME_HOST
+      ? path.resolve(process.env.PRZM_CORTEX_HOME_HOST, "modules")
       : path.resolve("./.cortex-data", "modules");
     return path.join(hostRoot, rel);
   }

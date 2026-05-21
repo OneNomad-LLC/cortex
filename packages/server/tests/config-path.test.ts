@@ -6,35 +6,35 @@ import { resolveConfigPath } from "../src/cli/config-path.js";
 
 describe("resolveConfigPath", () => {
   const originalCwd = process.cwd();
-  const originalEnv = process.env.CORTEX_CONFIG_PATH;
-  const originalState = process.env.CORTEX_STATE_PATH;
-  const originalWsRoot = process.env.CORTEX_WORKSPACES_ROOT;
+  const originalEnv = process.env.PRZM_CORTEX_CONFIG_PATH;
+  const originalState = process.env.PRZM_CORTEX_STATE_PATH;
+  const originalWsRoot = process.env.PRZM_CORTEX_WORKSPACES_ROOT;
   let tmp: string;
 
   beforeEach(async () => {
     tmp = await mkdtemp(path.join(tmpdir(), "cortex-cfgpath-"));
-    delete process.env.CORTEX_CONFIG_PATH;
+    delete process.env.PRZM_CORTEX_CONFIG_PATH;
     // Point state + workspaces at empty tmp dirs so the walk-up /
     // home-default paths are what we actually test. Without this,
     // the test's real machine might have an active workspace, which
     // would win resolution and shadow the walk-up behavior.
-    process.env.CORTEX_STATE_PATH = path.join(tmp, "state.json");
-    process.env.CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
+    process.env.PRZM_CORTEX_STATE_PATH = path.join(tmp, "state.json");
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
   });
 
   afterEach(async () => {
     process.chdir(originalCwd);
-    if (originalEnv === undefined) delete process.env.CORTEX_CONFIG_PATH;
-    else process.env.CORTEX_CONFIG_PATH = originalEnv;
-    if (originalState === undefined) delete process.env.CORTEX_STATE_PATH;
-    else process.env.CORTEX_STATE_PATH = originalState;
-    if (originalWsRoot === undefined) delete process.env.CORTEX_WORKSPACES_ROOT;
-    else process.env.CORTEX_WORKSPACES_ROOT = originalWsRoot;
+    if (originalEnv === undefined) delete process.env.PRZM_CORTEX_CONFIG_PATH;
+    else process.env.PRZM_CORTEX_CONFIG_PATH = originalEnv;
+    if (originalState === undefined) delete process.env.PRZM_CORTEX_STATE_PATH;
+    else process.env.PRZM_CORTEX_STATE_PATH = originalState;
+    if (originalWsRoot === undefined) delete process.env.PRZM_CORTEX_WORKSPACES_ROOT;
+    else process.env.PRZM_CORTEX_WORKSPACES_ROOT = originalWsRoot;
     await rm(tmp, { recursive: true, force: true });
   });
 
-  it("honors $CORTEX_CONFIG_PATH over every other source", async () => {
-    process.env.CORTEX_CONFIG_PATH = "/explicit/override/cortex.yaml";
+  it("honors $PRZM_CORTEX_CONFIG_PATH over every other source", async () => {
+    process.env.PRZM_CORTEX_CONFIG_PATH = "/explicit/override/cortex.yaml";
     // Make a real file nearby to prove it's not being picked instead.
     await mkdir(path.join(tmp, "config"), { recursive: true });
     await writeFile(path.join(tmp, "config", "cortex.yaml"), "");
@@ -65,7 +65,7 @@ describe("resolveConfigPath", () => {
     const resolved = resolveConfigPath();
     // The walk-up can legitimately find a real cortex checkout on a dev
     // machine (hence the walk up the actual filesystem tree). Only assert
-    // that we don't get the CORTEX_CONFIG_PATH value or throw — the
+    // that we don't get the PRZM_CORTEX_CONFIG_PATH value or throw — the
     // fallback path is whatever the walk-up surfaces or the tmp dir default.
     expect(typeof resolved).toBe("string");
     expect(resolved.endsWith("cortex.yaml")).toBe(true);

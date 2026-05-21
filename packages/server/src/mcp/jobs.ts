@@ -68,13 +68,13 @@ const RETENTION_MS = 24 * 60 * 60 * 1000;
  * Maximum concurrent jobs running through `enqueue()` at once. Set to
  * 1 to match what a 2GB Pro Fly machine can comfortably do during
  * embedding-heavy ingest without OOM-ing. Override via the
- * CORTEX_MAX_CONCURRENT_JOBS env var when sizing changes (enterprise
+ * PRZM_CORTEX_MAX_CONCURRENT_JOBS env var when sizing changes (enterprise
  * Fly machines can handle 2-4).
  */
 const MAX_CONCURRENT_DEFAULT = 1;
 
 function resolveMaxConcurrent(): number {
-  const raw = process.env.CORTEX_MAX_CONCURRENT_JOBS;
+  const raw = process.env.PRZM_CORTEX_MAX_CONCURRENT_JOBS;
   if (!raw) return MAX_CONCURRENT_DEFAULT;
   const n = Number.parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : MAX_CONCURRENT_DEFAULT;

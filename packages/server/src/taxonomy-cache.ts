@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import { loadTaxonomy, type LoadedTaxonomy, buildReader } from "./taxonomy.js";
 import { findWorkspace } from "./cli/workspace/manager.js";
 

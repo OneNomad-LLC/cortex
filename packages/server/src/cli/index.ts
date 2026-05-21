@@ -54,7 +54,7 @@ Commands:
   whoami                     Print the active mode + endpoint. Never
                                echoes the bearer.
   use local|cloud            Flip the mode flag. Cloud requires prior
-                               login (or CORTEX_MCP_URL + CORTEX_MCP_TOKEN).
+                               login (or PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN).
   tenant list                List all tenants signed in on this machine.
   tenant switch <slug>       Change the active tenant. \`cortex serve\` uses
                                whichever tenant is active. Pure file edit,
@@ -111,7 +111,7 @@ Commands:
   help                       Show this message.
 
 Environment:
-  CORTEX_CONFIG_PATH   Path to cortex.yaml (default: ./config/cortex.yaml)
+  PRZM_CORTEX_CONFIG_PATH   Path to cortex.yaml (default: ./config/cortex.yaml)
   ENGRAM_MCP_URL       Override Engram MCP endpoint
   PERSONA_MCP_URL      Override Persona MCP endpoint
   LOG_LEVEL            debug | info (default info)

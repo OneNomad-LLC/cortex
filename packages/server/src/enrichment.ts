@@ -5,7 +5,7 @@ import type {
   EnrichmentResult,
   EnrichmentType,
   Logger,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 
 /**
  * In-memory queue of pending enrichment requests. The server creates

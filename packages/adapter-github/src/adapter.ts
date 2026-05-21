@@ -9,9 +9,9 @@ import type {
   RawSourceItem,
   WebhookContext,
   WebhookHandler,
-} from "@onenomad/cortex-core";
-import { BaseAdapter, matchesGlobs } from "@onenomad/cortex-adapter-sdk";
-import { tryReadGithubToken } from "@onenomad/cortex-github-auth";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter, matchesGlobs } from "@onenomad/przm-cortex-adapter-sdk";
+import { tryReadGithubToken } from "@onenomad/przm-cortex-github-auth";
 import { GithubClient, type GithubTreeEntry } from "./client.js";
 import { createGithubWebhook } from "./webhook.js";
 
@@ -108,7 +108,7 @@ export class GithubAdapter extends BaseAdapter {
   // init on env-var presence.
   readonly requiredSecrets = [] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-code"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-code"] as const;
 
   private client!: GithubClient;
   private cfg!: GithubConfig;

@@ -6,7 +6,7 @@
  * `buildContext()`, and any route that needs it just pulls it off `ctx`.
  */
 
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import type { Widget, WidgetContext } from "./types.js";
 import type { DashboardApiOptions } from "./server.js";
 

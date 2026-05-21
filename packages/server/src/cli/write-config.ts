@@ -86,12 +86,12 @@ function buildEnv(input: WriteConfigInput): string {
     "# Runtime",
     "NODE_ENV=development",
     "LOG_LEVEL=info",
-    // No CORTEX_CONFIG_PATH default — the CLI walks up from cwd to find
+    // No PRZM_CORTEX_CONFIG_PATH default — the CLI walks up from cwd to find
     // config/cortex.yaml, then falls back to ~/.cortex/config/cortex.yaml.
     // Uncomment and set an absolute path below only if you want to pin
     // a specific file (e.g. testing with a non-standard location).
-    "# CORTEX_CONFIG_PATH=/absolute/path/to/cortex.yaml",
-    "CORTEX_MCP_PORT=3100",
+    "# PRZM_CORTEX_CONFIG_PATH=/absolute/path/to/cortex.yaml",
+    "PRZM_CORTEX_MCP_PORT=3100",
     "",
   );
 
@@ -156,8 +156,8 @@ function buildCortexYaml(input: WriteConfigInput): string {
 function buildProviderBlock(p: ProviderChoice): string[] {
   const pkg =
     p.id === "ollama"
-      ? "@onenomad/cortex-provider-ollama"
-      : "@onenomad/cortex-provider-openrouter";
+      ? "@onenomad/przm-cortex-provider-ollama"
+      : "@onenomad/przm-cortex-provider-openrouter";
 
   const cfg: string[] = [];
   if (p.id === "ollama") {

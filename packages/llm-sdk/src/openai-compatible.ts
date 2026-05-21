@@ -2,7 +2,7 @@ import {
   LLMError,
   type LLMRequest,
   type LLMResponse,
-} from "@onenomad/cortex-llm-core";
+} from "@onenomad/przm-cortex-llm-core";
 import { BaseLLMProvider } from "./base-provider.js";
 import { httpFetch } from "./http.js";
 

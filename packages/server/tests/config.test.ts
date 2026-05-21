@@ -40,7 +40,7 @@ describe("cortexConfigSchema", () => {
       llm: {
         providers: {
           ollama: {
-            package: "@onenomad/cortex-provider-ollama",
+            package: "@onenomad/przm-cortex-provider-ollama",
             enabled: true,
             config: { host: "http://localhost:11434" },
           },

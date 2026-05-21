@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDashboardApi, type DashboardApi } from "../src/api/server.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 
 function nullLogger(): Logger {
   const log: Logger = {
@@ -66,15 +66,15 @@ describe("dashboard API", () => {
     // a developer's machine that may resolve to a real workspace,
     // and the post-fetch `filterByWorkspace` then drops every seeded
     // row (the fakes don't carry a `metadata.workspace` stamp). Point
-    // CORTEX_STATE_PATH at an empty tmp file so getActiveWorkspace()
+    // PRZM_CORTEX_STATE_PATH at an empty tmp file so getActiveWorkspace()
     // resolves to undefined → ctx.workspace is undefined → filter
     // becomes pass-through. Cleaner than stamping metadata on every
     // row because it stays host-state-independent.
     tmpStateDir = mkdtempSync(join(tmpdir(), "cortex-api-test-state-"));
     const stateFile = join(tmpStateDir, "state.json");
     writeFileSync(stateFile, JSON.stringify({ workspaces: {} }), "utf8");
-    prevStatePath = process.env.CORTEX_STATE_PATH;
-    process.env.CORTEX_STATE_PATH = stateFile;
+    prevStatePath = process.env.PRZM_CORTEX_STATE_PATH;
+    process.env.PRZM_CORTEX_STATE_PATH = stateFile;
 
     const now = new Date().toISOString();
     api = createDashboardApi({
@@ -145,8 +145,8 @@ describe("dashboard API", () => {
 
   afterAll(async () => {
     await api.stop();
-    if (prevStatePath === undefined) delete process.env.CORTEX_STATE_PATH;
-    else process.env.CORTEX_STATE_PATH = prevStatePath;
+    if (prevStatePath === undefined) delete process.env.PRZM_CORTEX_STATE_PATH;
+    else process.env.PRZM_CORTEX_STATE_PATH = prevStatePath;
     try { rmSync(tmpStateDir, { recursive: true, force: true }); } catch { /* nothing */ }
   });
 

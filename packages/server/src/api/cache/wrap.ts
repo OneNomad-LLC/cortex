@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { CacheStorage } from "@onenomad/cortex-cache-sqlite";
+import type { CacheStorage } from "@onenomad/przm-cortex-cache-sqlite";
 import type { Widget, WidgetContext } from "../types.js";
 
 /**

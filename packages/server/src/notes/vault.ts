@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { obsidianConfigSchema } from "@onenomad/cortex-adapter-obsidian";
+import { obsidianConfigSchema } from "@onenomad/przm-cortex-adapter-obsidian";
 import type { CortexConfig } from "../config.js";
 
 /**

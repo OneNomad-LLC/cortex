@@ -3,14 +3,14 @@
  *
  * Three accepted credentials, any one passes:
  *
- *   - `Authorization: Bearer <CORTEX_API_AUTH_TOKEN>` — direct API
+ *   - `Authorization: Bearer <PRZM_CORTEX_API_AUTH_TOKEN>` — direct API
  *     access (Claude Code on MCP, scripts, etc.)
- *   - `X-Cortex-Gateway-Secret: <CORTEX_GATEWAY_SECRET>` — server-to-
+ *   - `X-Cortex-Gateway-Secret: <PRZM_CORTEX_GATEWAY_SECRET>` — server-to-
  *     server, used by the pyre-web proxy fronting the dashboard
  *   - Signed session cookie set via `/cortex-session/issue` — browser
  *     sessions handed off from pyre-web
  *
- * When neither CORTEX_API_AUTH_TOKEN nor CORTEX_GATEWAY_SECRET is set
+ * When neither PRZM_CORTEX_API_AUTH_TOKEN nor PRZM_CORTEX_GATEWAY_SECRET is set
  * the gate is off entirely (local dev — the operator drives the
  * dashboard from localhost). `/health` is always public so Fly's
  * machine probes can reach it.
@@ -23,8 +23,8 @@ import type { IncomingMessage } from "node:http";
 import { verifyCookie } from "./cookie-session.js";
 
 export function apiAuthOk(req: IncomingMessage): boolean {
-  const bearerExpected = process.env.CORTEX_API_AUTH_TOKEN;
-  const gatewayExpected = process.env.CORTEX_GATEWAY_SECRET;
+  const bearerExpected = process.env.PRZM_CORTEX_API_AUTH_TOKEN;
+  const gatewayExpected = process.env.PRZM_CORTEX_GATEWAY_SECRET;
   if (!bearerExpected && !gatewayExpected) return true;
 
   if (verifyCookie(req)) return true;

@@ -90,7 +90,7 @@ export const noteSuggestMetadata: McpTool<typeof inputSchema, Output> = {
 
 async function suggestViaLLM(args: {
   llmRouter: NonNullable<
-    ReturnType<() => import("@onenomad/cortex-llm-core").LLMRouter>
+    ReturnType<() => import("@onenomad/przm-cortex-llm-core").LLMRouter>
   >;
   body: string;
   currentTitle?: string;

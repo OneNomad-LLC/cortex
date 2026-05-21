@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { LLMProviderFactory } from "@onenomad/cortex-llm-core";
-import { OpenAICompatibleProvider } from "@onenomad/cortex-llm-sdk";
+import type { LLMProviderFactory } from "@onenomad/przm-cortex-llm-core";
+import { OpenAICompatibleProvider } from "@onenomad/przm-cortex-llm-sdk";
 
 export const openrouterConfigSchema = z.object({
   baseUrl: z.string().url().default("https://openrouter.ai/api/v1"),

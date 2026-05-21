@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * One-shot script: rename every `@cortex/*` workspace package to
- * `@onenomad/cortex-*`. Rewrites package.json names + dependencies,
+ * `@onenomad/przm-cortex-*`. Rewrites package.json names + dependencies,
  * imports across .ts/.tsx, and config references in .yaml/.json.
  *
  * Usage: `node scripts/rename-scope.mjs`
@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "..");
 
 const OLD = "@cortex/";
-const NEW = "@onenomad/cortex-";
+const NEW = "@onenomad/przm-cortex-";
 
 function listTrackedFiles() {
   // Use `git ls-files` so we respect .gitignore and skip node_modules / dist.

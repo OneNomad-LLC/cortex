@@ -7,7 +7,7 @@ import { z } from "zod";
  * Cross-session state for Cortex: which workspace is active, the
  * state-file schema version, and any runtime bookkeeping that needs
  * to survive between CLI invocations. Stored at
- * `~/.cortex/state.json` (overridable via `CORTEX_STATE_PATH`).
+ * `~/.cortex/state.json` (overridable via `PRZM_CORTEX_STATE_PATH`).
  */
 export const stateSchema = z.object({
   version: z.literal(1).default(1),
@@ -20,20 +20,20 @@ const EMPTY_STATE: CortexState = { version: 1 };
 
 export function stateFilePath(): string {
   return (
-    process.env.CORTEX_STATE_PATH ??
+    process.env.PRZM_CORTEX_STATE_PATH ??
     path.join(os.homedir(), ".cortex", "state.json")
   );
 }
 
 /**
  * SQLite database path for the dashboard widget cache (ADR-019). Lives
- * as a sibling of state.json so a single env override (CORTEX_HOME) or
- * CORTEX_STATE_PATH directory can move the entire user-state bundle.
- * Override directly via CORTEX_DASHBOARD_CACHE_PATH for tests/dev.
+ * as a sibling of state.json so a single env override (PRZM_CORTEX_HOME) or
+ * PRZM_CORTEX_STATE_PATH directory can move the entire user-state bundle.
+ * Override directly via PRZM_CORTEX_DASHBOARD_CACHE_PATH for tests/dev.
  */
 export function dashboardCachePath(): string {
-  if (process.env.CORTEX_DASHBOARD_CACHE_PATH) {
-    return process.env.CORTEX_DASHBOARD_CACHE_PATH;
+  if (process.env.PRZM_CORTEX_DASHBOARD_CACHE_PATH) {
+    return process.env.PRZM_CORTEX_DASHBOARD_CACHE_PATH;
   }
   return path.join(path.dirname(stateFilePath()), "dashboard-cache.db");
 }

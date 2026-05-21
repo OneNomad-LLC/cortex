@@ -1,4 +1,4 @@
-import type { WizardModule } from "@onenomad/cortex-core";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
 import { z } from "zod";
 import { webhooksConfigSchema, type WebhooksConfig } from "../config.js";
 

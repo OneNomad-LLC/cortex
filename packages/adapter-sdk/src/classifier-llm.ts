@@ -3,7 +3,7 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   TaxonomyReader,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 
 /**
  * LLM call surface the classifier needs. Matches the shape on

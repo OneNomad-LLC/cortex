@@ -29,7 +29,7 @@ import type { AnyMcpTool, ToolContext } from "./tool.js";
 import {
   BUILT_IN_MEMORY_TYPES,
   MemoryTypeRegistry,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import { persistCustomTypes } from "../cli/config-mutation.js";
 import { loadPrivateModules } from "../private-modules.js";
 import { resolveSessionWorkspaceSlug } from "../session-workspace-helpers.js";
@@ -164,7 +164,7 @@ export async function startServer(): Promise<void> {
   logger.info("startup.begin", { configPath });
   let cfg = await loadCortexConfig(configPath);
 
-  // Cortex Cloud seed: when CORTEX_SEED_SELF_* env vars are present,
+  // Cortex Cloud seed: when PRZM_CORTEX_SEED_SELF_* env vars are present,
   // ensure the active workspace has a `self` person matching the env
   // identity. Idempotent — re-running on a populated workspace is a
   // no-op when the user has already taken ownership of the identity
@@ -179,7 +179,7 @@ export async function startServer(): Promise<void> {
   // env (typically injected by pyre-web's deploy action), enable the
   // openrouter provider and stamp the default task model so a fresh
   // tenant comes up with enrichment-capable LLM routing — no SSH
-  // required. Reads CORTEX_LLM_BASE_URL + CORTEX_LLM_DEFAULT_MODEL too
+  // required. Reads PRZM_CORTEX_LLM_BASE_URL + PRZM_CORTEX_LLM_DEFAULT_MODEL too
   // for Azure OpenAI / other compatible endpoints. See cli/seed-llm-
   // provider.ts. MUST run before the LLM router builds, hence
   // immediately after seed-self and before scheduler init below.
@@ -441,10 +441,10 @@ export async function startServer(): Promise<void> {
   );
 
   // ADR-019 Phase 1 — open the SQLite widget cache when the dashboard
-  // API is enabled. Lives at $CORTEX_HOME/dashboard-cache.db; tests
-  // override via CORTEX_DASHBOARD_CACHE_PATH.
+  // API is enabled. Lives at $PRZM_CORTEX_HOME/dashboard-cache.db; tests
+  // override via PRZM_CORTEX_DASHBOARD_CACHE_PATH.
   const dashboardCache = cfg.api.enabled
-    ? (await import("@onenomad/cortex-cache-sqlite")).openCache(
+    ? (await import("@onenomad/przm-cortex-cache-sqlite")).openCache(
         (await import("../cli/workspace/state.js")).dashboardCachePath(),
       )
     : undefined;

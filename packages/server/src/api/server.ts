@@ -28,8 +28,8 @@ import {
   type ServerResponse,
 } from "node:http";
 import { randomUUID } from "node:crypto";
-import type { Logger } from "@onenomad/cortex-core";
-import type { SourceAdapter } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
+import type { SourceAdapter } from "@onenomad/przm-cortex-core";
 import { handleIssue } from "./cookie-session.js";
 import { setCors, sendJson } from "./http.js";
 import { apiAuthOk } from "./auth.js";
@@ -107,7 +107,7 @@ export interface DashboardApiOptions extends WidgetContext {
    * dragging the cache-sqlite package (and its `node:sqlite` import)
    * into the vite/vitest transform graph.
    */
-  cache?: import("@onenomad/cortex-cache-sqlite").CacheStorage;
+  cache?: import("@onenomad/przm-cortex-cache-sqlite").CacheStorage;
 }
 
 export interface DashboardApi {

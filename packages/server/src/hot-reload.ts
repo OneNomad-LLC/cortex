@@ -1,5 +1,5 @@
-import type { Logger, SourceAdapter } from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
+import type { Logger, SourceAdapter } from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import { loadCortexConfig } from "./config.js";
 import { buildAdapterRegistry, type AdapterRegistry } from "./registry/adapters.js";

@@ -23,7 +23,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
  * a single trust boundary. Pulling jose / jsonwebtoken in adds 100KB
  * for one function. The Node `crypto` builtins do it in ~40 lines.
  *
- * Signing key resolution: `process.env.CORTEX_GATEWAY_SECRET`. Must be
+ * Signing key resolution: `process.env.PRZM_CORTEX_GATEWAY_SECRET`. Must be
  * present for the cookie session to be enabled.
  */
 
@@ -132,12 +132,12 @@ export function verifyToken(token: string, key: string): SessionClaims | null {
 /**
  * Extract the session cookie from a request. Returns the verified
  * claims when valid, `null` otherwise. Reads the signing key from
- * `CORTEX_GATEWAY_SECRET`; when that env var is unset, cookie session
+ * `PRZM_CORTEX_GATEWAY_SECRET`; when that env var is unset, cookie session
  * is disabled and this returns `null` for every request (callers fall
  * back to bearer / gateway-secret gates).
  */
 export function verifyCookie(req: IncomingMessage): SessionClaims | null {
-  const key = process.env.CORTEX_GATEWAY_SECRET;
+  const key = process.env.PRZM_CORTEX_GATEWAY_SECRET;
   if (!key) return null;
   const raw = req.headers.cookie;
   if (typeof raw !== "string") return null;
@@ -163,7 +163,7 @@ export async function handleIssue(
   const url = new URL(req.url ?? "/", "http://localhost");
   if (url.pathname !== "/cortex-session/issue") return false;
 
-  const key = process.env.CORTEX_GATEWAY_SECRET;
+  const key = process.env.PRZM_CORTEX_GATEWAY_SECRET;
   if (!key) {
     logger?.warn("cookie_session.issue.no_secret", {});
     res.statusCode = 503;

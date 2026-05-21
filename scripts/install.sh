@@ -7,7 +7,7 @@
 #
 # What it does:
 #   1. Verify prerequisites (git, node>=22, pnpm).
-#   2. Clone https://github.com/OneNomad-LLC/cortex into the chosen directory.
+#   2. Clone https://github.com/OneNomad-LLC/przm-cortex into the chosen directory.
 #   3. pnpm install + pnpm -r build.
 #   4. Write a zero-config cortex.yaml using the embedded PGlite backend
 #      (no Docker, no system Postgres needed).
@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-CORTEX_REPO="${CORTEX_REPO:-https://github.com/OneNomad-LLC/cortex.git}"
+PRZM_CORTEX_REPO="${PRZM_CORTEX_REPO:-https://github.com/OneNomad-LLC/przm-cortex.git}"
 DEFAULT_DIR="${HOME}/.cortex-install"
 INSTALL_DIR="${DEFAULT_DIR}"
 NON_INTERACTIVE=0
@@ -58,7 +58,7 @@ Options:
   --help, -h        Print this help
 
 Environment:
-  CORTEX_REPO       Override the source git URL (default: ${CORTEX_REPO})
+  PRZM_CORTEX_REPO       Override the source git URL (default: ${PRZM_CORTEX_REPO})
   NO_COLOR_ENV=1    Disable color output
 
 Examples:
@@ -174,11 +174,11 @@ step_install_dir() {
 
 step_clone() {
   hdr "3/5 Clone"
-  log "  ${CORTEX_REPO} → ${INSTALL_DIR}"
+  log "  ${PRZM_CORTEX_REPO} → ${INSTALL_DIR}"
   # Roll back a partial clone if git fails mid-fetch; otherwise the next
   # run trips step_install_dir's "exists and not empty" guard with no
   # easy way to tell what went wrong.
-  if ! git clone --depth=1 "${CORTEX_REPO}" "${INSTALL_DIR}"; then
+  if ! git clone --depth=1 "${PRZM_CORTEX_REPO}" "${INSTALL_DIR}"; then
     err "git clone failed; rolling back ${INSTALL_DIR}"
     rm -rf "${INSTALL_DIR}" 2>/dev/null || true
     exit 1
@@ -239,7 +239,7 @@ memory:
 llm:
   providers:
     openrouter:
-      package: "@onenomad/cortex-provider-openrouter"
+      package: "@onenomad/przm-cortex-provider-openrouter"
       enabled: false
       config:
         appTitle: "Cortex"
@@ -298,14 +298,14 @@ print_next_steps() {
 
   ▸ Ingest a doc / URL / repo via the dashboard or Pyre's Knowledge card.
 
-  Docs: ${CORTEX_REPO%.git}#readme
+  Docs: ${PRZM_CORTEX_REPO%.git}#readme
 EOF
 }
 
 main() {
   parse_args "$@"
   hdr "Cortex installer"
-  log "  repo:    ${CORTEX_REPO}"
+  log "  repo:    ${PRZM_CORTEX_REPO}"
   log "  dir:     ${INSTALL_DIR}"
   step_preflight
   step_install_dir

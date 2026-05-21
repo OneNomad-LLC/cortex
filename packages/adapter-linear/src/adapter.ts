@@ -6,8 +6,8 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
-} from "@onenomad/cortex-core";
-import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter } from "@onenomad/przm-cortex-adapter-sdk";
 import { LinearClient, type LinearIssue } from "./client.js";
 
 export const linearConfigSchema = z.object({
@@ -37,7 +37,7 @@ export class LinearAdapter extends BaseAdapter {
   readonly configSchema = linearConfigSchema;
   readonly requiredSecrets = ["LINEAR_API_KEY"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-doc"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-doc"] as const;
 
   private client!: LinearClient;
   private cfg!: LinearConfig;

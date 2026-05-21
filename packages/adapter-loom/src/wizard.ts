@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WizardModule } from "@onenomad/cortex-core";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
 import { loomConfigSchema, type LoomConfig } from "./adapter.js";
 
 export const loomWizard: WizardModule<LoomConfig> = {

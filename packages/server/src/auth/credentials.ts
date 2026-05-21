@@ -24,8 +24,8 @@
  * api_key on a cortex login would silently log the user out of memory.
  *
  * Env var overrides:
- *   CORTEX_MCP_URL    — direct MCP endpoint (CI/secrets manager).
- *   CORTEX_MCP_TOKEN  — bearer token (same).
+ *   PRZM_CORTEX_MCP_URL    — direct MCP endpoint (CI/secrets manager).
+ *   PRZM_CORTEX_MCP_TOKEN  — bearer token (same).
  *
  * When both are present, mode is implicitly cloud and the file isn't
  * read for cortex. The shared file is still read for engram/persona.
@@ -208,8 +208,8 @@ export function loadCortexCredentials(path?: string): ResolvedCortexCredentials 
   // nothing to migrate; runs at most once per machine in practice.
   migrateLegacyCredentialsOnce();
 
-  const envUrl = process.env.CORTEX_MCP_URL;
-  const envToken = process.env.CORTEX_MCP_TOKEN;
+  const envUrl = process.env.PRZM_CORTEX_MCP_URL;
+  const envToken = process.env.PRZM_CORTEX_MCP_TOKEN;
   if (envUrl && envToken) {
     return {
       mode: "cloud",

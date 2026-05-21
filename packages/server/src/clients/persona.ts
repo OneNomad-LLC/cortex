@@ -1,4 +1,4 @@
-import type { HealthStatus, Logger } from "@onenomad/cortex-core";
+import type { HealthStatus, Logger } from "@onenomad/przm-cortex-core";
 import {
   callJsonTool,
   connectMcpSubprocess,

@@ -24,7 +24,7 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 export function workspacesRoot(): string {
   return (
-    process.env.CORTEX_WORKSPACES_ROOT ??
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT ??
     path.join(os.homedir(), ".cortex", "workspaces")
   );
 }

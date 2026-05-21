@@ -68,7 +68,7 @@ describe("runDoctor", () => {
       "llm:",
       "  providers:",
       "    ollama:",
-      '      package: "@onenomad/cortex-provider-ollama"',
+      '      package: "@onenomad/przm-cortex-provider-ollama"',
       "      enabled: true",
       "      config: { host: http://localhost:11434 }",
       "  tasks:",
@@ -80,7 +80,7 @@ describe("runDoctor", () => {
     ].join("\n");
     const root = await makeRepo(yaml);
     await withEnv(
-      { CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
+      { PRZM_CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
       async () => {
         const code = await captureStdout(() => runDoctor([]));
         expect(code).toBe(0);
@@ -93,7 +93,7 @@ describe("runDoctor", () => {
       "llm:",
       "  providers:",
       "    ollama:",
-      '      package: "@onenomad/cortex-provider-ollama"',
+      '      package: "@onenomad/przm-cortex-provider-ollama"',
       "      enabled: true",
       "      config: {}",
       "  tasks:",
@@ -101,7 +101,7 @@ describe("runDoctor", () => {
       "  fallbackChain: []",
       "adapters:",
       "  confluence:",
-      '    package: "@onenomad/cortex-adapter-confluence"',
+      '    package: "@onenomad/przm-cortex-adapter-confluence"',
       "    enabled: true",
       "    config: { workspace: yourcompany }",
       "memory: { primary: engram }",
@@ -110,7 +110,7 @@ describe("runDoctor", () => {
     const root = await makeRepo(yaml);
     await withEnv(
       {
-        CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml"),
+        PRZM_CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml"),
         ATLASSIAN_EMAIL: undefined,
         ATLASSIAN_API_TOKEN: undefined,
       },
@@ -131,7 +131,7 @@ describe("runDoctor", () => {
       "llm:",
       "  providers:",
       "    ollama:",
-      '      package: "@onenomad/cortex-provider-ollama"',
+      '      package: "@onenomad/przm-cortex-provider-ollama"',
       "      enabled: true",
       "      config: { host: http://localhost:11434 }",
       "  tasks:",
@@ -146,7 +146,7 @@ describe("runDoctor", () => {
     ].join("\n");
     const root = await makeRepo(yaml);
     await withEnv(
-      { CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
+      { PRZM_CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
       async () => {
         const { code, stdout } = await captureOutput(() =>
           runDoctor(["--connect"]),
@@ -163,7 +163,7 @@ describe("runDoctor", () => {
       "llm:",
       "  providers:",
       "    ollama:",
-      '      package: "@onenomad/cortex-provider-ollama"',
+      '      package: "@onenomad/przm-cortex-provider-ollama"',
       "      enabled: true",
       "      config: { host: http://localhost:11434 }",
       "  tasks:",
@@ -178,7 +178,7 @@ describe("runDoctor", () => {
     ].join("\n");
     const root = await makeRepo(yaml);
     await withEnv(
-      { CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
+      { PRZM_CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml") },
       async () => {
         const { code, stdout } = await captureOutput(() => runDoctor([]));
         expect(code).toBe(0);
@@ -193,7 +193,7 @@ describe("runDoctor", () => {
       "llm:",
       "  providers:",
       "    ollama:",
-      '      package: "@onenomad/cortex-provider-ollama"',
+      '      package: "@onenomad/przm-cortex-provider-ollama"',
       "      enabled: true",
       "      config: { host: '${OLLAMA_HOST}' }",
       "  tasks:",
@@ -206,7 +206,7 @@ describe("runDoctor", () => {
     const root = await makeRepo(yaml);
     await withEnv(
       {
-        CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml"),
+        PRZM_CORTEX_CONFIG_PATH: path.join(root, "config", "cortex.yaml"),
         OLLAMA_HOST: undefined,
       },
       async () => {

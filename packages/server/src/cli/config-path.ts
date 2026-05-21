@@ -6,7 +6,7 @@ import path from "node:path";
  * Resolve the effective cortex.yaml path for read-mode commands.
  *
  * Order (first hit wins):
- *   1. $CORTEX_CONFIG_PATH — explicit override
+ *   1. $PRZM_CORTEX_CONFIG_PATH — explicit override
  *   2. Active workspace from `~/.cortex/state.json` — the workspace
  *      user picked via `cortex workspace switch`. Read synchronously
  *      here so every command that touches config doesn't have to be
@@ -25,7 +25,7 @@ import path from "node:path";
  * location. Callers read/write it and handle ENOENT themselves.
  */
 export function resolveConfigPath(): string {
-  const override = process.env.CORTEX_CONFIG_PATH;
+  const override = process.env.PRZM_CORTEX_CONFIG_PATH;
   if (override && override.length > 0) {
     if (path.isAbsolute(override)) return override;
     // Relative override values break global-install invocations (cwd may be
@@ -62,7 +62,7 @@ export function resolveConfigPath(): string {
  */
 function resolveActiveWorkspaceConfig(): string | undefined {
   const statePath =
-    process.env.CORTEX_STATE_PATH ??
+    process.env.PRZM_CORTEX_STATE_PATH ??
     path.join(os.homedir(), ".cortex", "state.json");
   let raw: string;
   try {
@@ -80,7 +80,7 @@ function resolveActiveWorkspaceConfig(): string | undefined {
   if (!slug) return undefined;
 
   const root =
-    process.env.CORTEX_WORKSPACES_ROOT ??
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT ??
     path.join(os.homedir(), ".cortex", "workspaces");
   const candidate = path.join(root, slug, "config", "cortex.yaml");
   return existsSync(candidate) ? candidate : undefined;

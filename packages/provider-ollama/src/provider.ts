@@ -5,9 +5,9 @@ import type {
   LLMProviderFactory,
   LLMRequest,
   LLMResponse,
-} from "@onenomad/cortex-llm-core";
-import { LLMError } from "@onenomad/cortex-llm-core";
-import { BaseLLMProvider, httpFetch } from "@onenomad/cortex-llm-sdk";
+} from "@onenomad/przm-cortex-llm-core";
+import { LLMError } from "@onenomad/przm-cortex-llm-core";
+import { BaseLLMProvider, httpFetch } from "@onenomad/przm-cortex-llm-sdk";
 
 /**
  * Accept Ollama's canonical bare `host:port` form (e.g. `0.0.0.0:11434`,

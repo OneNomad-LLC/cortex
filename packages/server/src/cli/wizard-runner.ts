@@ -5,10 +5,10 @@ import type {
   WizardResult,
   WizardSecret,
   WizardStep,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 
 /**
- * CLI runner for a WizardModule spec. Imports from @onenomad/cortex-core are
+ * CLI runner for a WizardModule spec. Imports from @onenomad/przm-cortex-core are
  * framework-agnostic; all inquirer calls are scoped to this file. The
  * runner is used by `cortex init`, `cortex add`, and `cortex configure`;
  * a React form renderer in the dashboard will consume the same spec

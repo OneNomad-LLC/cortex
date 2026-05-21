@@ -30,8 +30,8 @@ beforeEach(async () => {
   // Point all path-resolvers at the tmp dir.
   process.env.PYRE_CREDENTIALS_FILE = sharedFile;
   process.env.XDG_CONFIG_HOME = path.join(tmpDir, "legacy");
-  delete process.env.CORTEX_MCP_URL;
-  delete process.env.CORTEX_MCP_TOKEN;
+  delete process.env.PRZM_CORTEX_MCP_URL;
+  delete process.env.PRZM_CORTEX_MCP_TOKEN;
   _resetMigrationGuardForTests();
 });
 
@@ -134,8 +134,8 @@ describe("loadCortexCredentials", () => {
   });
 
   it("env vars override file and report fromEnv=true", () => {
-    process.env.CORTEX_MCP_URL = "https://env.cortex.example/mcp";
-    process.env.CORTEX_MCP_TOKEN = "env-bearer";
+    process.env.PRZM_CORTEX_MCP_URL = "https://env.cortex.example/mcp";
+    process.env.PRZM_CORTEX_MCP_TOKEN = "env-bearer";
     saveCortexCredentials({
       tenants: [{ slug: "file", mcp_url: "https://file.cortex.example/mcp", bearer: "file-bearer" }],
       active_tenant: "file",

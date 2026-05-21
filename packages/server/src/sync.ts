@@ -4,13 +4,13 @@ import type {
   Logger,
   RawSourceItem,
   SourceAdapter,
-} from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
-import type { Pipeline, PipelineContext } from "@onenomad/cortex-pipeline-core";
-import { createCodePipeline } from "@onenomad/cortex-pipeline-code";
-import { createConversationPipeline } from "@onenomad/cortex-pipeline-conversation";
-import { createDocPipeline } from "@onenomad/cortex-pipeline-doc";
-import { createMeetingPipeline } from "@onenomad/cortex-pipeline-meeting";
+} from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
+import type { Pipeline, PipelineContext } from "@onenomad/przm-cortex-pipeline-core";
+import { createCodePipeline } from "@onenomad/przm-cortex-pipeline-code";
+import { createConversationPipeline } from "@onenomad/przm-cortex-pipeline-conversation";
+import { createDocPipeline } from "@onenomad/przm-cortex-pipeline-doc";
+import { createMeetingPipeline } from "@onenomad/przm-cortex-pipeline-meeting";
 import type { EngramClient } from "./clients/engram.js";
 import type { LoadedTaxonomy } from "./taxonomy.js";
 
@@ -49,10 +49,10 @@ export interface PerItemResult {
  */
 export function resolvePipelines(adapter: SourceAdapter): Pipeline[] {
   return adapter.pipelines.map((id) => {
-    if (id === "@onenomad/cortex-pipeline-code") return createCodePipeline();
-    if (id === "@onenomad/cortex-pipeline-conversation") return createConversationPipeline();
-    if (id === "@onenomad/cortex-pipeline-doc") return createDocPipeline();
-    if (id === "@onenomad/cortex-pipeline-meeting") return createMeetingPipeline();
+    if (id === "@onenomad/przm-cortex-pipeline-code") return createCodePipeline();
+    if (id === "@onenomad/przm-cortex-pipeline-conversation") return createConversationPipeline();
+    if (id === "@onenomad/przm-cortex-pipeline-doc") return createDocPipeline();
+    if (id === "@onenomad/przm-cortex-pipeline-meeting") return createMeetingPipeline();
     throw new Error(`Unknown pipeline '${id}'. Register it in sync.ts.`);
   });
 }

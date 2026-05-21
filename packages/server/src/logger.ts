@@ -5,20 +5,20 @@ import {
   mkdirSync,
   existsSync,
 } from "node:fs";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import { getSharedLogBus, type LogLine } from "./log-bus.js";
 
 /**
  * Resolve the runtime log file path. Lives at <cortex-home>/logs/runtime.log
  * so logs persist across MCP restarts and survive Pyre/Claude Desktop
- * sessions. Honors CORTEX_HOME for the docker / non-default case;
+ * sessions. Honors PRZM_CORTEX_HOME for the docker / non-default case;
  * falls back to ~/.cortex which matches stateFilePath()'s root.
  *
  * Resolved once at module load; the directory is created lazily on
  * first append so a fresh install doesn't have to pre-create it.
  */
 function resolveRuntimeLogPath(): string {
-  const home = process.env.CORTEX_HOME ?? path.join(os.homedir(), ".cortex");
+  const home = process.env.PRZM_CORTEX_HOME ?? path.join(os.homedir(), ".cortex");
   return path.join(home, "logs", "runtime.log");
 }
 const RUNTIME_LOG_PATH = resolveRuntimeLogPath();
