@@ -41,6 +41,11 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 WORKDIR /app
 RUN pnpm -r --filter='!@onenomad/przm-cortex-dashboard' run build
+# Dashboard runs its own Vite build separately — splitting it keeps a
+# TypeScript hiccup in the SPA from poisoning the workspace `-r run
+# build` graph, and the resulting dist/ is what the static-asset route
+# in the server streams at runtime.
+RUN pnpm --filter @onenomad/przm-cortex-dashboard run build
 
 # ── Stage 3: runtime image ──────────────────────────────────────────
 FROM node:22-slim AS runtime
