@@ -12,9 +12,7 @@ import {
 import { openBrowser } from "./open-browser.js";
 import { findRepoRoot, loadDotEnv } from "./dotenv.js";
 import {
-  detectDeps,
   detectOllama,
-  installGlobally,
   installOllama,
   ollamaHasModel,
   ollamaPullModel,
@@ -40,14 +38,14 @@ export interface InitArgs {
 export async function runInit(args: InitArgs): Promise<number> {
   if (!process.stdin.isTTY) {
     process.stderr.write(
-      "cortex init: interactive wizard requires a TTY. " +
+      "przm-cortex init: interactive wizard requires a TTY. " +
         "Run from a real terminal.\n",
     );
     return 2;
   }
 
   const repoRoot = findRepoRoot(process.cwd());
-  header("Cortex setup");
+  header("przm-cortex setup");
 
   // -1. Pick setup surface — terminal or browser. Users with a
   //     preference pass `--cli` / `--web` so they don't see the prompt.
@@ -62,8 +60,9 @@ export async function runInit(args: InitArgs): Promise<number> {
   //    context the user may want to manage later.
   const writeRoot = await stepWorkspace(repoRoot);
 
-  // 1. Engram + Persona
-  await stepDependencies();
+  // 1. (Removed) Engram + Persona pre-flight — cortex 0.3 dropped those
+  //    runtime dependencies (ADR-012). detectDeps() returns [] today;
+  //    if a future companion service is added, plug a check in here.
 
   // 2. Provider selection + config
   const providers = await stepProviders();
@@ -123,23 +122,23 @@ export async function runInit(args: InitArgs): Promise<number> {
     if (code !== 0) {
       warn(
         "Smoke test reported failures. Check the logs above; re-run " +
-          "`cortex smoke` after fixing config.",
+          "`przm-cortex smoke` after fixing config.",
       );
       return code;
     }
   }
 
   section("Next steps");
-  line("  - Add a data source adapter:  `cortex add notion`  (or github, slack, etc.)");
+  line("  - Add a data source adapter:  `przm-cortex add notion`  (or github, slack, etc.)");
   line(`  - Edit ${path.join(writeRoot, "config", "cortex.yaml")} for backend / provider tuning`);
   line("  - Ingest your first doc / URL / repo:");
-  line("      `cortex ingest file <path>`  /  `ingest url <url>`  /  `ingest repo <path>`");
+  line("      `przm-cortex ingest file <path>`  /  `ingest url <url>`  /  `ingest repo <path>`");
   line("  - Wire Cortex into your MCP client (Claude Code / Pyre / etc.):");
   line(
-    '      { "mcpServers": { "cortex": { "command": "cortex", "args": ["start"] } } }',
+    '      { "mcpServers": { "przm-cortex": { "command": "przm-cortex", "args": ["start"] } } }',
   );
-  line("  - Run `cortex start` directly for debugging");
-  line("  - Launch the dashboard with `cortex dashboard` (needs api.enabled: true)");
+  line("  - Run `przm-cortex start` directly for debugging");
+  line("  - Launch the dashboard with `przm-cortex dashboard` (needs api.enabled: true)");
   line("");
   return 0;
 }
@@ -165,7 +164,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   line(
     "  A workspace is an isolated bundle of config + .env + memory state.\n" +
       "  Create one per job, client, or personal context. Switch between\n" +
-      "  them any time with `cortex workspace switch <slug>`.",
+      "  them any time with `przm-cortex workspace switch <slug>`.",
   );
 
   const createOne = await confirm({
@@ -175,7 +174,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   if (!createOne) {
     warn(
       "Skipping — init will write to the repo's ./config and .env instead. " +
-        "You can migrate later with `cortex workspace add <slug> --from .`.",
+        "You can migrate later with `przm-cortex workspace add <slug> --from .`.",
     );
     return repoRoot;
   }
@@ -198,7 +197,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
       default: true,
     });
     if (!overwrite) {
-      warn("Skipped — pick a different slug and re-run `cortex init`.");
+      warn("Skipped — pick a different slug and re-run `przm-cortex init`.");
       return repoRoot;
     }
     await switchWorkspace(clean);
@@ -231,46 +230,10 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   return ws.path;
 }
 
-async function stepDependencies(): Promise<void> {
-  section("Engram and Persona");
-  const deps = await detectDeps();
-
-  for (const d of deps) {
-    if (d.installed) {
-      ok(`${d.bin} installed${d.version ? ` (${d.version})` : ""}${d.path ? ` at ${d.path}` : ""}`);
-    } else {
-      miss(`${d.bin} not found on PATH`);
-    }
-  }
-
-  const missing = deps.filter((d) => !d.installed);
-  if (missing.length === 0) return;
-
-  const doInstall = await confirm({
-    message: `Install ${missing.map((m) => m.pkg).join(" + ")} globally now?`,
-    default: true,
-  });
-
-  if (!doInstall) {
-    warn(
-      "Skipping install. You can install later with:\n" +
-        `      npm install -g ${missing.map((m) => m.pkg).join(" ")}`,
-    );
-    return;
-  }
-
-  const code = await installGlobally(missing.map((m) => m.pkg));
-  if (code !== 0) {
-    warn(`npm install exited with ${code}. Continuing — fix and retry later.`);
-    return;
-  }
-
-  const after = await detectDeps();
-  for (const d of after) {
-    if (d.installed) ok(`${d.bin} installed`);
-    else warn(`${d.bin} still not on PATH (shell restart may be required)`);
-  }
-}
+// stepDependencies removed in cortex 0.4. Pre-cortex-0.3 it probed for
+// Engram + Persona companion MCP binaries; ADR-012 made cortex
+// standalone. detectDeps() is preserved in cli/detect.ts as an
+// extension point for any future runtime companion.
 
 async function stepProviders(): Promise<ProviderChoice[]> {
   section("LLM providers");
@@ -345,7 +308,7 @@ async function stepOllamaLocal(providers: ProviderChoice[]): Promise<void> {
       default: true,
     });
     if (!doInstall) {
-      warn("Skipped. Install manually from https://ollama.com/download then re-run `cortex init`.");
+      warn("Skipped. Install manually from https://ollama.com/download then re-run `przm-cortex init`.");
       return;
     }
     const code = await installOllama();
@@ -532,15 +495,15 @@ async function stepAdapters(repoRoot: string): Promise<void> {
     } catch (err) {
       warn(
         `${wizard.name} setup failed: ${err instanceof Error ? err.message : String(err)}. ` +
-          `You can re-run it later with \`cortex add ${moduleId}\`.`,
+          `You can re-run it later with \`przm-cortex add ${moduleId}\`.`,
       );
     }
   }
 
   if (selected.length === 0) {
     line(
-      "  Skipped. You can enable adapters later with `cortex add <module>` — " +
-        `list options via \`cortex modules\`.`,
+      "  Skipped. You can enable adapters later with `przm-cortex add <module>` — " +
+        `list options via \`przm-cortex modules\`.`,
     );
   }
 
@@ -582,7 +545,7 @@ async function pickSetupMode(args: readonly string[]): Promise<"cli" | "web"> {
 /**
  * The web setup path. Writes a minimal bootstrap workspace so the
  * dashboard has somewhere to land, then hands off to `docker compose
- * up` (or `cortex up`). The browser finishes setup in the dashboard's
+ * up` (or `przm-cortex up`). The browser finishes setup in the dashboard's
  * /setup page — wizards, secrets, and adapter wiring all live there.
  *
  * We don't spawn anything ourselves: long-running detached processes
@@ -590,7 +553,6 @@ async function pickSetupMode(args: readonly string[]): Promise<"cli" | "web"> {
  * is a cleaner way to keep Cortex alive across terminals.
  */
 async function runWebSetup(repoRoot: string): Promise<number> {
-  await stepDependencies();
   const writeRoot = await stepWorkspace(repoRoot);
   await ensureBootstrapConfig(writeRoot);
 
@@ -600,7 +562,7 @@ async function runWebSetup(repoRoot: string): Promise<number> {
   line("  Run ONE of these in a separate terminal, then come back here:");
   line("");
   line("    docker compose up -d       # recommended — always-on, survives reboots");
-  line("    cortex start               # local dev — foreground, ctrl+C to stop");
+  line("    przm-cortex start          # local dev — foreground, ctrl+C to stop");
   line("");
   line(`  The dashboard lives at ${dashboardUrl}/setup — finish configuration there.`);
   line("");
@@ -631,7 +593,7 @@ async function ensureBootstrapConfig(writeRoot: string): Promise<void> {
 
   if (!existsSync(cfgPath)) {
     const stub = [
-      "# Bootstrap config written by `cortex init --web`. The web",
+      "# Bootstrap config written by `przm-cortex init --web`. The web",
       "# setup page fills in providers, secrets, and adapters.",
       "",
       "llm:",
