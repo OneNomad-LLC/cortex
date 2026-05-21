@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-core",
+  "name": "@onenomad/przm-cortex-core",
   "version": "0.1.0",
   "description": "Shared types and interfaces for Cortex adapters and pipelines.",
   "type": "module",

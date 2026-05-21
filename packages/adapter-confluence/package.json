@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-adapter-confluence",
+  "name": "@onenomad/przm-cortex-adapter-confluence",
   "version": "0.1.0",
   "description": "Atlassian Confluence source adapter for Cortex.",
   "type": "module",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-adapter-sdk": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-adapter-sdk": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

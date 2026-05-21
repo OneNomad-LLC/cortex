@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-pipeline-conversation",
+  "name": "@onenomad/przm-cortex-pipeline-conversation",
   "version": "0.1.0",
   "description": "Conversation pipeline: chat threads and email chains into searchable memories.",
   "type": "module",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-pipeline-core": "workspace:*"
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

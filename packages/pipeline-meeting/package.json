@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-pipeline-meeting",
+  "name": "@onenomad/przm-cortex-pipeline-meeting",
   "version": "0.1.0",
   "description": "3-pass meeting transcript extraction pipeline (structural -> synthesis -> brief).",
   "type": "module",
@@ -24,8 +24,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-pipeline-core": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-core": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {

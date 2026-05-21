@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-adapter-sdk",
+  "name": "@onenomad/przm-cortex-adapter-sdk",
   "version": "0.1.0",
   "description": "Base classes and helpers for building Cortex source adapters.",
   "type": "module",
@@ -23,7 +23,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

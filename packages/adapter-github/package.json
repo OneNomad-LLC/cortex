@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@onenomad/cortex-adapter-github",
+  "name": "@onenomad/przm-cortex-adapter-github",
   "version": "0.1.0",
   "description": "GitHub source adapter for Cortex.",
   "type": "module",
@@ -23,9 +23,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-adapter-sdk": "workspace:*",
-    "@onenomad/cortex-github-auth": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-adapter-sdk": "workspace:*",
+    "@onenomad/przm-cortex-github-auth": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {
