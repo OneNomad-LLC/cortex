@@ -5,12 +5,17 @@ import { AppShell } from "@/components/shell/AppShell";
 import { AuthErrorBoundary } from "@/components/auth/AuthErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/lib/auth-context";
+import { ToastProvider } from "@/components/ui/toast";
 import { AdapterAddPage } from "@/pages/AdapterAddPage";
 import { AdapterDetailPage } from "@/pages/AdapterDetailPage";
 import { AdaptersListPage } from "@/pages/AdaptersListPage";
 import { IdentityPage } from "@/pages/IdentityPage";
+import IngestPage from "@/pages/IngestPage";
+import JobsPage from "@/pages/JobsPage";
+import LogsPage from "@/pages/LogsPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage, PlaceholderPage } from "@/pages/PlaceholderPage";
+import StatsPage from "@/pages/StatsPage";
 import { WorkspacesPage } from "@/pages/WorkspacesPage";
 
 /**
@@ -21,9 +26,12 @@ import { WorkspacesPage } from "@/pages/WorkspacesPage";
  * Surface map:
  *   /login                  → LoginPage (no auth, no shell chrome)
  *   /                       → redirect to /adapters
- *   /adapters{,/new,/:id}   → adapter management (wizard)
- *   /logs, /jobs, /stats,   → ops pages (mounted in a follow-up merge)
- *   /ingest, /memories      ↳
+ *   /adapters{,/new,/:id}   → adapter management (wizard renderer)
+ *   /logs                   → runtime log tail
+ *   /jobs                   → background ingest jobs
+ *   /stats                  → KB size + per-source counts
+ *   /ingest                 → URL / file / raw-content ingest forms
+ *   /memories               → memory browser (deferred)
  *   /workspaces             → WorkspacesPage
  *   /identity               → IdentityPage
  *   *                       → 404
@@ -31,65 +39,61 @@ import { WorkspacesPage } from "@/pages/WorkspacesPage";
  * <AuthProvider> wraps the whole tree so login + protected routes
  * both have access. <AuthErrorBoundary> listens for 401 events and
  * redirects to /login regardless of which page threw.
+ * <ToastProvider> wraps everything so any page can fire a toast
+ * (ingest queue confirmations, mutation success, etc.).
  */
 export default function App(): React.ReactElement {
   return (
     <Router base="/_dashboard">
-      <AuthProvider>
-        <AuthErrorBoundary>
-          <Switch>
-            <Route path="/login">
-              <LoginPage />
-            </Route>
+      <ToastProvider>
+        <AuthProvider>
+          <AuthErrorBoundary>
+            <Switch>
+              <Route path="/login">
+                <LoginPage />
+              </Route>
 
-            <Route>
-              <ProtectedRoute>
-                <AppShell>
-                  <Switch>
-                    <Route path="/">
-                      <Redirect to="/adapters" />
-                    </Route>
+              <Route>
+                <ProtectedRoute>
+                  <AppShell>
+                    <Switch>
+                      <Route path="/">
+                        <Redirect to="/adapters" />
+                      </Route>
 
-                    {/* Adapter management (wizard). */}
-                    <Route path="/adapters" component={AdaptersListPage} />
-                    <Route path="/adapters/new" component={AdapterAddPage} />
-                    <Route path="/adapters/:id" component={AdapterDetailPage} />
+                      {/* Adapter management. */}
+                      <Route path="/adapters" component={AdaptersListPage} />
+                      <Route path="/adapters/new" component={AdapterAddPage} />
+                      <Route path="/adapters/:id" component={AdapterDetailPage} />
 
-                    {/* Ops slice — pages mount in the ops merge. */}
-                    <Route path="/logs">
-                      <PlaceholderPage title="Logs" owner="ops" />
-                    </Route>
-                    <Route path="/jobs">
-                      <PlaceholderPage title="Jobs" owner="ops" />
-                    </Route>
-                    <Route path="/stats">
-                      <PlaceholderPage title="Stats" owner="ops" />
-                    </Route>
-                    <Route path="/ingest">
-                      <PlaceholderPage title="Ingest" owner="ops" />
-                    </Route>
-                    <Route path="/memories">
-                      <PlaceholderPage title="Memories" owner="ops" />
-                    </Route>
+                      {/* Ops. */}
+                      <Route path="/logs" component={LogsPage} />
+                      <Route path="/jobs" component={JobsPage} />
+                      <Route path="/stats" component={StatsPage} />
+                      <Route path="/ingest" component={IngestPage} />
+                      <Route path="/memories">
+                        <PlaceholderPage title="Memories" owner="ops" />
+                      </Route>
 
-                    {/* Shell slice. */}
-                    <Route path="/workspaces">
-                      <WorkspacesPage />
-                    </Route>
-                    <Route path="/identity">
-                      <IdentityPage />
-                    </Route>
+                      {/* Shell. */}
+                      <Route path="/workspaces">
+                        <WorkspacesPage />
+                      </Route>
+                      <Route path="/identity">
+                        <IdentityPage />
+                      </Route>
 
-                    <Route>
-                      <NotFoundPage />
-                    </Route>
-                  </Switch>
-                </AppShell>
-              </ProtectedRoute>
-            </Route>
-          </Switch>
-        </AuthErrorBoundary>
-      </AuthProvider>
+                      <Route>
+                        <NotFoundPage />
+                      </Route>
+                    </Switch>
+                  </AppShell>
+                </ProtectedRoute>
+              </Route>
+            </Switch>
+          </AuthErrorBoundary>
+        </AuthProvider>
+      </ToastProvider>
     </Router>
   );
 }
