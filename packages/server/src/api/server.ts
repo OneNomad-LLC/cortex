@@ -59,6 +59,7 @@ import * as mcpToolsRoute from "./routes/mcp-tools.js";
 import * as modulesRoute from "./routes/modules.js";
 import * as adaptersRoute from "./routes/adapters.js";
 import * as authGithubRoute from "./routes/auth-github.js";
+import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -142,6 +143,7 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "modules", handle: modulesRoute.handle },
   { name: "adapters", handle: adaptersRoute.handle },
   { name: "auth-github", handle: authGithubRoute.handle },
+  { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -196,11 +198,26 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    // Dashboard login: exchange a raw token for a `cortex_dash_sid`
+    // cookie. Must run BEFORE `apiAuthOk` because the whole point of
+    // login is to acquire the credential the gate is checking for.
+    // Subsequent /api/dashboard/* requests sit behind the gate and
+    // route through `requireDashboardAuth` for scope + CSRF checks.
+    if (await dashboardAuthRoute.handleLogin(req, res, logger)) {
+      return;
+    }
+
     // Three-track auth. Cookie, bearer, or gateway-secret — any one
     // passes. Cookie covers browser sessions (pyre-web → JWT handoff).
     // Bearer covers direct-client API access (Claude Code's MCP).
     // Gateway secret covers server-to-server proxy callers.
-    if (!apiAuthOk(req)) {
+    //
+    // `/api/dashboard/*` carries its own auth (token-hash bearer or
+    // `cortex_dash_sid` cookie) enforced by `requireDashboardAuth`, so
+    // it bypasses this gate. Without this skip a deployment with
+    // PRZM_CORTEX_API_AUTH_TOKEN set would block the dashboard's own
+    // login round-trip before the route ever ran.
+    if (!pathname.startsWith("/api/dashboard/") && !apiAuthOk(req)) {
       logger.warn("api.auth_rejected", {
         path: pathname,
         ip: req.socket.remoteAddress ?? "unknown",
@@ -320,6 +337,9 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "GET /api/auth/github/status",
         "POST /api/auth/github/start",
         "POST /api/auth/github/complete",
+        "POST /api/dashboard/auth/login",
+        "POST /api/dashboard/auth/logout",
+        "GET /api/dashboard/auth/whoami",
       ];
     },
   };
