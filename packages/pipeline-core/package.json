@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-pipeline-core",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Generic multi-stage pipeline framework for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-slack",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Slack channels + threads source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

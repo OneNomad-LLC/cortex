@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-21
+
+### Fixed
+- **`przm-cortex init` wizard** brought up to date for cortex 0.4: removed the vestigial "Engram and Persona" pre-flight step (cortex 0.3 dropped those companion-MCP dependencies per ADR-012 — `detectDeps()` already returned `[]`, but the wizard section header still ran and confused new users). Removed `ENGRAM_MCP_URL` / `PERSONA_MCP_URL` from the generated `.env`. Renamed `cortex <verb>` examples in user-facing messages to `przm-cortex <verb>` (the unscoped `cortex` bin still works as a backward-compat alias).
+- **Generated `cortex.yaml` default memory backend** changed from `engram` to `pgvector` with `useLocalEmbedder: true` (bundled Xenova/all-MiniLM-L6-v2). Fresh installs were writing a config that pointed at an MCP service the runtime no longer consumed.
+
 ## [0.4.0] - 2026-05-21
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-provider-openrouter",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "OpenRouter LLM provider for Cortex (BYOK cloud aggregator).",
   "type": "module",
   "main": "./dist/index.js",

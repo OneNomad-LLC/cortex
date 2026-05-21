@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-github-auth",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "GitHub device-flow auth + token storage for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
