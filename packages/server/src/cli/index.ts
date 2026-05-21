@@ -1,4 +1,5 @@
 import { runBackfillCli } from "./backfill.js";
+import { runDashboard } from "./dashboard.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
@@ -108,6 +109,11 @@ Commands:
   github-login [--scopes <csv>]
                              Device-flow OAuth with GitHub. No PAT paste needed.
 
+  dashboard <sub>            Manage browser-session login tokens for the
+                             Cortex dashboard UI. Subcommands:
+                               create-token, rotate-token, revoke-token,
+                               list-tokens.
+
   help                       Show this message.
 
 Environment:
@@ -184,6 +190,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "backfill":
       return runBackfillCli(rest);
+
+    case "dashboard":
+      return runDashboard(rest);
 
     case "start":
       await startServer();
