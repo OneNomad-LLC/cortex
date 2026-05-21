@@ -61,6 +61,8 @@ import * as modulesRoute from "./routes/modules.js";
 import * as adaptersRoute from "./routes/adapters.js";
 import * as authGithubRoute from "./routes/auth-github.js";
 import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
+import * as dashboardWorkspacesRoute from "./routes/dashboard-workspaces.js";
+import * as dashboardIdentityRoute from "./routes/dashboard-identity.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -145,6 +147,8 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "adapters", handle: adaptersRoute.handle },
   { name: "auth-github", handle: authGithubRoute.handle },
   { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
+  { name: "dashboard-workspaces", handle: dashboardWorkspacesRoute.handle },
+  { name: "dashboard-identity", handle: dashboardIdentityRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -356,6 +360,12 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "POST /api/dashboard/auth/login",
         "POST /api/dashboard/auth/logout",
         "GET /api/dashboard/auth/whoami",
+        "GET /api/dashboard/workspaces",
+        "POST /api/dashboard/workspaces/switch",
+        "POST /api/dashboard/workspaces/create",
+        "GET /api/dashboard/identity",
+        "POST /api/dashboard/identity/self",
+        "POST /api/dashboard/identity/job-profile",
       ];
     },
   };
