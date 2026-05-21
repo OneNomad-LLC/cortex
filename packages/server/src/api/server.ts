@@ -41,6 +41,7 @@ import type { ReloadResult } from "../hot-reload.js";
 import { TaxonomyCache } from "../taxonomy-cache.js";
 
 import * as healthRoute from "./routes/health.js";
+import * as dashboardAssetsRoute from "./routes/dashboard-assets.js";
 import * as layoutRoute from "./routes/layout.js";
 import * as widgetsRoute from "./routes/widgets.js";
 import * as workspacesRoute from "./routes/workspaces.js";
@@ -188,6 +189,20 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    // Dashboard SPA static assets — bypass auth so the login UI itself
+    // can load for unauthenticated users. Per-route auth on `/api/*`
+    // is what actually guards the data; serving HTML/JS/CSS does not
+    // expose anything sensitive. Register here, BEFORE `apiAuthOk`.
+    if (
+      await dashboardAssetsRoute.handle(
+        req,
+        res,
+        makeCtx(opts, logger, url, pathname, widgets, widgetsByName, widgetCtx),
+      )
+    ) {
+      return;
+    }
+
     // Cookie-handoff bootstrap: `/cortex-session/issue?token=...`
     // verifies a short-lived signed token from pyre-web, sets the
     // session cookie, and redirects. Public path because the token IS
@@ -278,6 +293,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     routes(): ReadonlyArray<string> {
       return [
         "/health",
+        "GET /_dashboard/*",
         "/api/layout",
         "/api/widgets",
         ...widgets.map((w) => `/api/widgets/${w.name}`),
