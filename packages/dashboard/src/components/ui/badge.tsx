@@ -15,6 +15,14 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",
+        // Added during shell+ops merge so JobsPage / LogsPage status badges
+        // ("running", "warn") have palette-consistent renders.
+        warning:
+          "border-transparent bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+        muted:
+          "border-transparent bg-muted text-muted-foreground",
+        success:
+          "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
       },
     },
     defaultVariants: {

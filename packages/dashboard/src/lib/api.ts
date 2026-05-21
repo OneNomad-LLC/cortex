@@ -73,9 +73,18 @@ function dispatchUnauthorized(): void {
   window.dispatchEvent(new CustomEvent("cortex:unauthorized"));
 }
 
+/**
+ * Permissive init shape — accepts every native fetch `BodyInit` PLUS
+ * plain objects (which the helper JSON-stringifies for you). Lets pages
+ * write `body: { foo: 1 }` without manually wrapping in JSON.stringify.
+ */
+export type ApiInit = Omit<RequestInit, "body"> & {
+  body?: BodyInit | Record<string, unknown> | unknown[] | null;
+};
+
 export async function api<T = unknown>(
   path: string,
-  init: RequestInit = {},
+  init: ApiInit = {},
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers ?? {});
@@ -85,20 +94,48 @@ export async function api<T = unknown>(
   }
 
   // JSON bodies: stamp Content-Type unless the caller already did.
-  // FormData / Blob / URLSearchParams flow through untouched so the
-  // browser can pick the right Content-Type with its own boundary.
-  const body = init.body;
-  if (typeof body === "string" && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  // Plain object / array bodies are auto-JSON-stringified for caller
+  // ergonomics. FormData / Blob / URLSearchParams / ReadableStream
+  // pass through untouched so the browser can set the right
+  // Content-Type with its own boundary (or honor pre-set headers).
+  let body: BodyInit | null | undefined = undefined;
+  const rawBody = init.body;
+  if (rawBody == null) {
+    body = rawBody as null | undefined;
+  } else if (
+    typeof rawBody === "string" ||
+    rawBody instanceof FormData ||
+    rawBody instanceof Blob ||
+    rawBody instanceof URLSearchParams ||
+    rawBody instanceof ArrayBuffer ||
+    ArrayBuffer.isView(rawBody) ||
+    (typeof ReadableStream !== "undefined" && rawBody instanceof ReadableStream)
+  ) {
+    body = rawBody as BodyInit;
+    if (typeof rawBody === "string" && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+  } else {
+    // Plain object / array → JSON
+    body = JSON.stringify(rawBody);
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
   }
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
 
-  const response = await fetch(path, {
-    ...init,
+  // Strip the permissive `body` from the spread so fetch sees the
+  // resolved BodyInit (or undefined) only.
+  const { body: _initBody, credentials, ...rest } = init;
+  void _initBody;
+  const fetchInit: RequestInit = {
+    ...rest,
     method,
     headers,
-    credentials: init.credentials ?? "include",
-  });
+    credentials: credentials ?? "include",
+    ...(body !== undefined ? { body } : {}),
+  };
+  const response = await fetch(path, fetchInit);
 
   // 204 / 205 — no body. Cast undefined to T; callers that expect a
   // payload should not use those status codes.
@@ -154,3 +191,10 @@ export async function apiPost<T = unknown>(
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
+
+/**
+ * Back-compat alias for callers that imported `apiFetch`. The canonical
+ * name is `api`; keep the alias so ops pages (LogsPage, StatsPage, etc.)
+ * keep compiling against the shell's auth-aware client.
+ */
+export const apiFetch = api;
