@@ -38,10 +38,10 @@ importers:
 
   packages/adapter-bitbucket:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -63,10 +63,10 @@ importers:
 
   packages/adapter-confluence:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -88,13 +88,13 @@ importers:
 
   packages/adapter-github:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-github-auth':
+      '@onenomad/przm-cortex-github-auth':
         specifier: workspace:*
         version: link:../github-auth
       zod:
@@ -116,10 +116,10 @@ importers:
 
   packages/adapter-jira:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -141,10 +141,10 @@ importers:
 
   packages/adapter-linear:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -166,10 +166,10 @@ importers:
 
   packages/adapter-loom:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -191,10 +191,10 @@ importers:
 
   packages/adapter-notion:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -216,10 +216,10 @@ importers:
 
   packages/adapter-obsidian:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       chokidar:
@@ -244,7 +244,7 @@ importers:
 
   packages/adapter-sdk:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -266,10 +266,10 @@ importers:
 
   packages/adapter-slack:
     dependencies:
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -344,7 +344,7 @@ importers:
 
   packages/llm-core:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -366,10 +366,10 @@ importers:
 
   packages/llm-sdk:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-llm-core':
+      '@onenomad/przm-cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
       zod:
@@ -397,7 +397,7 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.2.0
         version: 4.2.0
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
       pg:
@@ -428,7 +428,7 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.29.0(zod@3.25.76)
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -475,10 +475,10 @@ importers:
 
   packages/pipeline-code:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-pipeline-core':
+      '@onenomad/przm-cortex-pipeline-core':
         specifier: workspace:*
         version: link:../pipeline-core
     devDependencies:
@@ -497,10 +497,10 @@ importers:
 
   packages/pipeline-conversation:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-pipeline-core':
+      '@onenomad/przm-cortex-pipeline-core':
         specifier: workspace:*
         version: link:../pipeline-core
     devDependencies:
@@ -519,7 +519,7 @@ importers:
 
   packages/pipeline-core:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -538,10 +538,10 @@ importers:
 
   packages/pipeline-doc:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-pipeline-core':
+      '@onenomad/przm-cortex-pipeline-core':
         specifier: workspace:*
         version: link:../pipeline-core
     devDependencies:
@@ -560,10 +560,10 @@ importers:
 
   packages/pipeline-meeting:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-pipeline-core':
+      '@onenomad/przm-cortex-pipeline-core':
         specifier: workspace:*
         version: link:../pipeline-core
       zod:
@@ -585,13 +585,13 @@ importers:
 
   packages/provider-ollama:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-llm-core':
+      '@onenomad/przm-cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
-      '@onenomad/cortex-llm-sdk':
+      '@onenomad/przm-cortex-llm-sdk':
         specifier: workspace:*
         version: link:../llm-sdk
       zod:
@@ -613,13 +613,13 @@ importers:
 
   packages/provider-openrouter:
     dependencies:
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-llm-core':
+      '@onenomad/przm-cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
-      '@onenomad/cortex-llm-sdk':
+      '@onenomad/przm-cortex-llm-sdk':
         specifier: workspace:*
         version: link:../llm-sdk
       zod:
@@ -647,64 +647,64 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.29.0(zod@3.25.76)
-      '@onenomad/cortex-adapter-bitbucket':
+      '@onenomad/przm-cortex-adapter-bitbucket':
         specifier: workspace:*
         version: link:../adapter-bitbucket
-      '@onenomad/cortex-adapter-confluence':
+      '@onenomad/przm-cortex-adapter-confluence':
         specifier: workspace:*
         version: link:../adapter-confluence
-      '@onenomad/cortex-adapter-github':
+      '@onenomad/przm-cortex-adapter-github':
         specifier: workspace:*
         version: link:../adapter-github
-      '@onenomad/cortex-adapter-jira':
+      '@onenomad/przm-cortex-adapter-jira':
         specifier: workspace:*
         version: link:../adapter-jira
-      '@onenomad/cortex-adapter-linear':
+      '@onenomad/przm-cortex-adapter-linear':
         specifier: workspace:*
         version: link:../adapter-linear
-      '@onenomad/cortex-adapter-loom':
+      '@onenomad/przm-cortex-adapter-loom':
         specifier: workspace:*
         version: link:../adapter-loom
-      '@onenomad/cortex-adapter-notion':
+      '@onenomad/przm-cortex-adapter-notion':
         specifier: workspace:*
         version: link:../adapter-notion
-      '@onenomad/cortex-adapter-obsidian':
+      '@onenomad/przm-cortex-adapter-obsidian':
         specifier: workspace:*
         version: link:../adapter-obsidian
-      '@onenomad/cortex-adapter-sdk':
+      '@onenomad/przm-cortex-adapter-sdk':
         specifier: workspace:*
         version: link:../adapter-sdk
-      '@onenomad/cortex-adapter-slack':
+      '@onenomad/przm-cortex-adapter-slack':
         specifier: workspace:*
         version: link:../adapter-slack
-      '@onenomad/cortex-cache-sqlite':
+      '@onenomad/przm-cortex-cache-sqlite':
         specifier: workspace:*
         version: link:../cache-sqlite
-      '@onenomad/cortex-core':
+      '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
-      '@onenomad/cortex-github-auth':
+      '@onenomad/przm-cortex-github-auth':
         specifier: workspace:*
         version: link:../github-auth
-      '@onenomad/cortex-llm-core':
+      '@onenomad/przm-cortex-llm-core':
         specifier: workspace:*
         version: link:../llm-core
-      '@onenomad/cortex-memory-pgvector':
+      '@onenomad/przm-cortex-memory-pgvector':
         specifier: workspace:*
         version: link:../memory-pgvector
-      '@onenomad/cortex-pipeline-code':
+      '@onenomad/przm-cortex-pipeline-code':
         specifier: workspace:*
         version: link:../pipeline-code
-      '@onenomad/cortex-pipeline-conversation':
+      '@onenomad/przm-cortex-pipeline-conversation':
         specifier: workspace:*
         version: link:../pipeline-conversation
-      '@onenomad/cortex-pipeline-core':
+      '@onenomad/przm-cortex-pipeline-core':
         specifier: workspace:*
         version: link:../pipeline-core
-      '@onenomad/cortex-pipeline-doc':
+      '@onenomad/przm-cortex-pipeline-doc':
         specifier: workspace:*
         version: link:../pipeline-doc
-      '@onenomad/cortex-pipeline-meeting':
+      '@onenomad/przm-cortex-pipeline-meeting':
         specifier: workspace:*
         version: link:../pipeline-meeting
       pdf-parse:
@@ -723,13 +723,13 @@ importers:
         specifier: ^3.23.5
         version: 3.25.2(zod@3.25.76)
     optionalDependencies:
-      '@onenomad/cortex-llm-sdk':
+      '@onenomad/przm-cortex-llm-sdk':
         specifier: workspace:*
         version: link:../llm-sdk
-      '@onenomad/cortex-provider-ollama':
+      '@onenomad/przm-cortex-provider-ollama':
         specifier: workspace:*
         version: link:../provider-ollama
-      '@onenomad/cortex-provider-openrouter':
+      '@onenomad/przm-cortex-provider-openrouter':
         specifier: workspace:*
         version: link:../provider-openrouter
     devDependencies:
