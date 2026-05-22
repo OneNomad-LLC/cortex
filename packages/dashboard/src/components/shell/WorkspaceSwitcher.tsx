@@ -46,13 +46,35 @@ export function useDashboardWorkspaces() {
   });
 }
 
+const LAST_WORKSPACE_KEY = "cortex.dashboard.lastWorkspace";
+
+function readStoredWorkspace(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = window.localStorage.getItem(LAST_WORKSPACE_KEY);
+    return v && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredWorkspace(slug: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_WORKSPACE_KEY, slug);
+  } catch {
+    // localStorage may be disabled (private mode, full quota) — skip silently.
+  }
+}
+
 export function useSwitchWorkspace() {
   const qc = useQueryClient();
   const { refresh } = useAuth();
   return useMutation({
     mutationFn: (slug: string) =>
       apiPost<SwitchResponse>("/api/dashboard/workspaces/switch", { slug }),
-    async onSuccess() {
+    async onSuccess(data) {
+      writeStoredWorkspace(data.workspace);
       // Whoami carries the active workspace; refresh + nuke caches so
       // workspace-scoped reads (logs, identity, etc.) refetch.
       await refresh();
@@ -70,6 +92,24 @@ export function WorkspaceSwitcher(): React.ReactElement {
 
   const active = data?.workspaces.find((w) => w.isActive);
   const label = active?.slug ?? "Select workspace";
+
+  // Restore the user's last-picked workspace from localStorage on mount.
+  // Only fires when the server says nothing is active for this session AND
+  // localStorage has a slug that still exists in the workspaces list. This
+  // covers the "fresh login → server defaults to CLI active pointer" gap
+  // where the user's previous dashboard choice would otherwise be forgotten.
+  const restoredRef = React.useRef(false);
+  React.useEffect(() => {
+    if (restoredRef.current) return;
+    if (isLoading || !data) return;
+    if (active) return;
+    if (switchWs.isPending) return;
+    const stored = readStoredWorkspace();
+    if (!stored) return;
+    if (!data.workspaces.some((w) => w.slug === stored)) return;
+    restoredRef.current = true;
+    switchWs.mutate(stored);
+  }, [active, data, isLoading, switchWs]);
 
   if (isLoading) {
     return <Skeleton className="h-9 w-40" />;
