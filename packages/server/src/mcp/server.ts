@@ -39,6 +39,7 @@ import {
   evictStaleSessions,
   restoreSessionStates,
   sessionCount,
+  setSessionsStorage,
 } from "../session-context.js";
 
 /**
@@ -462,6 +463,24 @@ export async function startServer(): Promise<void> {
   if (jobsStorage) {
     const { jobs: jobsRegistry } = await import("./jobs.js");
     jobsRegistry.setStorage(jobsStorage);
+  }
+
+  // Dashboard-session shadow — same SQLite file, separate `cache_sessions`
+  // table. Without this, every server restart kicks every logged-in
+  // browser back to the sign-in screen. With it, the cookie-id round-trip
+  // resumes cleanly. Both the raw-token-paste path and the GitHub Device
+  // Flow path write through.
+  const sessionsStorage = cacheSqliteMod && cachePath
+    ? cacheSqliteMod.openSessionsStorage(cachePath)
+    : undefined;
+  setSessionsStorage(sessionsStorage);
+  if (sessionsStorage) {
+    // Drop any rows that expired while the server was down. Cheap —
+    // indexed scan on expires_at.
+    const expired = sessionsStorage.cleanup();
+    if (expired > 0) {
+      logger.info("dashboard.sessions.expired_evicted", { count: expired });
+    }
   }
 
   const dashboardApi = cfg.api.enabled

@@ -57,6 +57,44 @@ CREATE INDEX IF NOT EXISTS cache_jobs_workspace_idx
 
 CREATE INDEX IF NOT EXISTS cache_jobs_status_idx
   ON cache_jobs (status, created_at DESC);
+
+-- Dashboard session shadow. The in-memory sessionStates map in the
+-- server is the live source of truth; this table mirrors every
+-- dashboard-bound session (raw-token path AND GitHub OAuth path) so a
+-- restart doesn't kick every browser back to the login screen.
+--
+-- Only sessions with dashboardScopes (i.e. authenticated dashboard
+-- users) are persisted. Plain MCP sessions stay in-memory only;
+-- nothing to recover for them.
+--
+-- Columns:
+--   session_id           dash_<uuid> cookie value
+--   workspace            workspace slug ("" for unbound)
+--   scopes_json          JSON array of scopes ["admin"] | ["read","ingest"] | ...
+--   token_label          normalized label when authenticated by token-paste; null for OAuth
+--   github_login         github username when authenticated by OAuth; null otherwise
+--   github_user_id       stable numeric github id (lets us tell two matts apart over time)
+--   github_avatar_url    for whoami rendering
+--   github_access_token  raw OAuth token; Slice B repos API needs it to call GitHub
+--   created_at           epoch ms when first minted
+--   expires_at           epoch ms; sessions auto-evict at this point
+--   last_seen_at         epoch ms; bumps on every cookie hit
+CREATE TABLE IF NOT EXISTS cache_sessions (
+  session_id          TEXT PRIMARY KEY,
+  workspace           TEXT NOT NULL,
+  scopes_json         TEXT NOT NULL,
+  token_label         TEXT,
+  github_login        TEXT,
+  github_user_id      INTEGER,
+  github_avatar_url   TEXT,
+  github_access_token TEXT,
+  created_at          INTEGER NOT NULL,
+  expires_at          INTEGER NOT NULL,
+  last_seen_at        INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS cache_sessions_expires_idx
+  ON cache_sessions (expires_at);
 `;
 
 export function applySchema(db: DatabaseSync): void {

@@ -74,10 +74,160 @@ export interface SessionState {
    * tell which device they're looking at.
    */
   dashboardTokenLabel?: string;
+  /**
+   * GitHub OAuth identity bound to this dashboard session. Populated by
+   * the GitHub device-flow sign-in path (`/api/dashboard/auth/github/*`).
+   * Absent for sessions minted from raw token paste — `tokenLabel` is the
+   * counterpart there. Both paths share `dashboardScopes`.
+   */
+  githubLogin?: string;
+  githubUserId?: number;
+  githubAvatarUrl?: string;
+  /**
+   * The raw GitHub access token granted by the device flow. Kept in
+   * SessionState so the Slice B repos API can call GitHub on behalf of
+   * the logged-in user without re-prompting. Persisted to cache_sessions
+   * by the storage layer — operators are expected to keep that SQLite
+   * file out of backups, same as cache_jobs.
+   */
+  githubAccessToken?: string;
 }
 
 const sessionStates = new Map<string, SessionState>();
 const contextStorage = new AsyncLocalStorage<{ sessionId: string }>();
+
+/**
+ * Persistent shadow for dashboard sessions. Set at boot via
+ * `setSessionsStorage` from the MCP server; absent in tests that don't
+ * care about restart persistence. Reads consult the in-memory map first
+ * and fall back to storage; writes go through both.
+ *
+ * The legacy JSON-file persistence (`sessionStatePath`) is independent
+ * — it covers workspace bindings for MCP sessions. SQLite is for the
+ * dashboard auth bindings (cookie → identity) so a server restart
+ * doesn't kick every browser back to the login screen.
+ */
+interface PersistentSessionRow {
+  sessionId: string;
+  workspace: string;
+  scopesJson: string;
+  tokenLabel: string | null;
+  githubLogin: string | null;
+  githubUserId: number | null;
+  githubAvatarUrl: string | null;
+  githubAccessToken: string | null;
+  createdAtMs: number;
+  expiresAtMs: number;
+  lastSeenAtMs: number;
+}
+
+export interface SessionsStorage {
+  upsert(row: PersistentSessionRow): void;
+  get(sessionId: string): PersistentSessionRow | null;
+  evict(sessionId: string): boolean;
+  list(): PersistentSessionRow[];
+  cleanup(nowMs?: number): number;
+  close(): void;
+}
+
+let sessionsStorage: SessionsStorage | undefined;
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Wire a persistent storage instance. Idempotent — calling with the same
+ * (or a different) storage replaces the global; existing in-memory
+ * sessions are not re-hydrated from the new storage automatically. Call
+ * once at server boot, before the dashboard API starts accepting
+ * traffic. Pass `undefined` to detach (tests do this on teardown).
+ */
+export function setSessionsStorage(storage: SessionsStorage | undefined): void {
+  sessionsStorage = storage;
+}
+
+function buildPersistentRow(
+  sessionId: string,
+  state: SessionState,
+): PersistentSessionRow | null {
+  // Only persist sessions that have committed to dashboard scopes —
+  // an MCP-only session (no dashboard auth) has nothing to recover.
+  if (!state.dashboardScopes || state.dashboardScopes.length === 0) {
+    return null;
+  }
+  const now = Date.now();
+  return {
+    sessionId,
+    workspace: typeof state.workspace === "string" ? state.workspace : "",
+    scopesJson: JSON.stringify(state.dashboardScopes),
+    tokenLabel: state.dashboardTokenLabel ?? null,
+    githubLogin: state.githubLogin ?? null,
+    githubUserId: state.githubUserId ?? null,
+    githubAvatarUrl: state.githubAvatarUrl ?? null,
+    githubAccessToken: state.githubAccessToken ?? null,
+    createdAtMs: state.firstSeenAt,
+    expiresAtMs: now + SESSION_TTL_MS,
+    lastSeenAtMs: now,
+  };
+}
+
+function persistDashboardSession(sessionId: string, state: SessionState): void {
+  if (!sessionsStorage) return;
+  const row = buildPersistentRow(sessionId, state);
+  if (!row) return;
+  try {
+    sessionsStorage.upsert(row);
+  } catch {
+    // Storage failure shouldn't crash the request path — operators get
+    // a degraded "no restart persistence" mode rather than a 500.
+  }
+}
+
+function rehydrateFromStorage(sessionId: string): SessionState | undefined {
+  if (!sessionsStorage) return undefined;
+  let row: PersistentSessionRow | null;
+  try {
+    row = sessionsStorage.get(sessionId);
+  } catch {
+    return undefined;
+  }
+  if (!row) return undefined;
+  if (row.expiresAtMs <= Date.now()) {
+    // Stale — drop it.
+    try {
+      sessionsStorage.evict(sessionId);
+    } catch {
+      // ignore
+    }
+    return undefined;
+  }
+  let scopes: ReadonlyArray<"read" | "ingest" | "admin">;
+  try {
+    const parsed = JSON.parse(row.scopesJson) as unknown;
+    scopes = Array.isArray(parsed)
+      ? (parsed.filter(
+          (s): s is "read" | "ingest" | "admin" =>
+            s === "read" || s === "ingest" || s === "admin",
+        ) as ReadonlyArray<"read" | "ingest" | "admin">)
+      : [];
+  } catch {
+    scopes = [];
+  }
+  if (scopes.length === 0) return undefined;
+  const state: SessionState = {
+    workspace: row.workspace === "" ? null : row.workspace,
+    firstSeenAt: row.createdAtMs,
+    lastSeenAt: row.lastSeenAtMs,
+    dashboardScopes: scopes,
+    ...(row.tokenLabel ? { dashboardTokenLabel: row.tokenLabel } : {}),
+    ...(row.githubLogin ? { githubLogin: row.githubLogin } : {}),
+    ...(row.githubUserId !== null ? { githubUserId: row.githubUserId } : {}),
+    ...(row.githubAvatarUrl ? { githubAvatarUrl: row.githubAvatarUrl } : {}),
+    ...(row.githubAccessToken
+      ? { githubAccessToken: row.githubAccessToken }
+      : {}),
+  };
+  sessionStates.set(sessionId, state);
+  return state;
+}
 
 /**
  * Where session bindings get persisted across server restarts. Docker
@@ -238,7 +388,12 @@ export function getCurrentSessionState(): SessionState | undefined {
 
 /** Explicit lookup — used by tools that want the id directly. */
 export function getSessionState(sessionId: string): SessionState | undefined {
-  return sessionStates.get(sessionId);
+  const inMemory = sessionStates.get(sessionId);
+  if (inMemory) return inMemory;
+  // Cache-miss path: a dashboard session minted before the last restart
+  // is still valid as long as cache_sessions has the row and it hasn't
+  // expired. Rehydrate lazily so the cold-path cost only hits restarts.
+  return rehydrateFromStorage(sessionId);
 }
 
 /** Set the workspace for a session. `null` = "no workspace" mode. */
@@ -350,6 +505,60 @@ export function setDashboardSession(
   state.dashboardTokenLabel = opts.tokenLabel;
   sessionStates.set(sessionId, state);
   schedulePersist();
+  persistDashboardSession(sessionId, state);
+  return state;
+}
+
+/**
+ * Mint or update a dashboard session that authenticated via the GitHub
+ * Device Flow. Parallel entry point to `setDashboardSession` for the
+ * raw-token-paste path — both bind into the same sessionStates map and
+ * share the dashboardScopes contract, but the github fields here
+ * substitute for `tokenLabel` so `whoami` can render the user's avatar
+ * + login instead of an arbitrary device name.
+ *
+ * Scopes default to `["admin"]` because the device flow is the sign-in
+ * primitive for the dashboard owner — there's no separate "read-only
+ * GitHub user" persona. If a future scoped flow lands, callers will
+ * pass `scopes` explicitly.
+ */
+export function setGitHubSession(
+  sessionId: string,
+  opts: {
+    workspace: string | null;
+    githubLogin: string;
+    githubUserId: number;
+    githubAvatarUrl: string | null;
+    githubAccessToken: string;
+    scopes?: ReadonlyArray<"read" | "ingest" | "admin">;
+  },
+): SessionState {
+  const now = Date.now();
+  const existing = sessionStates.get(sessionId);
+  const state: SessionState = existing
+    ? { ...existing }
+    : {
+        workspace: opts.workspace,
+        firstSeenAt: now,
+        lastSeenAt: now,
+      };
+  state.workspace = opts.workspace;
+  state.lastSeenAt = now;
+  state.dashboardScopes = opts.scopes ?? ["admin"];
+  state.githubLogin = opts.githubLogin;
+  state.githubUserId = opts.githubUserId;
+  if (opts.githubAvatarUrl !== null) {
+    state.githubAvatarUrl = opts.githubAvatarUrl;
+  } else {
+    delete state.githubAvatarUrl;
+  }
+  state.githubAccessToken = opts.githubAccessToken;
+  // The github fields replace `dashboardTokenLabel` semantically — the
+  // session was authenticated by an OAuth identity, not a raw token.
+  delete state.dashboardTokenLabel;
+  sessionStates.set(sessionId, state);
+  schedulePersist();
+  persistDashboardSession(sessionId, state);
   return state;
 }
 
@@ -361,6 +570,13 @@ export function setDashboardSession(
 export function evictDashboardSession(sessionId: string): boolean {
   const existed = sessionStates.delete(sessionId);
   if (existed) schedulePersist();
+  if (sessionsStorage) {
+    try {
+      sessionsStorage.evict(sessionId);
+    } catch {
+      // ignore — best-effort.
+    }
+  }
   return existed;
 }
 
@@ -377,7 +593,24 @@ export function evictStaleSessions(olderThanMs: number): number {
     // and by `/api/status reset`).
     if (state.lastSeenAt <= cutoff) {
       sessionStates.delete(id);
+      if (sessionsStorage) {
+        try {
+          sessionsStorage.evict(id);
+        } catch {
+          // ignore
+        }
+      }
       removed += 1;
+    }
+  }
+  if (sessionsStorage) {
+    // Also age out any expired rows that never had a corresponding
+    // in-memory entry (e.g. minted in a previous process and never
+    // reconnected). Runs cheap — indexed scan on expires_at.
+    try {
+      sessionsStorage.cleanup();
+    } catch {
+      // ignore
     }
   }
   if (removed > 0) schedulePersist();
