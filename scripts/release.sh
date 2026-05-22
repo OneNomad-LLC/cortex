@@ -126,16 +126,15 @@ done
 
 # ── update CHANGELOG ────────────────────────────────────────────────
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-if [[ -n "$LAST_TAG" ]]; then
-  COMMIT_RANGE="${LAST_TAG}..HEAD"
-else
-  # First release ever — go back to where the rebrand landed for a
-  # reasonable diff window.
-  COMMIT_RANGE="$(git log --reverse --format=%H | head -1)..HEAD"
-fi
-
 CHANGELOG_DATE=$(date +%Y-%m-%d)
-NOTES=$(git log --format='- %s' "$COMMIT_RANGE" 2>/dev/null | grep -v '^- merge:' || echo "- (no commits since last release)")
+# Build the git log args. When no prior tag exists, walk the full
+# reachable history rather than a range. Avoid `| head -1` (SIGPIPE
+# under pipefail when the pipe closes early).
+if [[ -n "$LAST_TAG" ]]; then
+  NOTES=$(git log --format='- %s' "${LAST_TAG}..HEAD" 2>/dev/null | grep -v '^- merge:' || echo "- (no commits since last release)")
+else
+  NOTES=$(git log --format='- %s' -n 50 2>/dev/null | grep -v '^- merge:' || echo "- (no commits since last release)")
+fi
 
 # Prepend new section to CHANGELOG.md (preserve existing content).
 {
