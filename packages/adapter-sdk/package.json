@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-sdk",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Base classes and helpers for building Cortex source adapters.",
   "type": "module",
   "main": "./dist/index.js",
