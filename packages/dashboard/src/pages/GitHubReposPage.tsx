@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -50,6 +57,13 @@ import { useToast } from "@/components/ui/toast";
  *   2. Anything else — surface as an inline error.
  */
 
+/**
+ * Per-repo ingestion mode — Slice C config field. `dossier` = LLM-
+ * extracted briefs (recommended for production); `full` = raw source
+ * chunks (debug / large-context flows); `both` = run both pipelines.
+ */
+export type RepoMode = "dossier" | "full" | "both";
+
 interface RepoRow {
   /** "owner/name" — Slice B's canonical id field. */
   fullName: string;
@@ -73,6 +87,12 @@ interface RepoRow {
   /** Derived from `ingested` + lastSyncJobId state. */
   status?: "ingested" | "syncing" | "failed" | "unknown" | null;
   lastError?: string | null;
+  /** Resolved mode (override → adapter default → "dossier" fallback). */
+  mode?: RepoMode;
+  /** Adapter-level default. `null` when not yet configured. */
+  adapterMode?: RepoMode | null;
+  /** True when this repo has a per-repo override row in `repoModes`. */
+  modeOverride?: boolean;
 }
 
 interface ReposResponse {
@@ -81,6 +101,8 @@ interface ReposResponse {
   hasMore: boolean;
   page?: number;
   perPage?: number;
+  /** Adapter-level default; null when the github adapter is unconfigured. */
+  adapterMode?: RepoMode | null;
 }
 
 interface NotConnectedShape {
@@ -143,9 +165,24 @@ export function GitHubReposPage(): React.ReactElement {
 
   const syncSelected = useMutation({
     mutationFn: async (slugs: string[]) => {
+      // Forward each row's resolved mode so the worker can pick it up
+      // without a separate per-repo PUT. Slice C's adapter reads
+      // `repoModes` from disk anyway — the inline `modes` body is a
+      // hint that keeps the queued job's intent visible in the Jobs
+      // page progress payload.
+      const rowsBySlug = new Map<string, RepoRow>();
+      for (const r of repos.data?.repos ?? []) rowsBySlug.set(r.fullName, r);
+      const modes: Record<string, RepoMode> = {};
+      for (const slug of slugs) {
+        const m = rowsBySlug.get(slug)?.mode;
+        if (m) modes[slug] = m;
+      }
       return apiPost<{ jobs: Array<{ repo: string; jobId: string }> }>(
         "/api/dashboard/github/repos/sync",
-        { repos: slugs },
+        {
+          repos: slugs,
+          ...(Object.keys(modes).length > 0 ? { modes } : {}),
+        },
       );
     },
     onSuccess: (data) => {
@@ -339,6 +376,7 @@ export function GitHubReposPage(): React.ReactElement {
                     <th className="pb-2 pr-3 font-medium">Language</th>
                     <th className="pb-2 pr-3 font-medium">Updated</th>
                     <th className="pb-2 pr-3 font-medium">Status</th>
+                    <th className="pb-2 pr-3 font-medium">Mode</th>
                     <th className="pb-2 pr-3 font-medium" />
                   </tr>
                 </thead>
@@ -476,6 +514,9 @@ function RepoTableRow(props: {
           error={repo.lastError ?? null}
         />
       </td>
+      <td className="py-2 pr-3 align-top">
+        <ModeCell repo={repo} onChanged={onChanged} />
+      </td>
       <td className="relative py-2 pr-3 align-top text-right">
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -539,6 +580,115 @@ function RepoTableRow(props: {
     </tr>
   );
 }
+
+/**
+ * Inline mode picker. Writes through `POST /api/dashboard/github/repos/
+ * :owner/:name/mode`. The "Adapter default" option (value `_default`)
+ * is special — it clears the per-repo override so the row falls back
+ * to whatever the adapter-level mode is set to.
+ *
+ * Rendering rule: the trigger always shows the *resolved* mode label
+ * so the operator can scan the column without having to mentally
+ * resolve the override chain. A subscript hints "(override)" /
+ * "(default)" so the override state stays visible too.
+ */
+function ModeCell(props: {
+  repo: RepoRow;
+  onChanged: () => void;
+}): React.ReactElement {
+  const { repo, onChanged } = props;
+  const { toast } = useToast();
+  // Optimistically reflect the chosen value while the mutation lands.
+  // The reload-invalidation on success replaces this with the server's
+  // canonical view; the optimistic update keeps the dropdown
+  // responsive.
+  const [optimistic, setOptimistic] = React.useState<RepoMode | null>(null);
+  const resolvedMode: RepoMode = optimistic ?? repo.mode ?? "dossier";
+  const isOverride = optimistic !== null || repo.modeOverride === true;
+
+  const mutate = useMutation({
+    mutationFn: async (next: RepoMode | null) => {
+      const [owner, name] = repo.fullName.split("/");
+      return apiPost<{
+        repo: string;
+        mode: RepoMode;
+        adapterMode: RepoMode | null;
+        modeOverride: boolean;
+      }>(`/api/dashboard/github/repos/${owner}/${name}/mode`, {
+        mode: next,
+      });
+    },
+    onSuccess: (data) => {
+      setOptimistic(null);
+      toast({
+        title: `Mode set to ${MODE_LABELS[data.mode]}`,
+        description: `${repo.fullName} — ${data.modeOverride ? "per-repo override" : "adapter default"}`,
+      });
+      onChanged();
+    },
+    onError: (err) => {
+      setOptimistic(null);
+      toast({
+        title: "Mode update failed",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Encode "clear the override" as the literal string `_default` so the
+  // Select primitive can round-trip it. The mutation translates `_default`
+  // back to `null` on the wire.
+  const value: string = isOverride ? resolvedMode : "_default";
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <Select
+        value={value}
+        onValueChange={(next) => {
+          if (next === value) return;
+          if (next === "_default") {
+            setOptimistic(repo.adapterMode ?? "dossier");
+            mutate.mutate(null);
+            return;
+          }
+          if (next === "dossier" || next === "full" || next === "both") {
+            setOptimistic(next);
+            mutate.mutate(next);
+          }
+        }}
+      >
+        <SelectTrigger
+          aria-label={`Mode for ${repo.fullName}`}
+          className="h-8 min-w-[7.5rem] text-xs"
+          disabled={mutate.isPending}
+        >
+          <SelectValue placeholder="Mode" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="_default">
+            <span className="italic text-muted-foreground">
+              Adapter default
+              {repo.adapterMode ? ` (${MODE_LABELS[repo.adapterMode]})` : ""}
+            </span>
+          </SelectItem>
+          <SelectItem value="dossier">Dossier</SelectItem>
+          <SelectItem value="full">Full source</SelectItem>
+          <SelectItem value="both">Both</SelectItem>
+        </SelectContent>
+      </Select>
+      <span className="text-[10px] text-muted-foreground">
+        {isOverride ? "override" : "default"}
+      </span>
+    </div>
+  );
+}
+
+const MODE_LABELS: Record<RepoMode, string> = {
+  dossier: "Dossier",
+  full: "Full source",
+  both: "Both",
+};
 
 function StatusBadge(props: {
   status: RepoRow["status"];

@@ -33,9 +33,14 @@ import type { RouteContext } from "../route-context.js";
 import { requireDashboardAuth } from "../middleware/require-dashboard-auth.js";
 import {
   appendGithubRepo,
+  isGithubRepoMode,
   parseRepoIdentifier,
+  readGithubModeSnapshot,
   readGithubRepoList,
   removeGithubRepo,
+  resolveGithubRepoMode,
+  setGithubRepoMode,
+  type GithubRepoMode,
 } from "../github-repo-config.js";
 import { resolveConfigPath } from "../../cli/config-path.js";
 import { jobs } from "../../mcp/jobs.js";
@@ -98,6 +103,15 @@ interface ReposViewItem {
   lastSyncedAt?: string | null;
   memoryCount?: number;
   lastSyncJobId?: string | null;
+  /**
+   * Resolved ingestion mode. Falls back through:
+   *   per-repo override → adapter-level default → "dossier".
+   */
+  mode: GithubRepoMode;
+  /** Adapter-level default (null when not yet configured). */
+  adapterMode: GithubRepoMode | null;
+  /** True only when there's a per-repo entry in `repoModes`. */
+  modeOverride: boolean;
 }
 
 export async function handle(
@@ -119,16 +133,19 @@ export async function handle(
       return await handleSyncBatch(req, res, ctx);
     }
     const singleMatch = ctx.pathname.match(
-      /^\/api\/dashboard\/github\/repos\/([^/]+)\/([^/]+?)(?:\/sync)?$/,
+      /^\/api\/dashboard\/github\/repos\/([^/]+)\/([^/]+?)(?:\/(sync|mode))?$/,
     );
     if (singleMatch) {
       const owner = decodeURIComponent(singleMatch[1]!);
       const name = decodeURIComponent(singleMatch[2]!);
-      const isSync = ctx.pathname.endsWith("/sync");
-      if (req.method === "POST" && isSync) {
-        return await handleSyncSingle(res, ctx, owner, name);
+      const subAction = singleMatch[3];
+      if (req.method === "POST" && subAction === "sync") {
+        return await handleSyncSingle(req, res, ctx, owner, name);
       }
-      if (req.method === "DELETE" && !isSync) {
+      if (req.method === "POST" && subAction === "mode") {
+        return await handleSetMode(req, res, ctx, owner, name);
+      }
+      if (req.method === "DELETE" && !subAction) {
         return await handleDelete(req, res, ctx, owner, name);
       }
     }
@@ -231,7 +248,11 @@ async function handleList(
   // drives the UI's "Syncing…" / "Failed" badges; we surface the most
   // recent job per repo.
   const configPath = resolveConfigPath();
-  const ingestedSet = new Set(await readGithubRepoList(configPath));
+  const [ingestedList, modeSnapshot] = await Promise.all([
+    readGithubRepoList(configPath),
+    readGithubModeSnapshot(configPath),
+  ]);
+  const ingestedSet = new Set(ingestedList);
 
   // Apply client paging.
   const start = (page - 1) * perPage;
@@ -255,6 +276,7 @@ async function handleList(
 
   const repos: ReposViewItem[] = slice.map((r) => {
     const latest = latestJobByRepo.get(r.full_name);
+    const override = modeSnapshot.repoModes[r.full_name];
     return {
       fullName: r.full_name,
       owner: r.owner.login,
@@ -269,6 +291,9 @@ async function handleList(
       fork: Boolean(r.fork),
       ingested: ingestedSet.has(r.full_name),
       lastSyncJobId: latest?.id ?? null,
+      mode: resolveGithubRepoMode(modeSnapshot, r.full_name),
+      adapterMode: modeSnapshot.adapterMode,
+      modeOverride: override !== undefined,
     };
   });
 
@@ -278,12 +303,25 @@ async function handleList(
     hasMore: githubHasMore || end < filtered.length,
     page,
     perPage,
+    /**
+     * Adapter-level snapshot — the Connectors page reads this to
+     * surface the "Dossier mode" subtitle on the GitHub card without
+     * a separate round-trip.
+     */
+    adapterMode: modeSnapshot.adapterMode,
   });
   return true;
 }
 
 interface SyncBatchBody {
   repos?: unknown;
+  /**
+   * Optional per-repo mode overrides keyed by `owner/name`. Each value
+   * must be one of the GithubRepoMode strings (or `null` to clear).
+   * Unknown keys / invalid values are ignored — a malformed entry
+   * doesn't block the sync.
+   */
+  modes?: unknown;
 }
 
 interface BatchResult {
@@ -308,6 +346,22 @@ async function handleSyncBatch(
   const configPath = resolveConfigPath();
   const results: BatchResult[] = [];
   let anyAdded = false;
+  let anyModeChanged = false;
+
+  // Normalize the optional `modes` map. Tolerant of shape — anything
+  // non-string keys / non-enum values is silently dropped rather than
+  // bouncing the whole batch.
+  const modes: Record<string, GithubRepoMode | null> = {};
+  if (body.modes && typeof body.modes === "object" && !Array.isArray(body.modes)) {
+    for (const [slug, value] of Object.entries(
+      body.modes as Record<string, unknown>,
+    )) {
+      if (!slugRe.test(slug)) continue;
+      if (value === null) modes[slug] = null;
+      else if (isGithubRepoMode(value)) modes[slug] = value as GithubRepoMode;
+    }
+  }
+
   for (const candidate of list) {
     if (typeof candidate !== "string" || !slugRe.test(candidate)) {
       results.push({
@@ -320,19 +374,34 @@ async function handleSyncBatch(
     // eslint-disable-next-line no-await-in-loop
     const { added } = await appendGithubRepo(configPath, candidate);
     if (added) anyAdded = true;
+    // Apply optional mode override before enqueueing so the job picks
+    // it up. Modes specified in the batch take precedence over any
+    // existing per-repo entry.
+    if (candidate in modes) {
+      // eslint-disable-next-line no-await-in-loop
+      const { changed } = await setGithubRepoMode(
+        configPath,
+        candidate,
+        modes[candidate]!,
+      );
+      if (changed) anyModeChanged = true;
+    }
     // Even when the repo was already connected we still enqueue a
     // sync job — the user explicitly asked to refresh. The
     // already-connected status differentiates "we added a new entry"
     // from "the entry was already there". This matches what `cortex
     // sync github` does today.
-    const job = enqueueGithubSyncJob(ctx, candidate);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await readGithubModeSnapshot(configPath);
+    const resolvedMode = resolveGithubRepoMode(snapshot, candidate);
+    const job = enqueueGithubSyncJob(ctx, candidate, { mode: resolvedMode });
     results.push({
       repo: candidate,
       jobId: job.id,
       status: added ? "queued" : "already_connected",
     });
   }
-  if (anyAdded) {
+  if (anyAdded || anyModeChanged) {
     // Reload only when we wrote new repos — toggling does enough
     // bookkeeping to skip an unnecessary scheduler bounce when no
     // adapter config actually changed.
@@ -343,6 +412,7 @@ async function handleSyncBatch(
 }
 
 async function handleSyncSingle(
+  req: IncomingMessage,
   res: ServerResponse,
   ctx: RouteContext,
   owner: string,
@@ -351,12 +421,100 @@ async function handleSyncSingle(
   const fullName = `${owner}/${name}`;
   const configPath = resolveConfigPath();
   const { added } = await appendGithubRepo(configPath, fullName);
-  if (added) await tryReload(ctx.opts, ctx.logger);
-  const job = enqueueGithubSyncJob(ctx, fullName);
+
+  // Optional `{mode}` in the body lets the dashboard send the row's
+  // override along with the sync click in one shot. Skipping/omitting
+  // leaves whatever's already configured untouched. `null` clears.
+  let modeChanged = false;
+  try {
+    const body = (await readJsonBody(req).catch(() => null)) as
+      | { mode?: unknown }
+      | null;
+    if (body && body.mode !== undefined) {
+      const next = body.mode === null ? null : body.mode;
+      if (next === null || isGithubRepoMode(next)) {
+        const { changed } = await setGithubRepoMode(
+          configPath,
+          fullName,
+          next as GithubRepoMode | null,
+        );
+        modeChanged = changed;
+      }
+    }
+  } catch {
+    /* malformed bodies fall through — sync still runs */
+  }
+
+  if (added || modeChanged) await tryReload(ctx.opts, ctx.logger);
+  const snapshot = await readGithubModeSnapshot(configPath);
+  const job = enqueueGithubSyncJob(ctx, fullName, {
+    mode: resolveGithubRepoMode(snapshot, fullName),
+  });
   sendJson(res, 200, {
     repo: fullName,
     jobId: job.id,
     status: added ? "queued" : "already_connected",
+    mode: resolveGithubRepoMode(snapshot, fullName),
+  });
+  return true;
+}
+
+interface SetModeBody {
+  /** `null` = drop the per-repo override (fall back to adapter default). */
+  mode?: unknown;
+}
+
+/**
+ * `POST /api/dashboard/github/repos/:owner/:name/mode`
+ *
+ * Body: `{ mode: "dossier" | "full" | "both" | null }`
+ *
+ * Persists the per-repo entry under `adapters.github.config.repoModes`
+ * (mirror of Slice C's schema field). Returns the new resolved mode so
+ * the SPA can reconcile without a re-fetch.
+ */
+async function handleSetMode(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: RouteContext,
+  owner: string,
+  name: string,
+): Promise<boolean> {
+  const fullName = `${owner}/${name}`;
+  let body: SetModeBody;
+  try {
+    body = ((await readJsonBody(req)) ?? {}) as SetModeBody;
+  } catch {
+    sendJson(res, 400, { error: "invalid_body" });
+    return true;
+  }
+  // `null` is a valid "clear the override" signal. Anything else has to
+  // be one of the three enum strings — reject typos rather than silently
+  // dropping them.
+  let mode: GithubRepoMode | null;
+  if (body.mode === null) {
+    mode = null;
+  } else if (isGithubRepoMode(body.mode)) {
+    mode = body.mode as GithubRepoMode;
+  } else {
+    sendJson(res, 400, {
+      error: "invalid_mode",
+      allowed: ["dossier", "full", "both", null],
+    });
+    return true;
+  }
+
+  const configPath = resolveConfigPath();
+  const { changed } = await setGithubRepoMode(configPath, fullName, mode);
+  if (changed) await tryReload(ctx.opts, ctx.logger);
+  const snapshot = await readGithubModeSnapshot(configPath);
+  const resolved = resolveGithubRepoMode(snapshot, fullName);
+  sendJson(res, 200, {
+    repo: fullName,
+    mode: resolved,
+    adapterMode: snapshot.adapterMode,
+    modeOverride: snapshot.repoModes[fullName] !== undefined,
+    changed,
   });
   return true;
 }
@@ -444,14 +602,18 @@ async function handleDelete(
 function enqueueGithubSyncJob(
   ctx: RouteContext,
   fullName: string,
+  opts: { mode?: GithubRepoMode } = {},
 ): { id: string } {
   const job = jobs.create({
     kind: "github-sync",
   });
-  // Stash the repo on progress so GET /repos can scan the JobRegistry
-  // and surface lastSyncJobId per repo (drives the UI's
-  // "Syncing…" / "Failed" status badges).
-  jobs.progress(job.id, { repo: fullName });
+  // Stash the repo + resolved mode on progress so the Jobs page (and
+  // GET /repos) can surface "Syncing as Dossier…" without re-reading
+  // the config.
+  jobs.progress(job.id, {
+    repo: fullName,
+    ...(opts.mode ? { mode: opts.mode } : {}),
+  });
   const work = async (): Promise<unknown> => {
     const traceId = randomUUID();
     const toolCtx: ToolContext = {
@@ -460,16 +622,23 @@ function enqueueGithubSyncJob(
       logger: ctx.logger.child({
         component: "github-sync",
         repo: fullName,
+        ...(opts.mode ? { mode: opts.mode } : {}),
         traceId,
       }),
       engram: ctx.opts.engram,
       ...(ctx.opts.llmRouter ? { llmRouter: ctx.opts.llmRouter } : {}),
       traceId,
     };
+    // The `mode` field maps onto Slice B's ingest_repo input. The
+    // parser strips it gracefully if the running ingest_repo build
+    // doesn't yet accept it (e.g. before Slice B merges) — the call
+    // still runs in full-source mode and the dashboard remains
+    // functional.
     const input = ingestRepo.inputSchema.parse({
       path: `https://github.com/${fullName}.git`,
       project: "default",
       tags: [`github:${fullName}`],
+      ...(opts.mode ? { mode: opts.mode } : {}),
       // Run inline within our github-sync job so we don't nest jobs
       // (ingest_repo's async path would create its own job entry).
       async: false,

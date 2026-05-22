@@ -17,7 +17,8 @@ import IngestPage from "@/pages/IngestPage";
 import JobsPage from "@/pages/JobsPage";
 import LogsPage from "@/pages/LogsPage";
 import { LoginPage } from "@/pages/LoginPage";
-import { NotFoundPage, PlaceholderPage } from "@/pages/PlaceholderPage";
+import { MemoriesPage } from "@/pages/MemoriesPage";
+import { NotFoundPage } from "@/pages/PlaceholderPage";
 import StatsPage from "@/pages/StatsPage";
 import { WorkspacesPage } from "@/pages/WorkspacesPage";
 
@@ -34,7 +35,7 @@ import { WorkspacesPage } from "@/pages/WorkspacesPage";
  *   /jobs                   → background ingest jobs
  *   /stats                  → KB size + per-source counts
  *   /ingest                 → URL / file / raw-content ingest forms
- *   /memories               → memory browser (deferred)
+ *   /memories               → memory browser (paginated KB explorer)
  *   /workspaces             → WorkspacesPage
  *   /identity               → IdentityPage
  *   *                       → 404
@@ -81,9 +82,7 @@ export default function App(): React.ReactElement {
                       <Route path="/jobs" component={JobsPage} />
                       <Route path="/stats" component={StatsPage} />
                       <Route path="/ingest" component={IngestPage} />
-                      <Route path="/memories">
-                        <PlaceholderPage title="Memories" owner="ops" />
-                      </Route>
+                      <Route path="/memories" component={MemoriesPage} />
 
                       {/* Shell. */}
                       <Route path="/workspaces">

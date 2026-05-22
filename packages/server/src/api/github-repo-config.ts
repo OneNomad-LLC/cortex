@@ -184,6 +184,170 @@ export async function appendGithubRepo(
 }
 
 /**
+ * Per-repo ingestion mode override. Mirrors Slice C's adapter-side
+ * `repoModes: Record<owner/name, "dossier" | "full" | "both">` config —
+ * a row missing from the map falls back to the adapter-level `mode`,
+ * which falls back to `dossier` if unset. The dashboard's row-level
+ * Mode dropdown writes here.
+ */
+export type GithubRepoMode = "dossier" | "full" | "both";
+
+export interface GithubModeSnapshot {
+  /** Adapter-default mode. `null` when the adapter entry is missing. */
+  adapterMode: GithubRepoMode | null;
+  /** Per-repo overrides; entries WITHOUT an override are omitted. */
+  repoModes: Record<string, GithubRepoMode>;
+}
+
+const VALID_MODES: ReadonlySet<GithubRepoMode> = new Set([
+  "dossier",
+  "full",
+  "both",
+]);
+
+export function isGithubRepoMode(value: unknown): value is GithubRepoMode {
+  return typeof value === "string" && VALID_MODES.has(value as GithubRepoMode);
+}
+
+/**
+ * Snapshot the adapter-level mode + the per-repo override map. Both
+ * fields ride under `adapters.github.config`; reads from the .local
+ * overlay first so the dashboard sees what the writer most recently
+ * wrote.
+ */
+export async function readGithubModeSnapshot(
+  configPath: string,
+): Promise<GithubModeSnapshot> {
+  const effectivePath = await pickLocalOrBase(configPath);
+  let raw: string;
+  try {
+    raw = await readFile(effectivePath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return { adapterMode: null, repoModes: {} };
+    }
+    throw err;
+  }
+  const parsed = (parseYaml(raw) ?? {}) as Record<string, unknown>;
+  const adapters = parsed.adapters as Record<string, unknown> | undefined;
+  const github = adapters?.github as Record<string, unknown> | undefined;
+  const cfg = github?.config as Record<string, unknown> | undefined;
+  const adapterMode =
+    cfg && isGithubRepoMode(cfg.mode) ? (cfg.mode as GithubRepoMode) : null;
+  const rawRepoModes = cfg?.repoModes;
+  const repoModes: Record<string, GithubRepoMode> = {};
+  if (rawRepoModes && typeof rawRepoModes === "object") {
+    for (const [slug, value] of Object.entries(
+      rawRepoModes as Record<string, unknown>,
+    )) {
+      if (typeof slug !== "string" || slug.length === 0) continue;
+      if (isGithubRepoMode(value)) repoModes[slug] = value;
+    }
+  }
+  return { adapterMode, repoModes };
+}
+
+/**
+ * Set or clear a per-repo mode override. `mode: null` removes the
+ * override, so the repo falls back to the adapter-level default.
+ * Idempotent — returns `{changed: false}` when the desired value
+ * already matches what's on disk.
+ *
+ * Caller is responsible for triggering a config reload after a
+ * successful change.
+ */
+export async function setGithubRepoMode(
+  configPath: string,
+  fullName: string,
+  mode: GithubRepoMode | null,
+): Promise<{ changed: boolean }> {
+  if (mode !== null && !isGithubRepoMode(mode)) {
+    throw new Error(`invalid github repo mode: ${String(mode)}`);
+  }
+  const targetPath = await ensureLocalCopy(configPath);
+  let raw: string;
+  try {
+    raw = await readFile(targetPath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") raw = "";
+    else throw err;
+  }
+  const doc = (raw.trim().length > 0 ? (parseYaml(raw) ?? {}) : {}) as Record<
+    string,
+    unknown
+  >;
+  const adapters = ((doc.adapters as Record<string, unknown>) ?? {}) as Record<
+    string,
+    unknown
+  >;
+  // Auto-create the github adapter entry on first-mode-set just like
+  // `appendGithubRepo` does — the dashboard treats both writes as
+  // self-bootstrapping so users don't have to "enable github" first.
+  const github = ((adapters.github as Record<string, unknown>) ?? {
+    package: "@onenomad/przm-cortex-adapter-github",
+    enabled: true,
+    config: {},
+  }) as Record<string, unknown>;
+  if (typeof github.package !== "string") {
+    github.package = "@onenomad/przm-cortex-adapter-github";
+  }
+  if (typeof github.enabled !== "boolean") github.enabled = true;
+  const cfg = ((github.config as Record<string, unknown>) ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const existingRaw = cfg.repoModes;
+  const existing: Record<string, string> =
+    existingRaw && typeof existingRaw === "object"
+      ? Object.fromEntries(
+          Object.entries(existingRaw as Record<string, unknown>).filter(
+            ([k, v]) => typeof k === "string" && isGithubRepoMode(v),
+          ) as Array<[string, string]>,
+        )
+      : {};
+
+  if (mode === null) {
+    if (!(fullName in existing)) return { changed: false };
+    delete existing[fullName];
+  } else {
+    if (existing[fullName] === mode) return { changed: false };
+    existing[fullName] = mode;
+  }
+
+  if (Object.keys(existing).length > 0) {
+    cfg.repoModes = existing;
+  } else {
+    delete cfg.repoModes;
+  }
+  github.config = cfg;
+  adapters.github = github;
+  doc.adapters = adapters;
+  await writeFile(
+    targetPath,
+    stringifyYaml(doc, { indent: 2, lineWidth: 0 }),
+    "utf8",
+  );
+  return { changed: true };
+}
+
+/**
+ * Resolve the effective mode for one repo given a snapshot. The default
+ * when nothing's configured anywhere is `dossier`, matching Slice A's
+ * recommended posture — knowledge-first ingest, full source only when
+ * the user explicitly opts in.
+ */
+export function resolveGithubRepoMode(
+  snapshot: GithubModeSnapshot,
+  fullName: string,
+): GithubRepoMode {
+  return (
+    snapshot.repoModes[fullName] ??
+    snapshot.adapterMode ??
+    "dossier"
+  );
+}
+
+/**
  * Drop `<owner>/<name>` from the github.repos list. Returns whether a
  * row was removed so the caller can render an accurate "Removed N
  * repos" line and skip the reload when nothing changed.
