@@ -70,7 +70,9 @@ export function LoginPage(): React.ReactElement {
         token: parsed.data.token,
       });
       await refresh();
-      navigate("/_dashboard/");
+      // wouter's useLocation()[1] is base-aware — pass the base-relative
+      // path or it double-nests (browser ends up at /_dashboard/_dashboard/).
+      navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {

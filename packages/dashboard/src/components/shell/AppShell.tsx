@@ -45,15 +45,19 @@ interface NavItem {
 // (adapters → ingest → memories), then ops + identity, then admin
 // (workspaces, identity). Logs/Jobs/Stats live near the bottom because
 // they're more diagnostic than primary action surfaces.
+// wouter's <Router base="/_dashboard"> auto-prepends the base segment
+// on every <Link href>. So these stay BASE-RELATIVE (no /_dashboard
+// prefix) — wouter renders them as /_dashboard/adapters etc. and
+// internal navigation routes by the unprefixed path.
 const NAV_ITEMS: ReadonlyArray<NavItem> = [
-  { label: "Adapters", href: "/_dashboard/adapters", icon: Plug },
-  { label: "Ingest", href: "/_dashboard/ingest", icon: Workflow },
-  { label: "Memories", href: "/_dashboard/memories", icon: Brain },
-  { label: "Logs", href: "/_dashboard/logs", icon: ListChecks },
-  { label: "Jobs", href: "/_dashboard/jobs", icon: Boxes },
-  { label: "Stats", href: "/_dashboard/stats", icon: Activity },
-  { label: "Workspaces", href: "/_dashboard/workspaces", icon: Database },
-  { label: "Identity", href: "/_dashboard/identity", icon: IdCard },
+  { label: "Adapters", href: "/adapters", icon: Plug },
+  { label: "Ingest", href: "/ingest", icon: Workflow },
+  { label: "Memories", href: "/memories", icon: Brain },
+  { label: "Logs", href: "/logs", icon: ListChecks },
+  { label: "Jobs", href: "/jobs", icon: Boxes },
+  { label: "Stats", href: "/stats", icon: Activity },
+  { label: "Workspaces", href: "/workspaces", icon: Database },
+  { label: "Identity", href: "/identity", icon: IdCard },
 ];
 
 interface AppShellProps {
@@ -77,7 +81,7 @@ export function AppShell({ children }: AppShellProps): React.ReactElement {
             {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
           <Link
-            href="/_dashboard/"
+            href="/"
             className="flex items-center gap-2 text-base font-semibold tracking-tight"
           >
             <span className="rounded-md bg-primary px-1.5 py-0.5 text-xs font-bold uppercase text-primary-foreground">
