@@ -1,9 +1,61 @@
 # GitHub adapter
 
-Cortex's GitHub adapter ingests issues, pull requests, discussions, README
-files, and selected repository documentation into the work memory backend.
-Every memory it writes carries `source: "github"` and the repo's slug as
-`project`, so existing search and digest tools find them automatically.
+Cortex's GitHub adapter ingests source repositories on a recurring
+schedule and feeds them through the configured pipelines. Every memory
+it writes carries `source: "github"`, the resolved project slug, and
+the originating repo's `owner/name` in metadata, so the existing
+`kb_search` / `digest` / dossier tools find them automatically.
+
+## What "dossier mode" means (and why it's the default)
+
+The adapter has three ingestion modes:
+
+| Mode      | What it writes                                      | When to pick it                                                                |
+|-----------|-----------------------------------------------------|--------------------------------------------------------------------------------|
+| `dossier` | 1 brief + N decisions + N references per repo      | **Default.** You want answers about your repos, not raw source search.         |
+| `full`    | Per-file chunks across every source file            | You need vector search over raw source files (refactor hunts, exact-line dives). |
+| `both`    | Dossier *and* full file chunks                      | You want both retrieval modes and can pay the storage + LLM cost.              |
+
+The legacy behavior — "chunk every file into the vector store" — is
+still available as `mode: full`. We changed the default to `dossier`
+because that's what Cortex is for: a **knowledge engine**, not a code
+mirror. Asking "how does *project-x* handle auth?" should return the
+distilled answer cortex already wrote down — not the top-K nearest
+files where the substring "auth" appears.
+
+### Example
+
+With a repo synced in `dossier` mode, you can ask the connected MCP
+client:
+
+```
+kb_search({ query: "how does payments handle auth" })
+```
+
+…and the matching memory is the dossier's Auth section, written once
+by the code-dossier pipeline and kept fresh by SHA-gated re-derivation.
+No file-walking, no embedding cost on every poll.
+
+## Per-repo overrides
+
+Most setups are uniform — one mode for every repo — but you can mix.
+The `repoModes` config block accepts a per-repo override keyed by
+`owner/name`:
+
+```yaml
+adapters:
+  github:
+    enabled: true
+    mode: dossier             # adapter-level default
+    repos:
+      - acme/web
+      - acme/api
+      - acme/legacy-monolith
+    repoModes:
+      acme/legacy-monolith: full   # this one we actually grep
+```
+
+Repos absent from `repoModes` inherit the adapter-level `mode`.
 
 ## Recommended: sign in from the dashboard
 
@@ -33,15 +85,27 @@ If you'd rather paste a PAT, generate one at
    **Discussions: read**, **Metadata: read**.
 4. Copy the token and paste it in the wizard above as `GITHUB_TOKEN`.
 
+## How scheduled syncs behave
+
+Each scheduled sync iterates the configured repos and asks the
+`ingest_repo` tool to refresh each one with the resolved mode. The
+tool uses **SHA-gated re-derivation** — it records the last-seen HEAD
+SHA per repo + mode and short-circuits when nothing has changed. In
+practice the typical scheduled run is a no-op walk plus a cheap remote
+SHA check; only repos that actually moved trigger re-ingestion.
+
 ## What gets ingested
 
-- README, ARCHITECTURE, ADR, and docs/ markdown files
-- Open and recently-closed issues and pull requests
-- Discussion threads
-- Repo metadata (description, topics, primary language)
+- **Dossier mode**: a brief, the decisions cortex inferred from the
+  codebase, and a deduped reference list. One small set of memories
+  per repo; cheap to keep current.
+- **Full mode**: README, ARCHITECTURE, ADR, and `docs/` markdown,
+  plus the source files matching the configured `includeGlobs` and
+  not matching `excludeGlobs`. One memory per chunk per file.
+- **Both**: the union of the above.
 
-Codebase contents are *not* ingested by default — wire the future
-`pipeline-code` package if you want that.
+Webhook-delivered push events use a fast per-file path independent of
+the mode setting — push events are always processed as raw deltas.
 
 ## References
 
