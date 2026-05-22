@@ -2,6 +2,11 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.4.5 — 2026-05-21
+
+- fix(server): depend on @onenomad/przm-cortex-dashboard so npm install pulls in the SPA
+
+
 ## v0.4.4 — 2026-05-21
 
 - feat(dashboard): make package publishable + npm-aware dist resolution

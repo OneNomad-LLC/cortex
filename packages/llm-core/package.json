@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-llm-core",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "LLM provider interface and per-task router for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
