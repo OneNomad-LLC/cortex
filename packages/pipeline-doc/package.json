@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-pipeline-doc",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Doc pipeline: chunk prose content by heading, produce ingestible memories.",
   "type": "module",
   "main": "./dist/index.js",

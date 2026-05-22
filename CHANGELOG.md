@@ -2,6 +2,11 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.4.6 — 2026-05-21
+
+- fix(dashboard): drop /_dashboard prefix from in-app navigation hrefs
+
+
 ## v0.4.5 — 2026-05-21
 
 - fix(server): depend on @onenomad/przm-cortex-dashboard so npm install pulls in the SPA

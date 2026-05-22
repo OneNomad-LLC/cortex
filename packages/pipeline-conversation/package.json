@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-pipeline-conversation",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Conversation pipeline: chat threads and email chains into searchable memories.",
   "type": "module",
   "main": "./dist/index.js",
