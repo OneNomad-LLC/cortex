@@ -789,6 +789,9 @@ importers:
       '@onenomad/przm-cortex-core':
         specifier: workspace:*
         version: link:../core
+      '@onenomad/przm-cortex-dashboard':
+        specifier: workspace:*
+        version: link:../dashboard
       '@onenomad/przm-cortex-github-auth':
         specifier: workspace:*
         version: link:../github-auth

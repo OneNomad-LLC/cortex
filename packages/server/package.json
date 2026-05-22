@@ -49,6 +49,7 @@
     "@onenomad/przm-cortex-adapter-slack": "workspace:*",
     "@onenomad/przm-cortex-cache-sqlite": "workspace:*",
     "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-dashboard": "workspace:*",
     "@onenomad/przm-cortex-github-auth": "workspace:*",
     "@onenomad/przm-cortex-llm-core": "workspace:*",
     "@onenomad/przm-cortex-memory-pgvector": "workspace:*",
