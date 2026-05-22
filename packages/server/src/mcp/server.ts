@@ -12,6 +12,7 @@ import { createLogger } from "../logger.js";
 import { EnrichmentQueue } from "../enrichment.js";
 import { buildLLMRouter } from "../registry/providers.js";
 import { buildAdapterRegistry } from "../registry/adapters.js";
+import { wireGithubRepoIngester } from "../registry/github-ingester-bridge.js";
 import { createScheduler } from "../scheduler.js";
 import { HeartbeatWriter } from "../heartbeat.js";
 import { hotReload, type LiveState } from "../hot-reload.js";
@@ -539,6 +540,12 @@ export async function startServer(): Promise<void> {
     ...(router ? { llmRouter: router } : {}),
     ...(enrichmentQueue ? { enrichmentQueue } : {}),
   };
+
+  wireGithubRepoIngester({
+    adapters: adapterRegistry.adapters,
+    toolContext,
+    logger,
+  });
 
   // Load private modules (job profile, personal playbooks, etc.) —
   // these are packages living outside the public Cortex repo whose
