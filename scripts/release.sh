@@ -174,6 +174,13 @@ echo "→ committed + tagged v${NEXT_VERSION}."
 # ── publish to npm (optional) ───────────────────────────────────────
 if [[ "$PUBLISH" -eq 1 ]]; then
   if confirm "Publish all non-private packages to npm? (will prompt for OTP)"; then
+    # ALWAYS rebuild before publish — the npm tarball ships dist/, and
+    # if dist/ is stale (or built from a different branch's source)
+    # we publish a broken package that fails at runtime on the consumer
+    # side. The dashboard package stays private and is skipped via
+    # filter; everything else builds with tsc.
+    echo "→ pnpm -r build (publish prerequisite)..."
+    pnpm -r --filter='!@onenomad/przm-cortex-dashboard' run build
     echo "→ pnpm publish -r --access public..."
     pnpm publish -r --access public --no-git-checks
     echo "→ published to npm."
