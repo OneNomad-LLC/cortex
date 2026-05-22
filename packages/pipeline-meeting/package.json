@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-pipeline-meeting",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "3-pass meeting transcript extraction pipeline (structural -> synthesis -> brief).",
   "type": "module",
   "main": "./dist/index.js",

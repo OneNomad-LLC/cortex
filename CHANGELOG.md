@@ -2,6 +2,11 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.4.3 — 2026-05-21
+
+- fix(release): always pnpm -r build before publish
+
+
 ## v0.4.2 — 2026-05-21
 
 - fix(release): drop SIGPIPE-prone 'git log | head -1' in CHANGELOG window

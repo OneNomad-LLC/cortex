@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-llm-sdk",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Base classes and helpers for building LLM provider packages.",
   "type": "module",
   "main": "./dist/index.js",
