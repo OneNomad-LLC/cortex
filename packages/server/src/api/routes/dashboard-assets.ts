@@ -26,12 +26,61 @@
  *                             hashed assets after a deploy)
  */
 
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { RouteContext } from "../route-context.js";
 import { findRepoRoot } from "../../cli/dotenv.js";
+
+/**
+ * Resolve where `@onenomad/przm-cortex-dashboard`'s built `dist/` lives.
+ * Two layouts ship in the wild:
+ *
+ *   1. Monorepo checkout — `<repo>/packages/dashboard/dist/`. The
+ *      installer's `pnpm -r build` writes here; `findRepoRoot()` walks
+ *      up looking for the workspace marker.
+ *
+ *   2. npm-global install — the dashboard ships as a sibling package
+ *      next to the server inside `node_modules/@onenomad/`. There's no
+ *      workspace marker upstairs; `require.resolve` is the canonical
+ *      way to ask Node where the package lives.
+ *
+ * Cached after the first successful lookup so we don't re-resolve on
+ * every request.
+ */
+let cachedDistDir: string | undefined;
+function resolveDistDir(): string {
+  if (cachedDistDir) return cachedDistDir;
+
+  // Try the monorepo path first — fast, no module-resolution traversal.
+  const monorepoDist = path.join(
+    findRepoRoot(process.cwd()),
+    "packages",
+    "dashboard",
+    "dist",
+  );
+  if (existsSync(path.join(monorepoDist, "index.html"))) {
+    cachedDistDir = monorepoDist;
+    return cachedDistDir;
+  }
+
+  // Fall back to the installed package — works for `npm install -g`
+  // layouts where the dashboard lives at
+  // <prefix>/lib/node_modules/@onenomad/przm-cortex-dashboard/dist/.
+  try {
+    const req = createRequire(import.meta.url);
+    const pkgJson = req.resolve("@onenomad/przm-cortex-dashboard/package.json");
+    cachedDistDir = path.join(path.dirname(pkgJson), "dist");
+    return cachedDistDir;
+  } catch {
+    // No installed dashboard either; return the monorepo path so the
+    // serveIndex handler can render its 503 + plain-text instructions.
+    cachedDistDir = monorepoDist;
+    return cachedDistDir;
+  }
+}
 
 const PREFIX = "/_dashboard";
 
@@ -112,12 +161,7 @@ export async function handle(
     return true;
   }
 
-  const distDir = path.join(
-    findRepoRoot(process.cwd()),
-    "packages",
-    "dashboard",
-    "dist",
-  );
+  const distDir = resolveDistDir();
 
   // Strip the prefix to get the asset's path relative to dist/. We
   // decode percent-escapes (so spaces and unicode filenames work) but
