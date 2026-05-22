@@ -71,6 +71,7 @@ import * as dashboardJobsRoute from "./routes/dashboard-jobs.js";
 import * as dashboardStatsRoute from "./routes/dashboard-stats.js";
 import * as dashboardIngestRoute from "./routes/dashboard-ingest.js";
 import * as dashboardGithubReposRoute from "./routes/dashboard-github-repos.js";
+import * as dashboardSettingsAllowlistRoute from "./routes/dashboard-settings-allowlist.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -169,6 +170,7 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "dashboard-stats", handle: dashboardStatsRoute.handle },
   { name: "dashboard-ingest", handle: dashboardIngestRoute.handle },
   { name: "dashboard-github-repos", handle: dashboardGithubReposRoute.handle },
+  { name: "dashboard-settings-allowlist", handle: dashboardSettingsAllowlistRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -409,6 +411,9 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "POST /api/dashboard/github/repos/sync",
         "POST /api/dashboard/github/repos/:owner/:name/sync",
         "DELETE /api/dashboard/github/repos/:owner/:name",
+        "GET /api/dashboard/settings/allowlist",
+        "POST /api/dashboard/settings/allowlist",
+        "DELETE /api/dashboard/settings/allowlist/:login",
       ];
     },
   };

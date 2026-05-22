@@ -10,6 +10,7 @@ import {
   Menu,
   Plug,
   Settings2,
+  UserCog,
   Workflow,
   X,
 } from "lucide-react";
@@ -63,6 +64,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { label: "Stats", href: "/stats", icon: Activity },
   { label: "Workspaces", href: "/workspaces", icon: Database },
   { label: "Identity", href: "/identity", icon: IdCard },
+  { label: "Access", href: "/settings/access", icon: UserCog },
 ];
 
 interface AppShellProps {

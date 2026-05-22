@@ -6,6 +6,7 @@ import { AuthErrorBoundary } from "@/components/auth/AuthErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/toast";
+import { AccessPage } from "@/pages/AccessPage";
 import { AdapterAddPage } from "@/pages/AdapterAddPage";
 import { AdapterDetailPage } from "@/pages/AdapterDetailPage";
 import { AdaptersListPage } from "@/pages/AdaptersListPage";
@@ -91,6 +92,7 @@ export default function App(): React.ReactElement {
                       <Route path="/identity">
                         <IdentityPage />
                       </Route>
+                      <Route path="/settings/access" component={AccessPage} />
 
                       <Route>
                         <NotFoundPage />
