@@ -2,6 +2,54 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.4.2 — 2026-05-21
+
+- fix(release): drop SIGPIPE-prone 'git log | head -1' in CHANGELOG window
+- chore(release): add scripts/release.sh + pnpm release shortcuts
+- feat(deploy): cortex update CLI + GHCR image publishing
+- fix(dashboard): reconcile shell+wizard+ops integration
+- feat(dashboard): Ops slice — jobs persistence + logs/jobs/stats/ingest routes + SPA pages
+- feat(dashboard): wizard renderer + adapter management (Phase 2)
+- feat(dashboard): shell — router, auth helpers, workspaces, identity (Phase 2)
+- feat(dashboard): token-based auth — CLI + middleware + login/logout/whoami
+- feat(dashboard): scaffold @onenomad/przm-cortex-dashboard SPA + /_dashboard route
+- release: 0.4.1 — ship wizard fixes
+- chore(wizard): bring init wizard up to date for przm-cortex 0.4
+- release: 0.4.0 — przm-cortex publish-ready
+- chore: regenerate pnpm lockfile after package renames
+- docs: fix stale Engram/Persona dependency claims + rename identifiers
+- rename(deploy): cortex-base/workers → przm-cortex-base/workers, CORTEX_* → PRZM_CORTEX_*
+- rename(source): CORTEX_* env vars → PRZM_CORTEX_* + update package imports
+- rename(packages): @onenomad/cortex-* → @onenomad/przm-cortex-*
+- Merge pull request #65 from OneNomad-LLC/development
+- fix(boot): reload cortex config after seed_llm_provider mutates disk (#64)
+- Merge pull request #63 from OneNomad-LLC/development
+- feat(enrichment): auto-extract action items + decisions on ingest (#62)
+- Merge pull request #61 from OneNomad-LLC/development
+- fix(memory): useLocalEmbedder flag — pin embeddings to Xenova when LLM provider can't embed (#60)
+- Merge pull request #59 from OneNomad-LLC/development
+- feat(bootstrap): seedLlmProviderFromEnv — auto-wire openrouter on first boot (#58)
+- Merge pull request #57 from OneNomad-LLC/development
+- docs: AGENTS.md — drop-in instructions for AI agents using the OneNomad trio (#56)
+- Merge pull request #55 from OneNomad-LLC/development
+- feat(worker): execute claimed jobs by calling tenant invoke endpoint (P2.3) (#54)
+- Merge pull request #53 from OneNomad-LLC/development
+- feat(cli): cortex worker entrypoint + cortex-workers Fly config (P2.1) (#52)
+- Merge pull request #51 from OneNomad-LLC/development
+- feat(jobs): per-process concurrency cap on background ingest runner (#50)
+- feat(ingest): default async=true on ingest_repo and ingest_url (#49)
+- Merge pull request #48 from OneNomad-LLC/development
+- fix(workspace): use workspace:* for internal cortex deps in server + memory-remote (#47)
+- Merge pull request #46 from OneNomad-LLC/development
+- fix(docker): install ca-certificates so git can clone over HTTPS (#45)
+- Merge pull request #44 from OneNomad-LLC/development
+- feat(onboarder): @onenomad/cortex-onboarder MCP package for friction-free Cortex login (#43)
+- chore: add TRADEMARK.md alongside Apache 2.0 LICENSE (#42)
+- Merge pull request #41 from OneNomad-LLC/development
+- feat: absorb cortex-kit packages back into cortex monorepo (#40)
+- chore: consume cortex-kit packages from npm (#39)
+
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

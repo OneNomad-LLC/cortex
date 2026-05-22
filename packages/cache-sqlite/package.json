@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-cache-sqlite",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "SQLite-backed dashboard widget cache. ADR-019 Phase 1 â€” single-table cache_widgets keyed by (widget, workspace, cache_key).",
   "type": "module",
   "main": "./dist/index.js",
