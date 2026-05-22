@@ -77,6 +77,21 @@ interface AdaptersResponse {
 
 type ConnectionState = "connected" | "disconnected" | "unknown";
 
+type RepoMode = "dossier" | "full" | "both";
+
+interface GithubProbeResponse {
+  adapterMode?: RepoMode | null;
+  /** Other fields exist on this response but the Connectors page only
+   *  uses adapterMode. Treat as opaque. */
+  [key: string]: unknown;
+}
+
+const MODE_SUBTITLES: Record<RepoMode, string> = {
+  dossier: "Dossier mode (recommended)",
+  full: "Full source mode",
+  both: "Both modes",
+};
+
 export function ConnectorsPage(): React.ReactElement {
   const [activeConnector, setActiveConnector] =
     React.useState<ConnectorDef | null>(null);
@@ -92,13 +107,15 @@ export function ConnectorsPage(): React.ReactElement {
   // GitHub gets a dedicated probe because its connection lives on the
   // dashboard session (an OAuth token), not in cortex.yaml. We only
   // need the response status, so request page=1 per_page=1 to keep it
-  // cheap.
-  const github = useQuery<unknown, ApiError>({
+  // cheap. The response also carries `adapterMode` (Slice D), which
+  // drives the per-card subtitle on the GitHub connector.
+  const github = useQuery<GithubProbeResponse, ApiError>({
     queryKey: ["dashboard", "github", "connection-probe"],
     queryFn: () =>
-      api("/api/dashboard/github/repos?page=1&per_page=1", {
-        method: "GET",
-      }),
+      api<GithubProbeResponse>(
+        "/api/dashboard/github/repos?page=1&per_page=1",
+        { method: "GET" },
+      ),
     refetchOnWindowFocus: false,
     retry: false,
   });
@@ -145,6 +162,11 @@ export function ConnectorsPage(): React.ReactElement {
                   ? "connected"
                   : "disconnected"
             }
+            subtitle={
+              connector.id === "github" && githubState === "connected"
+                ? MODE_SUBTITLES[github.data?.adapterMode ?? "dossier"]
+                : undefined
+            }
             onOpenGuide={() => setActiveConnector(connector)}
           />
         ))}
@@ -170,11 +192,17 @@ export function ConnectorsPage(): React.ReactElement {
 interface ConnectorCardProps {
   connector: ConnectorDef;
   state: ConnectionState;
+  /**
+   * Optional supplementary line under the title. Used by the GitHub
+   * card to surface adapter-level mode ("Dossier mode (recommended)")
+   * once the connection is live. Other connectors omit this today.
+   */
+  subtitle?: string | undefined;
   onOpenGuide: () => void;
 }
 
 function ConnectorCard(props: ConnectorCardProps): React.ReactElement {
-  const { connector, state, onOpenGuide } = props;
+  const { connector, state, subtitle, onOpenGuide } = props;
   const [, navigate] = useLocation();
   const Icon = CONNECTOR_ICONS[connector.id] ?? Layers;
 
@@ -224,7 +252,14 @@ function ConnectorCard(props: ConnectorCardProps): React.ReactElement {
             <span className="grid size-8 place-content-center rounded-md bg-muted text-muted-foreground">
               <Icon className="size-4" />
             </span>
-            <CardTitle className="text-base">{connector.name}</CardTitle>
+            <div className="flex flex-col">
+              <CardTitle className="text-base">{connector.name}</CardTitle>
+              {subtitle ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {subtitle}
+                </span>
+              ) : null}
+            </div>
           </div>
           <ConnectionBadge state={state} />
         </div>

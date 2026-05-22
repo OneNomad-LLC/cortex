@@ -437,3 +437,87 @@ describe("DELETE /api/dashboard/github/repos/:owner/:name", () => {
     expect(body.memoriesPurged).toBe(1);
   });
 });
+
+describe("POST /api/dashboard/github/repos/:owner/:name/mode", () => {
+  it("writes the override and surfaces the resolved mode", async () => {
+    const { cookie } = await loginWithGithubToken("gh-test-token-123");
+    const resp = await jsonFetch(
+      harness.baseUrl,
+      "/api/dashboard/github/repos/octo/repo-two/mode",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-cortex-dashboard": "1",
+          cookie,
+        },
+        body: JSON.stringify({ mode: "full" }),
+      },
+    );
+    expect(resp.status).toBe(200);
+    const body = resp.body as {
+      mode: string;
+      modeOverride: boolean;
+      changed: boolean;
+    };
+    expect(body.mode).toBe("full");
+    expect(body.modeOverride).toBe(true);
+    expect(body.changed).toBe(true);
+
+    // YAML now carries the per-repo entry under repoModes.
+    const parsed = (await readEffectiveConfig()) as unknown as {
+      adapters: { github: { config: { repoModes?: Record<string, string> } } };
+    };
+    expect(parsed.adapters.github.config.repoModes).toEqual({
+      "octo/repo-two": "full",
+    });
+  });
+
+  it("null clears the override (back to adapter default)", async () => {
+    const { cookie } = await loginWithGithubToken("gh-test-token-123");
+    // Set first…
+    await jsonFetch(harness.baseUrl, "/api/dashboard/github/repos/octo/repo-two/mode", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-cortex-dashboard": "1", cookie },
+      body: JSON.stringify({ mode: "both" }),
+    });
+    // …then clear.
+    const resp = await jsonFetch(
+      harness.baseUrl,
+      "/api/dashboard/github/repos/octo/repo-two/mode",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-cortex-dashboard": "1",
+          cookie,
+        },
+        body: JSON.stringify({ mode: null }),
+      },
+    );
+    expect(resp.status).toBe(200);
+    const body = resp.body as { mode: string; modeOverride: boolean };
+    expect(body.modeOverride).toBe(false);
+    // Mode resolves to "dossier" (the fallback) since the adapter
+    // doesn't have a top-level `config.mode` configured in this fixture.
+    expect(body.mode).toBe("dossier");
+  });
+
+  it("400s on an invalid mode value", async () => {
+    const { cookie } = await loginWithGithubToken("gh-test-token-123");
+    const resp = await jsonFetch(
+      harness.baseUrl,
+      "/api/dashboard/github/repos/octo/repo-two/mode",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-cortex-dashboard": "1",
+          cookie,
+        },
+        body: JSON.stringify({ mode: "garbage" }),
+      },
+    );
+    expect(resp.status).toBe(400);
+  });
+});

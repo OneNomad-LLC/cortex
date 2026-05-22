@@ -71,6 +71,7 @@ import * as dashboardJobsRoute from "./routes/dashboard-jobs.js";
 import * as dashboardStatsRoute from "./routes/dashboard-stats.js";
 import * as dashboardIngestRoute from "./routes/dashboard-ingest.js";
 import * as dashboardGithubReposRoute from "./routes/dashboard-github-repos.js";
+import * as dashboardMemoriesRoute from "./routes/dashboard-memories.js";
 import * as dashboardSettingsAllowlistRoute from "./routes/dashboard-settings-allowlist.js";
 
 export interface DashboardApiOptions extends WidgetContext {
@@ -170,6 +171,7 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "dashboard-stats", handle: dashboardStatsRoute.handle },
   { name: "dashboard-ingest", handle: dashboardIngestRoute.handle },
   { name: "dashboard-github-repos", handle: dashboardGithubReposRoute.handle },
+  { name: "dashboard-memories", handle: dashboardMemoriesRoute.handle },
   { name: "dashboard-settings-allowlist", handle: dashboardSettingsAllowlistRoute.handle },
 ];
 

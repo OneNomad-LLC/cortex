@@ -215,6 +215,154 @@ describe("<GitHubReposPage />", () => {
     });
   });
 
+  it("Mode column renders resolved mode + posts the override on change", async () => {
+    enqueue(
+      (url) =>
+        url.includes("/api/dashboard/github/repos") &&
+        !url.includes("/sync") &&
+        !url.includes("/mode"),
+      {
+        repos: [
+          {
+            fullName: "OneNomad-LLC/cortex",
+            name: "cortex",
+            owner: "OneNomad-LLC",
+            htmlUrl: "https://github.com/OneNomad-LLC/cortex",
+            pushedAt: null,
+            status: "ingested",
+            mode: "dossier",
+            adapterMode: "dossier",
+            modeOverride: false,
+          },
+        ],
+        total: 1,
+        hasMore: false,
+        adapterMode: "dossier",
+      },
+    );
+    enqueue(
+      (url, init) =>
+        url.endsWith("/api/dashboard/github/repos/OneNomad-LLC/cortex/mode") &&
+        init.method === "POST",
+      {
+        repo: "OneNomad-LLC/cortex",
+        mode: "full",
+        adapterMode: "dossier",
+        modeOverride: true,
+        changed: true,
+      },
+    );
+    // After mutation the table re-fetches — provide a second list
+    // response with the new override applied.
+    enqueue(
+      (url) =>
+        url.includes("/api/dashboard/github/repos") &&
+        !url.includes("/sync") &&
+        !url.includes("/mode"),
+      {
+        repos: [
+          {
+            fullName: "OneNomad-LLC/cortex",
+            name: "cortex",
+            owner: "OneNomad-LLC",
+            htmlUrl: "https://github.com/OneNomad-LLC/cortex",
+            pushedAt: null,
+            status: "ingested",
+            mode: "full",
+            adapterMode: "dossier",
+            modeOverride: true,
+          },
+        ],
+        total: 1,
+        hasMore: false,
+        adapterMode: "dossier",
+      },
+    );
+
+    renderApp(<GitHubReposPage />, { route: "/integrations/github" });
+    const user = userEvent.setup();
+    await screen.findByText("cortex");
+
+    // Open the mode dropdown — Radix select trigger is button-shaped
+    // and aria-labelled via our wrapper.
+    const trigger = await screen.findByRole("combobox", {
+      name: /Mode for OneNomad-LLC\/cortex/i,
+    });
+    await user.click(trigger);
+
+    // Pick "Full source".
+    const fullOption = await screen.findByRole("option", {
+      name: /Full source/i,
+    });
+    await user.click(fullOption);
+
+    await waitFor(() => {
+      const modeCall = calls.find(
+        (c) =>
+          c.url.endsWith(
+            "/api/dashboard/github/repos/OneNomad-LLC/cortex/mode",
+          ) && c.init.method === "POST",
+      );
+      expect(modeCall).toBeTruthy();
+      const body = JSON.parse(String(modeCall!.init.body));
+      expect(body).toEqual({ mode: "full" });
+    });
+  });
+
+  it("Sync selected forwards per-row modes alongside the slug list", async () => {
+    enqueue(
+      (url) =>
+        url.includes("/api/dashboard/github/repos") &&
+        !url.includes("/sync"),
+      {
+        repos: [
+          {
+            fullName: "OneNomad-LLC/cortex",
+            name: "cortex",
+            owner: "OneNomad-LLC",
+            htmlUrl: "https://github.com/OneNomad-LLC/cortex",
+            pushedAt: null,
+            status: null,
+            mode: "both",
+            adapterMode: "dossier",
+            modeOverride: true,
+          },
+        ],
+        total: 1,
+        hasMore: false,
+        adapterMode: "dossier",
+      },
+    );
+    enqueue(
+      (url, init) =>
+        url.endsWith("/api/dashboard/github/repos/sync") &&
+        init.method === "POST",
+      { jobs: [{ repo: "OneNomad-LLC/cortex", jobId: "job-mode-1" }] },
+    );
+
+    renderApp(<GitHubReposPage />, { route: "/integrations/github" });
+    const user = userEvent.setup();
+    await screen.findByText("cortex");
+
+    const rowCheckbox = screen.getByLabelText("Select OneNomad-LLC/cortex");
+    await user.click(rowCheckbox);
+
+    const syncButton = await screen.findByRole("button", {
+      name: /sync selected \(1\)/i,
+    });
+    await user.click(syncButton);
+
+    await waitFor(() => {
+      const syncCall = calls.find((c) =>
+        c.url.endsWith("/api/dashboard/github/repos/sync"),
+      );
+      expect(syncCall).toBeTruthy();
+      const body = JSON.parse(String(syncCall!.init.body));
+      expect(body.repos).toEqual(["OneNomad-LLC/cortex"]);
+      expect(body.modes).toEqual({ "OneNomad-LLC/cortex": "both" });
+    });
+  });
+
   it("Disconnect with the purge checkbox sends purge=true on the DELETE", async () => {
     enqueue(
       (url) =>
