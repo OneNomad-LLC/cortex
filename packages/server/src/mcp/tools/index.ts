@@ -1,6 +1,7 @@
 import type { AnyMcpTool } from "../tool.js";
 import { addPersonTool } from "./add-person.js";
 import { addWorkspaceTool } from "./add-workspace.js";
+import { cortexGithubIngestRepo } from "./cortex-github-ingest-repo.js";
 import { currentWorkspaceTool } from "./current-workspace.js";
 import { getJobProfileTool } from "./get-job-profile.js";
 import { getUserIdentityTool } from "./get-user-identity.js";
@@ -117,6 +118,10 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   ingestFile,
   ingestUrl,
   ingestRepo,
+  // GitHub-specific shortcut. Wraps ingest_repo + adapter-github so an
+  // MCP client can ask "ingest owner/name" without forcing the user
+  // through the dashboard.
+  cortexGithubIngestRepo,
   // Cortex-authored notes (Phase 1 — filesystem-backed via the
   // obsidian adapter's vault).
   noteCreate,

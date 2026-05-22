@@ -9,6 +9,8 @@ import {
   ListChecks,
   Menu,
   Plug,
+  Settings2,
+  UserCog,
   Workflow,
   X,
 } from "lucide-react";
@@ -49,8 +51,12 @@ interface NavItem {
 // on every <Link href>. So these stay BASE-RELATIVE (no /_dashboard
 // prefix) — wouter renders them as /_dashboard/adapters etc. and
 // internal navigation routes by the unprefixed path.
+// "Connectors" is the user-facing source directory (browse + connect).
+// "Adapters" remains the ops view (configured rows + status + run
+// controls) — they serve different jobs so we keep both for now.
 const NAV_ITEMS: ReadonlyArray<NavItem> = [
-  { label: "Adapters", href: "/adapters", icon: Plug },
+  { label: "Connectors", href: "/connectors", icon: Plug },
+  { label: "Adapters", href: "/adapters", icon: Settings2 },
   { label: "Ingest", href: "/ingest", icon: Workflow },
   { label: "Memories", href: "/memories", icon: Brain },
   { label: "Logs", href: "/logs", icon: ListChecks },
@@ -58,6 +64,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { label: "Stats", href: "/stats", icon: Activity },
   { label: "Workspaces", href: "/workspaces", icon: Database },
   { label: "Identity", href: "/identity", icon: IdCard },
+  { label: "Access", href: "/settings/access", icon: UserCog },
 ];
 
 interface AppShellProps {

@@ -20,7 +20,7 @@ import {
 } from "./detect.js";
 import { writeConfig, type ProviderChoice } from "./write-config.js";
 import { runSmoke } from "./smoke.js";
-import { applyWizardResult } from "./config-mutation.js";
+import { applyWizardResult, mergeEnv } from "./config-mutation.js";
 import { runWizard } from "./wizard-runner.js";
 import { listWizards, wizardsByCategory } from "./wizard-registry.js";
 import {
@@ -59,6 +59,12 @@ export async function runInit(args: InitArgs): Promise<number> {
   //    so config + .env + memory state are isolated from any other
   //    context the user may want to manage later.
   const writeRoot = await stepWorkspace(repoRoot);
+
+  // 0a. Dashboard sign-in setup — ask for the operator's GitHub
+  //     username so the OAuth allowlist is pre-populated. Skips the
+  //     manual `.env` edit step after first install. Silently no-ops
+  //     on no-tty (CI) or when the user declines.
+  await stepDashboardAllowlist(writeRoot);
 
   // 1. (Removed) Engram + Persona pre-flight — cortex 0.3 dropped those
   //    runtime dependencies (ADR-012). detectDeps() returns [] today;
@@ -234,6 +240,70 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
 // Engram + Persona companion MCP binaries; ADR-012 made cortex
 // standalone. detectDeps() is preserved in cli/detect.ts as an
 // extension point for any future runtime companion.
+
+/**
+ * Pre-populate the GitHub OAuth allowlist for the dashboard's "Sign
+ * in with GitHub" flow. The dashboard's `/_dashboard/login` page is
+ * fail-closed by default — empty allowlist → nobody signs in. Two
+ * scenarios we want to cover here:
+ *
+ *   1. Private-bound install (127.0.0.1 / Tailscale / RFC1918):
+ *      auto-claim-first-user already covers this at runtime, but it
+ *      requires the user to actually attempt sign-in once. Asking
+ *      them now is faster.
+ *   2. Public-bound install (0.0.0.0 behind a TLS proxy etc.):
+ *      auto-claim is disabled there — the OPERATOR has to pre-write
+ *      the allowlist or they're locked out. We MUST ask here.
+ *
+ * Either way, the prompt is "what's your github username?" — empty
+ * answer skips writing. We also accept `--no-github` / non-tty as a
+ * skip-no-prompt path so CI installs don't hang.
+ */
+async function stepDashboardAllowlist(writeRoot: string): Promise<void> {
+  section("Dashboard sign-in");
+  line(
+    "The browser dashboard signs in with GitHub OAuth. Add your GitHub",
+  );
+  line(
+    "username now so 'Continue with GitHub' works on first run — skip",
+  );
+  line(
+    "with empty input and you can edit the workspace .env later.",
+  );
+  let username: string;
+  try {
+    username = await input({
+      message: "GitHub username (leave blank to skip):",
+      default: "",
+      validate: (raw) => {
+        const v = raw.trim();
+        if (v.length === 0) return true; // skip-by-empty
+        // GitHub usernames are alphanumeric + hyphens, ≤39 chars,
+        // can't start/end with hyphen. Strict-ish to catch typos.
+        if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(v)) {
+          return "doesn't look like a github username (a-z, 0-9, hyphens; ≤39 chars)";
+        }
+        return true;
+      },
+    });
+  } catch {
+    // No TTY / inquirer can't prompt → skip silently.
+    return;
+  }
+  const clean = username.trim();
+  if (clean.length === 0) {
+    line("  Skipped. Add later with: PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST=<login>");
+    return;
+  }
+  // Write to the workspace's .env via the shared atomic-write helper.
+  // mergeEnv handles read-or-create and key-replacement-or-append.
+  const envPath = path.join(writeRoot, ".env");
+  await mergeEnv(envPath, {
+    PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST: clean,
+  });
+  ok(`added '${clean}' to PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST`);
+  line(`  ${envPath}`);
+}
 
 async function stepProviders(): Promise<ProviderChoice[]> {
   section("LLM providers");

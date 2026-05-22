@@ -88,3 +88,57 @@ export interface JobsStorage {
   cleanup(opts: { maxAgeMs: number; maxRows: number }): number;
   close(): void;
 }
+
+/**
+ * Persistent shadow of dashboard browser sessions. The server's in-memory
+ * sessionStates map is the live source of truth; this storage mirrors
+ * every dashboard-authenticated session so a process restart doesn't
+ * kick the operator back to the login screen. The dashboard sign-in path
+ * (raw token paste OR GitHub Device Flow) writes through; subsequent
+ * cookie hits read from in-memory first, falling back to storage on a
+ * cold-cache miss.
+ *
+ * Only sessions with `dashboardScopes` get persisted — plain MCP
+ * sessions stay in-memory only.
+ */
+export interface SessionRow {
+  /** `dash_<uuid>` cookie value. */
+  sessionId: string;
+  /** Workspace slug — `""` represents an unbound session. */
+  workspace: string;
+  /** JSON-encoded array of scopes (admin / read / ingest). */
+  scopesJson: string;
+  /** Normalized label for token-paste auth; null when authenticated via GitHub OAuth. */
+  tokenLabel: string | null;
+  /** GitHub username when OAuth-authenticated; null otherwise. */
+  githubLogin: string | null;
+  /** Stable numeric GitHub user id (defends against rename collisions). */
+  githubUserId: number | null;
+  /** Avatar URL for whoami rendering. */
+  githubAvatarUrl: string | null;
+  /** Raw GitHub access token. Read by Slice B to call the GitHub API on the user's behalf. */
+  githubAccessToken: string | null;
+  /** Epoch ms — when the session was first minted. */
+  createdAtMs: number;
+  /** Epoch ms — when the session should be evicted (default mint+24h). */
+  expiresAtMs: number;
+  /** Epoch ms — bumps on every cookie hit so sliding-window TTL is possible later. */
+  lastSeenAtMs: number;
+}
+
+export interface SessionsStorage {
+  /** Insert-or-replace a single session row. Called on sign-in + cookie touch. */
+  upsert(row: SessionRow): void;
+  /** Lookup by session id. Returns null on miss. */
+  get(sessionId: string): SessionRow | null;
+  /** Drop a session row. Returns true if the row existed. */
+  evict(sessionId: string): boolean;
+  /** Snapshot listing — used by tests + the future "/api/dashboard/sessions" surface. */
+  list(): SessionRow[];
+  /**
+   * Drop every row whose `expires_at <= now`. Returns the count
+   * evicted. Cheap enough to run on every session-GC tick.
+   */
+  cleanup(nowMs?: number): number;
+  close(): void;
+}

@@ -61,6 +61,7 @@ import * as modulesRoute from "./routes/modules.js";
 import * as adaptersRoute from "./routes/adapters.js";
 import * as authGithubRoute from "./routes/auth-github.js";
 import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
+import * as dashboardAuthGithubRoute from "./routes/dashboard-auth-github.js";
 import * as dashboardWorkspacesRoute from "./routes/dashboard-workspaces.js";
 import * as dashboardIdentityRoute from "./routes/dashboard-identity.js";
 import * as dashboardWizardRoute from "./routes/dashboard-wizard.js";
@@ -69,6 +70,8 @@ import * as dashboardLogsRoute from "./routes/dashboard-logs.js";
 import * as dashboardJobsRoute from "./routes/dashboard-jobs.js";
 import * as dashboardStatsRoute from "./routes/dashboard-stats.js";
 import * as dashboardIngestRoute from "./routes/dashboard-ingest.js";
+import * as dashboardGithubReposRoute from "./routes/dashboard-github-repos.js";
+import * as dashboardSettingsAllowlistRoute from "./routes/dashboard-settings-allowlist.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -152,6 +155,11 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "modules", handle: modulesRoute.handle },
   { name: "adapters", handle: adaptersRoute.handle },
   { name: "auth-github", handle: authGithubRoute.handle },
+  // `dashboard-auth-github` must come BEFORE `dashboard-auth` so the
+  // `/api/dashboard/auth/github/*` paths get matched by their dedicated
+  // handler; the generic auth dispatcher would otherwise swallow them
+  // with a 404 ("not found inside /api/dashboard/auth/").
+  { name: "dashboard-auth-github", handle: dashboardAuthGithubRoute.handle },
   { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
   { name: "dashboard-workspaces", handle: dashboardWorkspacesRoute.handle },
   { name: "dashboard-identity", handle: dashboardIdentityRoute.handle },
@@ -161,6 +169,8 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "dashboard-jobs", handle: dashboardJobsRoute.handle },
   { name: "dashboard-stats", handle: dashboardStatsRoute.handle },
   { name: "dashboard-ingest", handle: dashboardIngestRoute.handle },
+  { name: "dashboard-github-repos", handle: dashboardGithubReposRoute.handle },
+  { name: "dashboard-settings-allowlist", handle: dashboardSettingsAllowlistRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -372,6 +382,9 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "POST /api/dashboard/auth/login",
         "POST /api/dashboard/auth/logout",
         "GET /api/dashboard/auth/whoami",
+        "POST /api/dashboard/auth/github/start",
+        "POST /api/dashboard/auth/github/poll",
+        "GET /api/dashboard/auth/github/callback",
         "GET /api/dashboard/workspaces",
         "POST /api/dashboard/workspaces/switch",
         "POST /api/dashboard/workspaces/create",
@@ -394,6 +407,13 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "POST /api/dashboard/ingest/url",
         "POST /api/dashboard/ingest/file",
         "POST /api/dashboard/ingest/content",
+        "GET /api/dashboard/github/repos",
+        "POST /api/dashboard/github/repos/sync",
+        "POST /api/dashboard/github/repos/:owner/:name/sync",
+        "DELETE /api/dashboard/github/repos/:owner/:name",
+        "GET /api/dashboard/settings/allowlist",
+        "POST /api/dashboard/settings/allowlist",
+        "DELETE /api/dashboard/settings/allowlist/:login",
       ];
     },
   };
