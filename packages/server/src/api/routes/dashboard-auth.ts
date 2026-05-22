@@ -201,6 +201,11 @@ async function handleWhoami(
     workspace: session.workspace,
     scopes: session.dashboardScopes ?? [],
     tokenLabel: session.dashboardTokenLabel ?? null,
+    // OAuth-authenticated sessions get the github identity surfaced so
+    // the dashboard header can render an avatar + login instead of a
+    // device label. Both fields are null for token-paste sessions.
+    githubLogin: session.githubLogin ?? null,
+    githubAvatarUrl: session.githubAvatarUrl ?? null,
   });
   return true;
 }

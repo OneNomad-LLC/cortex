@@ -61,6 +61,7 @@ import * as modulesRoute from "./routes/modules.js";
 import * as adaptersRoute from "./routes/adapters.js";
 import * as authGithubRoute from "./routes/auth-github.js";
 import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
+import * as dashboardAuthGithubRoute from "./routes/dashboard-auth-github.js";
 import * as dashboardWorkspacesRoute from "./routes/dashboard-workspaces.js";
 import * as dashboardIdentityRoute from "./routes/dashboard-identity.js";
 import * as dashboardWizardRoute from "./routes/dashboard-wizard.js";
@@ -152,6 +153,11 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "modules", handle: modulesRoute.handle },
   { name: "adapters", handle: adaptersRoute.handle },
   { name: "auth-github", handle: authGithubRoute.handle },
+  // `dashboard-auth-github` must come BEFORE `dashboard-auth` so the
+  // `/api/dashboard/auth/github/*` paths get matched by their dedicated
+  // handler; the generic auth dispatcher would otherwise swallow them
+  // with a 404 ("not found inside /api/dashboard/auth/").
+  { name: "dashboard-auth-github", handle: dashboardAuthGithubRoute.handle },
   { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
   { name: "dashboard-workspaces", handle: dashboardWorkspacesRoute.handle },
   { name: "dashboard-identity", handle: dashboardIdentityRoute.handle },
@@ -372,6 +378,9 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "POST /api/dashboard/auth/login",
         "POST /api/dashboard/auth/logout",
         "GET /api/dashboard/auth/whoami",
+        "POST /api/dashboard/auth/github/start",
+        "POST /api/dashboard/auth/github/poll",
+        "GET /api/dashboard/auth/github/callback",
         "GET /api/dashboard/workspaces",
         "POST /api/dashboard/workspaces/switch",
         "POST /api/dashboard/workspaces/create",
