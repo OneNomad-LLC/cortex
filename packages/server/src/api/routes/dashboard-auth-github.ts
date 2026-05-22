@@ -39,6 +39,7 @@ import {
   buildSessionCookie,
 } from "../middleware/require-dashboard-auth.js";
 import { parseDotEnv } from "../../cli/dotenv.js";
+import { mergeEnv } from "../../cli/config-mutation.js";
 import { getActiveWorkspace } from "../../cli/workspace/manager.js";
 import {
   fetchGitHubUser,
@@ -49,6 +50,48 @@ import {
   startDeviceFlow,
 } from "../../auth/github-oauth.js";
 import { setGitHubSession } from "../../session-context.js";
+
+/**
+ * Decide whether the cortex API is bound to a "private" address that
+ * makes auto-allowlist-first-user safe. Public bindings (0.0.0.0,
+ * routable IPs) → unsafe; localhost / Tailscale CGNAT (100.64.0.0/10)
+ * / private RFC1918 ranges (10/8, 172.16/12, 192.168/16) → safe.
+ *
+ * Operator can force the answer via PRZM_CORTEX_DASHBOARD_ALLOW_FIRST_USER_CLAIM:
+ *   - "auto" (default): bind-based heuristic
+ *   - "true": always claim (use when fronted by a TLS proxy you trust)
+ *   - "false": never claim (production lockdown)
+ */
+function shouldAutoClaimFirstUser(
+  envLookup: (name: string) => string | undefined,
+): boolean {
+  const override = envLookup("PRZM_CORTEX_DASHBOARD_ALLOW_FIRST_USER_CLAIM");
+  if (override === "true") return true;
+  if (override === "false") return false;
+  // auto-mode: derive from the API bind address.
+  const host = envLookup("PRZM_CORTEX_API_HOST") ?? "127.0.0.1";
+  return isPrivateBindAddress(host);
+}
+
+function isPrivateBindAddress(host: string): boolean {
+  if (host === "127.0.0.1" || host === "localhost" || host === "::1") return true;
+  // Tailscale CGNAT 100.64.0.0/10 (100.64.x.x – 100.127.x.x).
+  const cgnat = host.match(/^100\.(\d+)\./);
+  if (cgnat) {
+    const n = Number(cgnat[1]);
+    if (n >= 64 && n <= 127) return true;
+  }
+  // RFC1918 private ranges.
+  if (host.startsWith("10.")) return true;
+  if (host.startsWith("192.168.")) return true;
+  const sixteen = host.match(/^172\.(\d+)\./);
+  if (sixteen) {
+    const n = Number(sixteen[1]);
+    if (n >= 16 && n <= 31) return true;
+  }
+  // Anything else (0.0.0.0, public IPs) is treated as public.
+  return false;
+}
 
 /** Active in-flight device-flow grants, keyed by an opaque poll key. */
 interface PendingGrant {
@@ -279,7 +322,41 @@ async function handlePoll(
   const allowlist = parseAllowlist(
     envLookup("PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST"),
   );
-  if (!isAllowlisted(allowlist, user.login)) {
+  const ws = await (deps.resolveWorkspace ?? getActiveWorkspace)();
+
+  // Empty allowlist on a privately-bound install → auto-claim the
+  // first user as the workspace owner. Writes their GitHub login to
+  // the workspace .env so subsequent logins flow normally.
+  // On public bindings (0.0.0.0, routable IPs), bail with a helpful
+  // error instead — otherwise a stranger on the internet could grab
+  // the slot before the operator does.
+  if (allowlist.size === 0) {
+    if (ws && shouldAutoClaimFirstUser(envLookup)) {
+      try {
+        await mergeEnv(ws.envPath, {
+          PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST: user.login,
+        });
+      } catch (err) {
+        sendJson(res, 500, {
+          status: "error",
+          message:
+            "failed to write allowlist on first-user claim — check workspace .env permissions",
+        });
+        return true;
+      }
+      // Fall through to the session-bind below. The next request from
+      // anyone else will hit the normal allowlist check.
+    } else {
+      sendJson(res, 403, {
+        status: "not_allowlisted",
+        login: user.login,
+        message:
+          "PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST is empty and this cortex is bound to a public address. " +
+          "SSH to the box and add your github login to the workspace .env, then retry.",
+      });
+      return true;
+    }
+  } else if (!isAllowlisted(allowlist, user.login)) {
     sendJson(res, 403, {
       status: "not_allowlisted",
       login: user.login,
@@ -289,7 +366,6 @@ async function handlePoll(
     return true;
   }
 
-  const ws = await (deps.resolveWorkspace ?? getActiveWorkspace)();
   const sessionId = `dash_${randomUUID()}`;
   setGitHubSession(sessionId, {
     workspace: ws?.slug ?? null,

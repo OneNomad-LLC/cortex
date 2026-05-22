@@ -115,16 +115,30 @@ interface ProfileMenuProps {
 
 export function ProfileMenu({ onLogout }: ProfileMenuProps): React.ReactElement {
   const { whoami } = useAuth();
-  const label = whoami?.tokenLabel ?? "Account";
+  // Prefer GitHub identity (Device Flow) over the static token label.
+  const githubLogin = whoami?.githubLogin ?? null;
+  const githubAvatarUrl = whoami?.githubAvatarUrl ?? null;
+  const label = githubLogin ?? whoami?.tokenLabel ?? "Account";
+  const isGithub = Boolean(githubLogin);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label="Account menu" className={triggerClass}>
+        {githubAvatarUrl ? (
+          <img
+            src={githubAvatarUrl}
+            alt=""
+            className="size-5 rounded-full"
+            referrerPolicy="no-referrer"
+          />
+        ) : null}
         <span className="max-w-[10rem] truncate">{label}</span>
         <ChevronDown className="size-4 opacity-60" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel className="font-normal text-muted-foreground">
-          <span className="block text-xs uppercase tracking-wide">Token</span>
+          <span className="block text-xs uppercase tracking-wide">
+            {isGithub ? "GitHub" : "Token"}
+          </span>
           <span className="block truncate text-sm text-foreground">{label}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

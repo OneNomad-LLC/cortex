@@ -51,8 +51,8 @@ import { useToast } from "@/components/ui/toast";
  */
 
 interface RepoRow {
-  /** "owner/name" slug. Stable id. */
-  slug: string;
+  /** "owner/name" — Slice B's canonical id field. */
+  fullName: string;
   /** GitHub repo id (numeric). Kept so we don't collide on renames. */
   id?: number;
   name: string;
@@ -62,6 +62,15 @@ interface RepoRow {
   language?: string | null;
   pushedAt?: string | null;
   description?: string | null;
+  /** Slice B fills these; ui treats as optional. */
+  private?: boolean;
+  archived?: boolean;
+  fork?: boolean;
+  ingested?: boolean;
+  lastSyncedAt?: string | null;
+  memoryCount?: number;
+  lastSyncJobId?: string | null;
+  /** Derived from `ingested` + lastSyncJobId state. */
   status?: "ingested" | "syncing" | "failed" | "unknown" | null;
   lastError?: string | null;
 }
@@ -70,6 +79,8 @@ interface ReposResponse {
   repos: RepoRow[];
   total: number;
   hasMore: boolean;
+  page?: number;
+  perPage?: number;
 }
 
 interface NotConnectedShape {
@@ -90,6 +101,10 @@ export function GitHubReposPage(): React.ReactElement {
   const [selected, setSelected] = React.useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // Hide archived + forked repos by default — most users don't want them
+  // ingested, but we keep the toggle so power users can opt in.
+  const [showArchivedAndForks, setShowArchivedAndForks] =
+    React.useState(false);
 
   // Debounce the filter input so we don't refetch on every keystroke.
   React.useEffect(() => {
@@ -185,18 +200,22 @@ export function GitHubReposPage(): React.ReactElement {
     );
   }
 
-  const visibleRepos = repos.data?.repos ?? [];
+  const rawRepos = repos.data?.repos ?? [];
+  const visibleRepos = showArchivedAndForks
+    ? rawRepos
+    : rawRepos.filter((r) => !r.archived && !r.fork);
+  const hiddenCount = rawRepos.length - visibleRepos.length;
   const allSelected =
     visibleRepos.length > 0 &&
-    visibleRepos.every((repo) => selected.has(repo.slug));
+    visibleRepos.every((repo) => selected.has(repo.fullName));
 
   const toggleAll = (checked: boolean) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) {
-        for (const repo of visibleRepos) next.add(repo.slug);
+        for (const repo of visibleRepos) next.add(repo.fullName);
       } else {
-        for (const repo of visibleRepos) next.delete(repo.slug);
+        for (const repo of visibleRepos) next.delete(repo.fullName);
       }
       return next;
     });
@@ -243,6 +262,28 @@ export function GitHubReposPage(): React.ReactElement {
             />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowArchivedAndForks((v) => !v)}
+              aria-label={
+                showArchivedAndForks
+                  ? "Hide archived + forks"
+                  : "Show archived + forks"
+              }
+              title={
+                hiddenCount > 0 && !showArchivedAndForks
+                  ? `${hiddenCount} archived/fork repos hidden`
+                  : undefined
+              }
+            >
+              {showArchivedAndForks
+                ? "Hide archived + forks"
+                : hiddenCount > 0
+                  ? `Show all (+${hiddenCount})`
+                  : "Show all"}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -304,10 +345,10 @@ export function GitHubReposPage(): React.ReactElement {
                 <tbody>
                   {visibleRepos.map((repo) => (
                     <RepoTableRow
-                      key={repo.slug}
+                      key={repo.fullName}
                       repo={repo}
-                      selected={selected.has(repo.slug)}
-                      onSelectionChange={(v) => toggleOne(repo.slug, v)}
+                      selected={selected.has(repo.fullName)}
+                      onSelectionChange={(v) => toggleOne(repo.fullName, v)}
                       onChanged={invalidate}
                     />
                   ))}
@@ -347,7 +388,7 @@ function RepoTableRow(props: {
 
   const syncOne = useMutation({
     mutationFn: async () => {
-      const [owner, name] = repo.slug.split("/");
+      const [owner, name] = repo.fullName.split("/");
       return apiPost<{ jobId: string }>(
         `/api/dashboard/github/repos/${owner}/${name}/sync`,
       );
@@ -355,7 +396,7 @@ function RepoTableRow(props: {
     onSuccess: (data) => {
       const description = data.jobId ? `Job ${data.jobId}` : null;
       toast({
-        title: `Sync queued for ${repo.slug}`,
+        title: `Sync queued for ${repo.fullName}`,
         ...(description ? { description } : {}),
       });
       onChanged();
@@ -371,7 +412,7 @@ function RepoTableRow(props: {
 
   const disconnect = useMutation({
     mutationFn: async () => {
-      const [owner, name] = repo.slug.split("/");
+      const [owner, name] = repo.fullName.split("/");
       const q = purge ? "?purge=true" : "?purge=false";
       return api<{ removed: boolean; memoriesPurged?: number }>(
         `/api/dashboard/github/repos/${owner}/${name}${q}`,
@@ -384,7 +425,7 @@ function RepoTableRow(props: {
         ? `${data.memoriesPurged} memories purged.`
         : null;
       toast({
-        title: `${repo.slug} disconnected`,
+        title: `${repo.fullName} disconnected`,
         ...(description ? { description } : {}),
       });
       onChanged();
@@ -402,7 +443,7 @@ function RepoTableRow(props: {
     <tr className="border-t">
       <td className="py-2 pr-3 align-top">
         <Checkbox
-          aria-label={`Select ${repo.slug}`}
+          aria-label={`Select ${repo.fullName}`}
           checked={selected}
           onCheckedChange={(v) => onSelectionChange(Boolean(v))}
         />
@@ -431,14 +472,14 @@ function RepoTableRow(props: {
       </td>
       <td className="py-2 pr-3 align-top">
         <StatusBadge
-          status={repo.status ?? null}
+          status={deriveStatus(repo)}
           error={repo.lastError ?? null}
         />
       </td>
       <td className="relative py-2 pr-3 align-top text-right">
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label={`Actions for ${repo.slug}`}
+            aria-label={`Actions for ${repo.fullName}`}
             disabled={syncOne.isPending || disconnect.isPending}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
           >
@@ -450,7 +491,7 @@ function RepoTableRow(props: {
               disabled={syncOne.isPending}
             >
               <RefreshCw className="mr-2 size-4" />
-              {repo.status === "ingested" ? "Resync" : "Sync now"}
+              {deriveStatus(repo) === "ingested" ? "Resync" : "Sync now"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -465,7 +506,7 @@ function RepoTableRow(props: {
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Disconnect {repo.slug}?</AlertDialogTitle>
+              <AlertDialogTitle>Disconnect {repo.fullName}?</AlertDialogTitle>
               <AlertDialogDescription>
                 Cortex stops syncing this repository. Memories already
                 ingested stay in place by default.
@@ -523,6 +564,18 @@ function StatusBadge(props: {
     );
   }
   return <Badge variant="muted">—</Badge>;
+}
+
+/**
+ * Derive a Status from Slice B's row shape. `status` field is reserved
+ * for future job-state propagation; today the backend only fills
+ * `ingested`. Fall back to that boolean so the badge stays meaningful
+ * even without lastSyncJobId.
+ */
+function deriveStatus(repo: RepoRow): RepoRow["status"] {
+  if (repo.status) return repo.status;
+  if (repo.ingested) return "ingested";
+  return null;
 }
 
 function isNotConnected(err: unknown): err is ApiError {

@@ -105,7 +105,7 @@ describe("<GitHubReposPage />", () => {
       {
         repos: [
           {
-            slug: "OneNomad-LLC/cortex",
+            fullName: "OneNomad-LLC/cortex",
             name: "cortex",
             owner: "OneNomad-LLC",
             htmlUrl: "https://github.com/OneNomad-LLC/cortex",
@@ -114,7 +114,7 @@ describe("<GitHubReposPage />", () => {
             status: "ingested",
           },
           {
-            slug: "OneNomad-LLC/przm-voice",
+            fullName: "OneNomad-LLC/przm-voice",
             name: "przm-voice",
             owner: "OneNomad-LLC",
             htmlUrl: "https://github.com/OneNomad-LLC/przm-voice",
@@ -173,7 +173,7 @@ describe("<GitHubReposPage />", () => {
       {
         repos: [
           {
-            slug: "OneNomad-LLC/cortex",
+            fullName: "OneNomad-LLC/cortex",
             name: "cortex",
             owner: "OneNomad-LLC",
             htmlUrl: "https://github.com/OneNomad-LLC/cortex",
@@ -222,7 +222,7 @@ describe("<GitHubReposPage />", () => {
       {
         repos: [
           {
-            slug: "OneNomad-LLC/cortex",
+            fullName: "OneNomad-LLC/cortex",
             name: "cortex",
             owner: "OneNomad-LLC",
             htmlUrl: "https://github.com/OneNomad-LLC/cortex",

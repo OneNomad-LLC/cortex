@@ -40,7 +40,7 @@ const EMAILS_URL = "https://api.github.com/user/emails";
  */
 export const DEFAULT_ONENOMAD_CLIENT_ID =
   process.env.PRZM_CORTEX_DEFAULT_GITHUB_CLIENT_ID ??
-  "PLACEHOLDER_REPLACED_AT_BUILD";
+  "Ov23li6ZlB9MbTVouCD9";
 
 export interface DeviceFlowStart {
   userCode: string;

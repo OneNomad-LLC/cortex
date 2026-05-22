@@ -28,6 +28,9 @@ export interface WhoAmI {
   workspace: string | null;
   scopes: ReadonlyArray<"read" | "ingest" | "admin">;
   tokenLabel: string | null;
+  /** GitHub identity present when signed in via Device Flow. */
+  githubLogin?: string | null;
+  githubAvatarUrl?: string | null;
 }
 
 export type AuthStatus = "loading" | "authed" | "anon";

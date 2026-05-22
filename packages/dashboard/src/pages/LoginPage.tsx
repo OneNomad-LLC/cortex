@@ -74,21 +74,34 @@ interface DevicePollPending {
   tryAgainAfterMs?: number;
 }
 
+interface DevicePollSlowDown {
+  status: "slow_down";
+  hint?: string;
+}
+
 interface DevicePollAuthorized {
   status: "authorized";
-  workspace: string;
+  workspace: string | null;
   scopes: ReadonlyArray<"read" | "ingest" | "admin">;
   login?: string;
+  avatarUrl?: string;
 }
 
 interface DevicePollFailed {
-  status: "expired" | "denied" | "pollkey_unknown" | "not_allowlisted";
+  status:
+    | "expired"
+    | "denied"
+    | "pollkey_unknown"
+    | "not_allowlisted"
+    | "rate_limited"
+    | "error";
   message?: string;
   login?: string;
 }
 
 type DevicePollResponse =
   | DevicePollPending
+  | DevicePollSlowDown
   | DevicePollAuthorized
   | DevicePollFailed;
 
@@ -256,6 +269,28 @@ export function LoginPage(): React.ReactElement {
           setPhase({ kind: "idle" });
           return;
         }
+        // 410 pollkey_unknown — Slice A returns status:'expired' with a
+        // message; surface that. 429 rate_limited — back off and keep
+        // polling rather than reset (GitHub asked us to slow down).
+        // 502 error — surface the upstream message.
+        if (res.status === 410 || res.status === 502) {
+          const body = (await res.json().catch(() => ({}))) as DevicePollFailed;
+          setServerError(
+            body.message ??
+              (res.status === 410
+                ? "The sign-in session was lost. Try again."
+                : "GitHub upstream error. Try again in a moment."),
+          );
+          cancelled = true;
+          setPhase({ kind: "idle" });
+          return;
+        }
+        if (res.status === 429) {
+          // Rate-limited by the server's burst guard. Don't reset —
+          // just back off proportional to the configured interval.
+          timer = setTimeout(tick, phase.intervalMs * 3);
+          return;
+        }
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as {
             message?: string;
@@ -271,13 +306,19 @@ export function LoginPage(): React.ReactElement {
           timer = setTimeout(tick, delay);
           return;
         }
+        // GitHub `slow_down` — same shape as pending but explicit
+        // back-off signal. Bump the next-poll delay 1.5x and continue.
+        if (data.status === "slow_down") {
+          timer = setTimeout(tick, Math.floor(phase.intervalMs * 1.5));
+          return;
+        }
         if (data.status === "authorized") {
           cancelled = true;
           await refresh();
           navigate("/");
           return;
         }
-        // expired / denied / pollkey_unknown → reset
+        // expired / denied / pollkey_unknown / rate_limited / error → reset
         cancelled = true;
         setServerError(failureMessage(data.status));
         setPhase({ kind: "idle" });
@@ -464,6 +505,10 @@ function failureMessage(status: DevicePollFailed["status"]): string {
       return "The sign-in session was lost. Try again.";
     case "not_allowlisted":
       return "Your GitHub user isn't on the allow-list for this Cortex instance.";
+    case "rate_limited":
+      return "Too many sign-in attempts. Wait a minute and try again.";
+    case "error":
+      return "GitHub upstream error. Try again in a moment.";
     default:
       return "GitHub sign-in failed. Try again.";
   }

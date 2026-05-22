@@ -56,13 +56,13 @@ const MAX_GITHUB_PAGES = 10;
 const GITHUB_PER_PAGE = 100;
 
 /**
- * Slice A persists the OAuth access token on SessionState as
- * `githubAccessToken`. The field isn't on the typed shape yet (Slice A
- * owns it), so we read via a narrow bracket-access helper. Returns
- * undefined when not connected so callers can 412 cleanly.
+ * SessionState carries the OAuth access token after Device Flow login
+ * (Slice A → `setGitHubSession`). Returns undefined when the user is
+ * signed in via token-paste only (no GitHub binding) so callers 412
+ * cleanly with `github_not_connected`.
  */
 function getSessionGithubAccessToken(session: SessionState): string | undefined {
-  const token = (session as unknown as Record<string, unknown>)["githubAccessToken"];
+  const token = session.githubAccessToken;
   return typeof token === "string" && token.length > 0 ? token : undefined;
 }
 
@@ -224,11 +224,12 @@ async function handleList(
       )
     : aggregated;
 
-  // Merge ingested-state from cortex.yaml. We don't surface
-  // memoryCount / lastSyncedAt here yet — those need engram round-trips
-  // (per-source_id prefix scan + max(createdAt)) that Slice C will
-  // light up. The fields are reserved in the response shape so the
-  // SPA can render them once available.
+  // Merge ingested-state from cortex.yaml + latest sync job state from
+  // JobRegistry. We don't surface memoryCount / lastSyncedAt here yet
+  // — those need engram round-trips (per-source_id prefix scan +
+  // max(createdAt)) that a future slice can light up. lastSyncJobId
+  // drives the UI's "Syncing…" / "Failed" badges; we surface the most
+  // recent job per repo.
   const configPath = resolveConfigPath();
   const ingestedSet = new Set(await readGithubRepoList(configPath));
 
@@ -237,20 +238,39 @@ async function handleList(
   const end = start + perPage;
   const slice = filtered.slice(start, end);
 
-  const repos: ReposViewItem[] = slice.map((r) => ({
-    fullName: r.full_name,
-    owner: r.owner.login,
-    name: r.name,
-    private: Boolean(r.private),
-    defaultBranch: r.default_branch ?? "main",
-    language: r.language ?? null,
-    description: r.description ?? null,
-    pushedAt: r.pushed_at ?? null,
-    htmlUrl: r.html_url,
-    archived: Boolean(r.archived),
-    fork: Boolean(r.fork),
-    ingested: ingestedSet.has(r.full_name),
-  }));
+  // Scan recent github-sync jobs once and build a per-repo latest-job
+  // index so the map below is O(1) per row. enqueueGithubSyncJob() sets
+  // progress.repo on creation so we can tell which job belongs to which
+  // repo. jobs.list() returns newest-first.
+  const recentJobs = jobs.list({ limit: 500 });
+  const latestJobByRepo = new Map<string, { id: string; status: string }>();
+  for (const job of recentJobs) {
+    if (job.kind !== "github-sync") continue;
+    const repo = typeof job.progress.repo === "string" ? job.progress.repo : undefined;
+    if (!repo) continue;
+    if (!latestJobByRepo.has(repo)) {
+      latestJobByRepo.set(repo, { id: job.id, status: job.status });
+    }
+  }
+
+  const repos: ReposViewItem[] = slice.map((r) => {
+    const latest = latestJobByRepo.get(r.full_name);
+    return {
+      fullName: r.full_name,
+      owner: r.owner.login,
+      name: r.name,
+      private: Boolean(r.private),
+      defaultBranch: r.default_branch ?? "main",
+      language: r.language ?? null,
+      description: r.description ?? null,
+      pushedAt: r.pushed_at ?? null,
+      htmlUrl: r.html_url,
+      archived: Boolean(r.archived),
+      fork: Boolean(r.fork),
+      ingested: ingestedSet.has(r.full_name),
+      lastSyncJobId: latest?.id ?? null,
+    };
+  });
 
   sendJson(res, 200, {
     repos,
@@ -428,6 +448,10 @@ function enqueueGithubSyncJob(
   const job = jobs.create({
     kind: "github-sync",
   });
+  // Stash the repo on progress so GET /repos can scan the JobRegistry
+  // and surface lastSyncJobId per repo (drives the UI's
+  // "Syncing…" / "Failed" status badges).
+  jobs.progress(job.id, { repo: fullName });
   const work = async (): Promise<unknown> => {
     const traceId = randomUUID();
     const toolCtx: ToolContext = {
