@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-bitbucket",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Bitbucket Cloud source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

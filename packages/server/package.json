@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "przm Cortex MCP server: unified work-knowledge layer.",
   "keywords": [
     "mcp",

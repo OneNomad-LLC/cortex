@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-notion",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Notion source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

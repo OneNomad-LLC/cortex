@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-confluence",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Atlassian Confluence source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

@@ -2,6 +2,11 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.5.1 — 2026-05-22
+
+- feat(auth): bridge GitHub OAuth token → adapter config on sign-in
+
+
 ## v0.5.0 — 2026-05-22
 
 - feat(dashboard): Access settings page + cortex-init allowlist prompt
