@@ -2,6 +2,11 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.4.4 — 2026-05-21
+
+- feat(dashboard): make package publishable + npm-aware dist resolution
+
+
 ## v0.4.3 — 2026-05-21
 
 - fix(release): always pnpm -r build before publish
