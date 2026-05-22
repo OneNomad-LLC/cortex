@@ -2,6 +2,20 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.6.0 — 2026-05-22
+
+**Behavior change**: `ingest_repo` now defaults to `mode: 'dossier'` — produces a small set of high-signal memories describing the repo (architectural brief, ADR decisions, public API references) instead of dumping every source file as chunks. The legacy per-file walk is still available via `mode: 'full'`, and `mode: 'both'` runs both pipelines. Existing scheduled GitHub syncs flip to dossier mode unless `mode: 'full'` or per-repo `repoModes` override is set in `cortex.yaml`.
+
+- feat(pipeline-code-dossier): new package — 3-pass LLM extraction (structural → synthesis → brief) over README / ARCHITECTURE.md / CLAUDE.md / AGENTS.md / docs/DECISIONS.md / docs/ADR-*.md / CHANGELOG.md / package manifests / entry points. Emits 1 `brief` + N `decision` (per ADR) + N `reference` (per API surface) memories. Graceful degradation when no LLM provider is configured (structural-only brief).
+- feat(ingest_repo): `mode: 'dossier' | 'full' | 'both'` parameter (default `dossier`) + `skipIfUnchanged: boolean` (default `true`) for SHA-gated re-derivation over dossier-input files. Skipped runs return `{ skipped: true, skipReason: 'unchanged', priorJobId }`.
+- feat(adapter-github): `mode` config field (default `dossier`) + per-repo `repoModes` overrides. Wizard step + per-repo override step. `fetch()` delegates to `ingest_repo` via injected `setRepoIngester` seam (avoids circular dep). SETUP.md rewritten to lead with dossier semantics.
+- feat(dashboard): `/_dashboard/memories` browser — paginated list with type / source / project / since / query filters, dossier badge on `type:brief` + `tag:dossier`, detail modal with markdown rendering.
+- feat(dashboard): GitHub Repos page — per-row "Knowledge mode" dropdown (Dossier / Full / Both / Adapter default), persists to `cortex.yaml` `repoModes`. Bulk-sync threads per-row mode overrides.
+- feat(dashboard): Connectors GitHub card surfaces current adapter-level mode as subtitle.
+- feat(server): `wireGithubRepoIngester` at boot binds adapter ingester to `ingest_repo.handler` with `toolContext` — scheduled syncs now route through the mode-aware pipeline.
+- feat(server): `GET/POST /api/dashboard/memories` admin-gated routes; `POST /api/dashboard/github/repos/:owner/:name/mode` for per-repo mode persistence; `GET /api/dashboard/github/repos` rows extended with `mode` / `adapterMode` / `modeOverride`.
+
+
 ## v0.5.1 — 2026-05-22
 
 - feat(auth): bridge GitHub OAuth token → adapter config on sign-in
