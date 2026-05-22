@@ -50,6 +50,7 @@ import {
   startDeviceFlow,
 } from "../../auth/github-oauth.js";
 import { setGitHubSession } from "../../session-context.js";
+import { bridgeGithubAdapterConfig } from "../../auth/github-adapter-bridge.js";
 
 /**
  * Decide whether the cortex API is bound to a "private" address that
@@ -152,6 +153,8 @@ export interface GitHubAuthDeps {
     | {
         slug: string;
         envPath: string;
+        path: string;
+        configPath: string;
       }
     | undefined
   >;
@@ -366,6 +369,27 @@ async function handlePoll(
     return true;
   }
 
+  // Bridge the OAuth token into the GitHub adapter's config so the
+  // user doesn't have to paste a PAT in the adapter wizard after
+  // signing in. Best-effort — if the workspace YAML or .env can't be
+  // mutated (file perms, missing dir), we still bind the session and
+  // let the operator wire the adapter manually. The error is logged
+  // but never surfaced as a sign-in failure.
+  let adapterBridge:
+    | { wroteToken: boolean; enabledAdapter: boolean; tokenSource: string }
+    | null = null;
+  if (ws) {
+    try {
+      adapterBridge = await bridgeGithubAdapterConfig({
+        workspace: ws,
+        oauthToken: result.accessToken,
+      });
+    } catch {
+      // Logged at the caller layer when log context is in scope.
+      // We never want this failure to block sign-in itself.
+    }
+  }
+
   const sessionId = `dash_${randomUUID()}`;
   setGitHubSession(sessionId, {
     workspace: ws?.slug ?? null,
@@ -382,6 +406,7 @@ async function handlePoll(
     scopes: ["admin"],
     login: user.login,
     avatarUrl: user.avatarUrl,
+    adapter: adapterBridge,
   });
   return true;
 }
