@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-jira",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "Atlassian Jira source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

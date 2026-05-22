@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-onboarder",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "One-time MCP server that handles Cortex login + writes the per-tenant Cortex MCP config for the user. Install once; never think about MCP config files again.",
   "type": "module",
   "bin": {

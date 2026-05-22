@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-loom",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "Loom recordings + transcripts source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

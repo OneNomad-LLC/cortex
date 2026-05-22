@@ -2,6 +2,15 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.5.0 — 2026-05-22
+
+- feat(dashboard): Access settings page + cortex-init allowlist prompt
+- feat: integrate v0.5.0 slices + must-fixes + cheap wins
+- feat(dashboard): GitHub UI slice — login flow, repos table, connectors directory
+- feat(server): github repos dashboard API + cortex_github_ingest_repo MCP tool
+- feat(server): add GitHub Device Flow OAuth dashboard sign-in + persistent sessions (Slice A)
+
+
 ## v0.4.6 — 2026-05-21
 
 - fix(dashboard): drop /_dashboard prefix from in-app navigation hrefs

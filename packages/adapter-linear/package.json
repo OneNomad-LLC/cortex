@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-linear",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "Linear source adapter for Cortex (GraphQL).",
   "type": "module",
   "main": "./dist/index.js",
