@@ -7,6 +7,11 @@ import react from "@vitejs/plugin-react";
  * `.tsx` files compile, and points `@` at `src/` for parity with the
  * dev/build configs. `happy-dom` gives us window + DOM globals the
  * `api()` helper relies on without the weight of jsdom.
+ *
+ * `setupFiles` runs once before each test file — used to register
+ * `@testing-library/react`'s `cleanup` so React 19 trees don't leak
+ * across tests, and to install the `expect` extensions when we add
+ * `@testing-library/jest-dom` later.
  */
 export default defineConfig({
   plugins: [react()],
@@ -18,6 +23,8 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
+    setupFiles: ["./src/test/setup.ts"],
+    globals: true,
     passWithNoTests: true,
   },
 });
