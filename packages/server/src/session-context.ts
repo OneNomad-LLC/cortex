@@ -59,6 +59,21 @@ export interface SessionState {
    * was a cscope JWT and the session is restricted to those names.
    */
   toolAllowList?: Set<string>;
+  /**
+   * Dashboard auth — scopes granted to a browser session that logged
+   * in via `cortex dashboard create-token`. Presence of this field is
+   * the signal that the session id is a `dash_<uuid>` cookie session;
+   * `requireDashboardAuth` keys gating off it. Absent = not a logged-in
+   * dashboard session (either a plain MCP session, or the cookie was
+   * cleared by logout).
+   */
+  dashboardScopes?: ReadonlyArray<"read" | "ingest" | "admin">;
+  /**
+   * Normalized label of the token that authenticated this session.
+   * Echoed back from `/api/dashboard/auth/whoami` so the operator can
+   * tell which device they're looking at.
+   */
+  dashboardTokenLabel?: string;
 }
 
 const sessionStates = new Map<string, SessionState>();
@@ -303,6 +318,50 @@ export function getCurrentToolAllowList(): Set<string> | undefined {
 /** Count of distinct sessions seen — useful for /api/status. */
 export function sessionCount(): number {
   return sessionStates.size;
+}
+
+/**
+ * Mint or update a dashboard browser session. Stamped onto sessionStates
+ * keyed by the `dash_<uuid>` cookie value. Distinct entry point from
+ * MCP-session lifecycle helpers because dashboard sessions never go
+ * through the ALS-bound MCP path — they live entirely in the HTTP API
+ * gate.
+ */
+export function setDashboardSession(
+  sessionId: string,
+  opts: {
+    workspace: string | null;
+    scopes: ReadonlyArray<"read" | "ingest" | "admin">;
+    tokenLabel: string;
+  },
+): SessionState {
+  const now = Date.now();
+  const existing = sessionStates.get(sessionId);
+  const state: SessionState = existing
+    ? { ...existing }
+    : {
+        workspace: opts.workspace,
+        firstSeenAt: now,
+        lastSeenAt: now,
+      };
+  state.workspace = opts.workspace;
+  state.lastSeenAt = now;
+  state.dashboardScopes = opts.scopes;
+  state.dashboardTokenLabel = opts.tokenLabel;
+  sessionStates.set(sessionId, state);
+  schedulePersist();
+  return state;
+}
+
+/**
+ * Drop a dashboard session — called from `/api/dashboard/auth/logout`.
+ * Removes the session entirely; the cookie on the browser side is
+ * cleared by the same handler.
+ */
+export function evictDashboardSession(sessionId: string): boolean {
+  const existed = sessionStates.delete(sessionId);
+  if (existed) schedulePersist();
+  return existed;
 }
 
 /**

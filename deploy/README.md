@@ -96,6 +96,44 @@ sudo cp deploy/laptop/Caddyfile.template /etc/caddy/Caddyfile
 
 `docker-compose.yml` at the repo root works for laptop deploys too — it's the multi-container variant (separate server + dashboard containers). The systemd path here is for users who don't want Docker on their box.
 
+## Incremental upgrades on an existing VPS
+
+A `docker compose pull && recreate` flow keeps cortex up-to-date without
+touching the workspace state mounted at `PRZM_CORTEX_HOME_HOST`. Two
+entry points:
+
+```sh
+cortex update                # cortex CLI subcommand (preferred)
+./deploy/update.sh           # standalone shell script (if CLI isn't on PATH)
+```
+
+Both default to **pull mode**:
+1. `docker compose pull cortex` — fetches the latest image from
+   `ghcr.io/onenomad-llc/przm-cortex:latest` (configurable via
+   `CORTEX_IMAGE` in `.env`)
+2. `docker compose up -d --no-deps cortex` — recreates just the
+   cortex container; postgres/ollama and any other compose services
+   stay running
+3. Brief health snapshot + log tail so you see the new image came up
+
+For setups without a pre-built image in a registry, pass `--build` to
+fall back to `git pull --ff-only` + `docker compose build cortex`. Slower
+(2–5 min on a small droplet) but no registry credential needed.
+
+### Image publishing
+
+The `docker-publish` GitHub Action builds + pushes to GHCR on every
+push to `main` and on every `v*` tag. No extra secrets — uses the
+workflow's built-in `GITHUB_TOKEN`. Tags produced:
+
+| Tag | When |
+|---|---|
+| `latest` | every push to `main` |
+| `main-<sha>` | every push to `main` (pinnable) |
+| `v<X.Y.Z>` | every git tag matching `v*` |
+
+To pin a deploy to a specific build, set `CORTEX_IMAGE=ghcr.io/onenomad-llc/przm-cortex:main-<sha>` in `.env` before `cortex update`.
+
 ## What lives where — quick reference
 
 | Need to… | Look at |
@@ -104,3 +142,5 @@ sudo cp deploy/laptop/Caddyfile.template /etc/caddy/Caddyfile
 | Understand tenant provisioning | This file's `fly/` section + `pyre-web/src/server/cortex-provisioner.ts` |
 | Run cortex on a personal server | `deploy/laptop/` + `docker-compose.yml` |
 | Run cortex in your shell for development | `pnpm dev` from `packages/server/` |
+| Upgrade a running cortex VPS in place | `cortex update` (or `deploy/update.sh`) |
+| Publish a new image to GHCR | push to `main` or push a `v*` tag; CI handles it |

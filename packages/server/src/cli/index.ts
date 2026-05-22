@@ -1,5 +1,7 @@
 import { runBackfillCli } from "./backfill.js";
+import { runDashboard } from "./dashboard.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
+import { runUpdate } from "./update.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
@@ -68,6 +70,13 @@ Commands:
                                --foreground to run attached.
   down [-- args...]          Stop the Docker stack (wraps \`docker compose down\`).
   logs [-- args...]          Tail Docker stack logs (wraps \`docker compose logs -f\`).
+  update [--build|--skip-pull|-y]
+                             Upgrade the running cortex container in place.
+                               Default: docker compose pull + recreate (~5s
+                               downtime, no rebuild). --build runs git pull
+                               + docker compose build for setups without a
+                               registry. Workspace state (PRZM_CORTEX_HOME_HOST)
+                               is preserved.
 
   status                     Show daemon heartbeat (uptime, adapter stats).
   doctor [--connect]         Pre-flight checks: config, secrets, tokens, taxonomy.
@@ -107,6 +116,11 @@ Commands:
 
   github-login [--scopes <csv>]
                              Device-flow OAuth with GitHub. No PAT paste needed.
+
+  dashboard <sub>            Manage browser-session login tokens for the
+                             Cortex dashboard UI. Subcommands:
+                               create-token, rotate-token, revoke-token,
+                               list-tokens.
 
   help                       Show this message.
 
@@ -185,6 +199,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case "backfill":
       return runBackfillCli(rest);
 
+    case "dashboard":
+      return runDashboard(rest);
+
     case "start":
       await startServer();
       return 0;
@@ -215,6 +232,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "logs":
       return runDockerLogs(rest);
+
+    case "update":
+      return runUpdate(rest);
 
     case "worker":
       return runWorker();

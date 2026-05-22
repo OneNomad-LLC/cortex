@@ -34,7 +34,11 @@
 
 services:
   cortex:
-    image: cortex:local
+    # Default to the published image so `cortex update` works on a fresh
+    # VPS without a checkout. Override CORTEX_IMAGE=cortex:local (or any
+    # other tag) to use a locally-built image instead — `cortex update
+    # --build` will rebuild against the `build:` block below.
+    image: ${CORTEX_IMAGE:-ghcr.io/onenomad-llc/przm-cortex:latest}
     build:
       context: .
       dockerfile: packages/server/Dockerfile

@@ -41,6 +41,7 @@ import type { ReloadResult } from "../hot-reload.js";
 import { TaxonomyCache } from "../taxonomy-cache.js";
 
 import * as healthRoute from "./routes/health.js";
+import * as dashboardAssetsRoute from "./routes/dashboard-assets.js";
 import * as layoutRoute from "./routes/layout.js";
 import * as widgetsRoute from "./routes/widgets.js";
 import * as workspacesRoute from "./routes/workspaces.js";
@@ -59,6 +60,15 @@ import * as mcpToolsRoute from "./routes/mcp-tools.js";
 import * as modulesRoute from "./routes/modules.js";
 import * as adaptersRoute from "./routes/adapters.js";
 import * as authGithubRoute from "./routes/auth-github.js";
+import * as dashboardAuthRoute from "./routes/dashboard-auth.js";
+import * as dashboardWorkspacesRoute from "./routes/dashboard-workspaces.js";
+import * as dashboardIdentityRoute from "./routes/dashboard-identity.js";
+import * as dashboardWizardRoute from "./routes/dashboard-wizard.js";
+import * as dashboardAdaptersRoute from "./routes/dashboard-adapters.js";
+import * as dashboardLogsRoute from "./routes/dashboard-logs.js";
+import * as dashboardJobsRoute from "./routes/dashboard-jobs.js";
+import * as dashboardStatsRoute from "./routes/dashboard-stats.js";
+import * as dashboardIngestRoute from "./routes/dashboard-ingest.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -142,6 +152,15 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "modules", handle: modulesRoute.handle },
   { name: "adapters", handle: adaptersRoute.handle },
   { name: "auth-github", handle: authGithubRoute.handle },
+  { name: "dashboard-auth", handle: dashboardAuthRoute.handle },
+  { name: "dashboard-workspaces", handle: dashboardWorkspacesRoute.handle },
+  { name: "dashboard-identity", handle: dashboardIdentityRoute.handle },
+  { name: "dashboard-wizard", handle: dashboardWizardRoute.handle },
+  { name: "dashboard-adapters", handle: dashboardAdaptersRoute.handle },
+  { name: "dashboard-logs", handle: dashboardLogsRoute.handle },
+  { name: "dashboard-jobs", handle: dashboardJobsRoute.handle },
+  { name: "dashboard-stats", handle: dashboardStatsRoute.handle },
+  { name: "dashboard-ingest", handle: dashboardIngestRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -188,6 +207,20 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    // Dashboard SPA static assets — bypass auth so the login UI itself
+    // can load for unauthenticated users. Per-route auth on `/api/*`
+    // is what actually guards the data; serving HTML/JS/CSS does not
+    // expose anything sensitive. Register here, BEFORE `apiAuthOk`.
+    if (
+      await dashboardAssetsRoute.handle(
+        req,
+        res,
+        makeCtx(opts, logger, url, pathname, widgets, widgetsByName, widgetCtx),
+      )
+    ) {
+      return;
+    }
+
     // Cookie-handoff bootstrap: `/cortex-session/issue?token=...`
     // verifies a short-lived signed token from pyre-web, sets the
     // session cookie, and redirects. Public path because the token IS
@@ -196,11 +229,26 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
       return;
     }
 
+    // Dashboard login: exchange a raw token for a `cortex_dash_sid`
+    // cookie. Must run BEFORE `apiAuthOk` because the whole point of
+    // login is to acquire the credential the gate is checking for.
+    // Subsequent /api/dashboard/* requests sit behind the gate and
+    // route through `requireDashboardAuth` for scope + CSRF checks.
+    if (await dashboardAuthRoute.handleLogin(req, res, logger)) {
+      return;
+    }
+
     // Three-track auth. Cookie, bearer, or gateway-secret — any one
     // passes. Cookie covers browser sessions (pyre-web → JWT handoff).
     // Bearer covers direct-client API access (Claude Code's MCP).
     // Gateway secret covers server-to-server proxy callers.
-    if (!apiAuthOk(req)) {
+    //
+    // `/api/dashboard/*` carries its own auth (token-hash bearer or
+    // `cortex_dash_sid` cookie) enforced by `requireDashboardAuth`, so
+    // it bypasses this gate. Without this skip a deployment with
+    // PRZM_CORTEX_API_AUTH_TOKEN set would block the dashboard's own
+    // login round-trip before the route ever ran.
+    if (!pathname.startsWith("/api/dashboard/") && !apiAuthOk(req)) {
       logger.warn("api.auth_rejected", {
         path: pathname,
         ip: req.socket.remoteAddress ?? "unknown",
@@ -278,6 +326,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
     routes(): ReadonlyArray<string> {
       return [
         "/health",
+        "GET /_dashboard/*",
         "/api/layout",
         "/api/widgets",
         ...widgets.map((w) => `/api/widgets/${w.name}`),
@@ -320,6 +369,31 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "GET /api/auth/github/status",
         "POST /api/auth/github/start",
         "POST /api/auth/github/complete",
+        "POST /api/dashboard/auth/login",
+        "POST /api/dashboard/auth/logout",
+        "GET /api/dashboard/auth/whoami",
+        "GET /api/dashboard/workspaces",
+        "POST /api/dashboard/workspaces/switch",
+        "POST /api/dashboard/workspaces/create",
+        "GET /api/dashboard/identity",
+        "POST /api/dashboard/identity/self",
+        "POST /api/dashboard/identity/job-profile",
+        "GET /api/dashboard/wizard/list",
+        "GET /api/dashboard/wizard/spec/:moduleKind/:moduleId",
+        "POST /api/dashboard/wizard/run",
+        "GET /api/dashboard/adapters",
+        "GET /api/dashboard/adapters/:id",
+        "POST /api/dashboard/adapters/:id/pause",
+        "POST /api/dashboard/adapters/:id/resume",
+        "POST /api/dashboard/adapters/:id/trigger-fetch",
+        "DELETE /api/dashboard/adapters/:id",
+        "GET /api/dashboard/logs",
+        "GET /api/dashboard/jobs",
+        "GET /api/dashboard/jobs/:jobId",
+        "GET /api/dashboard/stats",
+        "POST /api/dashboard/ingest/url",
+        "POST /api/dashboard/ingest/file",
+        "POST /api/dashboard/ingest/content",
       ];
     },
   };

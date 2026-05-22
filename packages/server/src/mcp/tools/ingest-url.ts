@@ -114,7 +114,10 @@ export const ingestUrl: McpTool<typeof inputSchema, Output> = {
 
   async handler(input, ctx) {
     if (input.async) {
-      const job = jobs.create({ kind: "ingest_url" });
+      const job = jobs.create({
+        kind: "ingest_url",
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
+      });
       // enqueue() respects the process-wide concurrency cap so two
       // parallel crawls don't OOM the box.
       jobs.enqueue(job.id, () => runIngestUrl(input, ctx));
