@@ -835,6 +835,9 @@ importers:
       '@onenomad/przm-cortex-pipeline-code':
         specifier: workspace:*
         version: link:../pipeline-code
+      '@onenomad/przm-cortex-pipeline-code-dossier':
+        specifier: workspace:*
+        version: link:../pipeline-code-dossier
       '@onenomad/przm-cortex-pipeline-conversation':
         specifier: workspace:*
         version: link:../pipeline-conversation

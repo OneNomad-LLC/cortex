@@ -54,6 +54,7 @@
     "@onenomad/przm-cortex-llm-core": "workspace:*",
     "@onenomad/przm-cortex-memory-pgvector": "workspace:*",
     "@onenomad/przm-cortex-pipeline-code": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-code-dossier": "workspace:*",
     "@onenomad/przm-cortex-pipeline-conversation": "workspace:*",
     "@onenomad/przm-cortex-pipeline-core": "workspace:*",
     "@onenomad/przm-cortex-pipeline-doc": "workspace:*",
