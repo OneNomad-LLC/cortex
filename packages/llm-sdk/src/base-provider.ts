@@ -1,12 +1,12 @@
 import type { z } from "zod";
-import type { HealthStatus } from "@onenomad/cortex-core";
+import type { HealthStatus } from "@onenomad/przm-cortex-core";
 import type {
   EmbedRequest,
   EmbedResponse,
   LLMProvider,
   LLMRequest,
   LLMResponse,
-} from "@onenomad/cortex-llm-core";
+} from "@onenomad/przm-cortex-llm-core";
 
 /**
  * Abstract base for all providers. Concrete providers implement `complete()`

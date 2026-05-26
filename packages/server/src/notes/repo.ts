@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { parseFrontmatter as parseLooseFrontmatter } from "@onenomad/cortex-adapter-obsidian";
+import { parseFrontmatter as parseLooseFrontmatter } from "@onenomad/przm-cortex-adapter-obsidian";
 import {
   parseNote,
   serializeNote,

@@ -1,5 +1,5 @@
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
-import type { Logger } from "@onenomad/cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 
 /**
  * LLM-driven extraction of structured items from a chunk of text. Runs

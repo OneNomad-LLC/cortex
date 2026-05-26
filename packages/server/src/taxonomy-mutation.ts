@@ -2,12 +2,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   jobProfileFileSchema,
+  normalizeAlias,
   peopleFileSchema,
   projectsFileSchema,
   type JobProfile,
   type Person,
   type Project,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { ensureLocalCopy } from "./cli/config-mutation.js";
 
@@ -177,6 +178,81 @@ export async function upsertProject(
     }
     await writeProjects(paths, projects);
     return { project: merged, created: idx < 0 };
+  });
+}
+
+export interface AddProjectResult {
+  project: Project;
+  /** false when an existing project matched the slug or an alias —
+   *  nothing was written in that case. */
+  created: boolean;
+  /** Which supplied value collided with an existing project. Only set
+   *  when created=false. */
+  matchedOn?: { kind: "slug" | "alias"; value: string };
+}
+
+/**
+ * Create a project, deduping on slug AND aliases. Unlike upsertProject
+ * (which patches an existing slug), this is strictly non-destructive:
+ * if the slug or any supplied alias already resolves to a project — in
+ * either direction (new slug == an existing alias, or a new alias ==
+ * an existing slug) — the existing project is returned untouched with
+ * `created: false`. The match check and the append share the same
+ * per-workspace lock, so two concurrent add_project calls can't both
+ * create the same slug.
+ *
+ * Matching mirrors the taxonomy reader's index (slug map + alias map
+ * keyed by `normalizeAlias`) so "already maps to a project" means
+ * exactly what `findProject()` would resolve at ingest time.
+ */
+export async function addProjectDeduped(
+  paths: TaxonomyPaths,
+  input: {
+    slug: string;
+    name?: string;
+    description?: string;
+    aliases?: string[];
+    active?: boolean;
+    people?: string[];
+  },
+): Promise<AddProjectResult> {
+  return runLocked(paths.repoRoot, async () => {
+    const projects = await readProjects(paths);
+
+    const bySlug = new Map<string, Project>();
+    const byAlias = new Map<string, Project>();
+    for (const p of projects) {
+      bySlug.set(p.slug, p);
+      byAlias.set(normalizeAlias(p.name), p);
+      for (const a of p.aliases) byAlias.set(normalizeAlias(a), p);
+    }
+    const resolve = (value: string): Project | undefined =>
+      bySlug.get(value) ?? byAlias.get(normalizeAlias(value));
+
+    const candidates: Array<{ kind: "slug" | "alias"; value: string }> = [
+      { kind: "slug", value: input.slug },
+      ...(input.aliases ?? []).map((value) => ({
+        kind: "alias" as const,
+        value,
+      })),
+    ];
+    for (const candidate of candidates) {
+      const hit = resolve(candidate.value);
+      if (hit) return { project: hit, created: false, matchedOn: candidate };
+    }
+
+    const project: Project = {
+      slug: input.slug,
+      name: input.name ?? input.slug,
+      description: input.description ?? "",
+      active: input.active ?? true,
+      aliases: input.aliases ?? [],
+      people: input.people ?? [],
+      sources: {},
+    };
+    projects.push(project);
+    await writeProjects(paths, projects);
+    return { project, created: true };
   });
 }
 

@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-adapter-slack",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-adapter-slack",
+  "version": "0.6.0",
   "description": "Slack channels + threads source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-adapter-sdk": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-adapter-sdk": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

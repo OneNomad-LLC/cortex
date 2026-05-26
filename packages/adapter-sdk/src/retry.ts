@@ -8,7 +8,7 @@ export interface RetryOptions {
 }
 
 /**
- * Exponential-backoff retry for adapter API calls. Mirrors `@onenomad/cortex-llm-sdk`'s
+ * Exponential-backoff retry for adapter API calls. Mirrors `@onenomad/przm-cortex-llm-sdk`'s
  * helper but without the LLM-specific error kinds.
  *
  * TODO: add jitter, respect Retry-After headers where surfaced in errors.

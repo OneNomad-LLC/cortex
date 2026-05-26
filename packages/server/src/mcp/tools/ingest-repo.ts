@@ -1,11 +1,22 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { readdir, stat, readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import {
+  codeDossierPipeline,
+  computeInputsSha,
+  type CodeDossierInput,
+} from "@onenomad/przm-cortex-pipeline-code-dossier";
+import {
+  memoryMetadataSchema,
+  type MemoryMetadata,
+} from "@onenomad/przm-cortex-core";
+import { buildPipelineContext } from "../../sync.js";
 import { ingestContent } from "./ingest-content.js";
 import { jobs } from "../jobs.js";
-import type { McpTool } from "../tool.js";
+import type { McpTool, ToolContext } from "../tool.js";
 
 const inputSchema = z.object({
   /**
@@ -60,6 +71,40 @@ const inputSchema = z.object({
    * (node_modules, .git, dist, build, .next, .turbo, target, etc.) apply.
    */
   ignoreDirs: z.array(z.string()).optional(),
+  /**
+   * Ingest mode. Picks which pipeline(s) the repo is fed through:
+   *
+   *   - 'dossier' (default): the new 3-pass code-dossier pipeline
+   *     (structural → synthesis → brief). Produces a small set of
+   *     high-signal memories that describe the repo (brief, decisions,
+   *     references). Matches the user intent "ingest this repo should
+   *     give me knowledge ABOUT the code, not the entire codebase".
+   *
+   *   - 'full': legacy per-file walk. Every readable source file
+   *     becomes one or more chunks in engram. High-volume, low-signal —
+   *     useful when you actually want byte-level grep across the repo.
+   *
+   *   - 'both': dossier first (so high-signal memories are queryable
+   *     fast), then full (bulk index in the background). Source_id
+   *     prefixes differ so the two memory sets don't collide.
+   *
+   * Default flipped to 'dossier' in 0.6 — the "knowledge ABOUT" intent
+   * is the right default for "I just connected a repo, what is it?"
+   * The dashboard's mode toggle (Slice D) makes 'full' / 'both' a
+   * one-click override.
+   */
+  mode: z.enum(["dossier", "full", "both"]).default("dossier"),
+  /**
+   * SHA-gated re-derivation. When true (default) and mode includes
+   * 'dossier', the handler computes a SHA over the dossier inputs
+   * (file tree + project + tags + sourceUrl) and skips the run when
+   * the prior dossier's stored SHA matches. Set false to force a
+   * re-run — useful when the pipeline itself was updated and you
+   * want fresh memories even though the inputs didn't change.
+   *
+   * Has no effect on mode='full' (no SHA gate for the bulk index).
+   */
+  skipIfUnchanged: z.boolean().default(true),
 });
 
 interface FileResult {
@@ -70,18 +115,22 @@ interface FileResult {
 }
 
 interface Output {
+  /** Which mode the call ran. Echoed back so the renderer can pick its
+   *  card / progress style without re-reading the request. */
+  mode: "dossier" | "full" | "both";
   /** Resolved local path the walk ran against. For git-URL inputs this
    *  is the tmpdir clone destination (already cleaned up by the time
-   *  the result is returned). */
+   *  the result is returned). Empty when the SHA gate skipped the run. */
   resolvedPath: string;
   /** True when the input was detected as a git URL and shallow-cloned. */
   cloned: boolean;
   /** When cloned: the URL that was cloned. Useful for the renderer's
    *  "ingested github.com/foo/bar" display. */
   source?: string;
-  /** Number of source files that produced at least one chunk. */
+  /** Number of source files that produced at least one chunk. Populated
+   *  by the full-walk path only. */
   filesIngested: number;
-  /** Sum of chunks across every file. */
+  /** Sum of chunks across every file. Populated by the full-walk path. */
   chunksIngested: number;
   /** Files visited but skipped (oversize, unreadable, unsupported extension). */
   filesSkipped: number;
@@ -93,6 +142,25 @@ interface Output {
   errors: Array<{ source_id: string; error: string }>;
   /** True when the walk stopped because maxFiles was hit. */
   truncated: boolean;
+  /**
+   * Memory counts by category. `brief` / `decisions` / `references` are
+   * populated by the dossier path; `chunks` by the full path. mode='both'
+   * fills all four when the SHA gate didn't fire.
+   */
+  memories: {
+    brief?: number;
+    decisions?: number;
+    references?: number;
+    chunks?: number;
+  };
+  /** Set when the SHA gate matched and the dossier run was skipped.
+   *  mode='full' never sets this. */
+  skipped?: boolean;
+  /** Why the run was skipped — present only when `skipped` is true. */
+  skipReason?: string;
+  /** Job id that produced the prior dossier — surfaced on a SHA hit
+   *  so callers can fetch the prior result without searching. */
+  priorJobId?: string;
 }
 
 /**
@@ -240,17 +308,31 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
   inputSchema,
 
   async handler(input, ctx) {
+    // Job kind reflects the chosen mode so the dashboard's Jobs view
+    // can distinguish "ingested the dossier" from "indexed every file"
+    // at a glance. Slice D's mode badge keys off this.
+    const jobKind =
+      input.mode === "dossier"
+        ? "ingest-repo-dossier"
+        : input.mode === "both"
+          ? "ingest-repo-both"
+          : "ingest-repo-full";
+
     // Async opt-in: register a job, kick off the work in the background,
     // return the jobId immediately. The caller polls kb_job_status for
     // the eventual result. Synchronous behavior preserved when async=false
-    // (default) so existing callers see no change.
+    // so existing callers see no change.
     if (input.async) {
-      const job = jobs.create({ kind: "ingest_repo" });
+      const job = jobs.create({
+        kind: jobKind,
+        ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
+      });
       // enqueue() respects the process-wide concurrency cap so two
       // parallel ingests don't OOM the box. Jobs over the cap sit at
       // status='queued' until a slot opens.
-      jobs.enqueue(job.id, () => runIngestRepo(input, ctx));
+      jobs.enqueue(job.id, () => runIngestRepo(input, ctx, job.id));
       return {
+        mode: input.mode,
         // Match the synchronous Output shape's required fields with
         // safe placeholders. Renderers that already handle the sync
         // shape can ignore unknown jobId/queued; renderers that opt
@@ -265,22 +347,33 @@ export const ingestRepo: McpTool<typeof inputSchema, Output> = {
         files: [],
         errors: [],
         truncated: false,
+        memories: {},
         // Signal fields the renderer keys off when async=true.
         jobId: job.id,
         queued: true,
       } as Output & { jobId: string; queued: boolean };
     }
-    return runIngestRepo(input, ctx);
+    return runIngestRepo(input, ctx, null);
   },
 };
 
 /**
  * Synchronous ingest_repo body, extracted so the async opt-in can run
- * the same code path without duplicating logic.
+ * the same code path without duplicating logic. The mode parameter
+ * picks the pipeline(s): dossier (high-signal memories), full (per-file
+ * walk), or both. The dossier path runs first when mode='both' so its
+ * memories are queryable before the slower full index finishes.
+ *
+ * `jobId` is non-null when called from the async job runner — the
+ * runners use it for progress reporting (`jobs.progress(jobId, ...)`)
+ * and stamp it on dossier brief memories so a SHA hit can return
+ * `priorJobId`. null on sync calls — progress reporting is a no-op
+ * via `reportProgress`, which checks for null.
  */
 async function runIngestRepo(
   input: z.infer<typeof inputSchema>,
-  ctx: Parameters<typeof ingestContent.handler>[1],
+  ctx: ToolContext,
+  jobId: string | null,
 ): Promise<Output> {
   let cloned = false;
   let cloneTmpDir: string | null = null;
@@ -308,12 +401,74 @@ async function runIngestRepo(
   }
 
   try {
-    return await walkAndIngest({
+    const baseArgs = {
       ...input,
       resolvedPath: walkRoot,
       cloned,
       ...(cloneSource ? { source: cloneSource } : {}),
-    }, ctx);
+    };
+
+    if (input.mode === "dossier") {
+      return await runDossier(baseArgs, ctx, jobId);
+    }
+    if (input.mode === "full") {
+      return await walkAndIngest(baseArgs, ctx, jobId);
+    }
+    // mode === "both": dossier first (high-signal), then full.
+    // Errors in the dossier portion don't block the full portion —
+    // the chunks index is still useful even if the brief failed.
+    reportProgress(jobId, { phase: "dossier", message: "running dossier pipeline" });
+    let dossierOut: Output;
+    try {
+      dossierOut = await runDossier(baseArgs, ctx, jobId);
+    } catch (err) {
+      ctx.logger.warn("ingest_repo.both.dossier_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      dossierOut = {
+        mode: "both",
+        resolvedPath: walkRoot,
+        cloned,
+        ...(cloneSource ? { source: cloneSource } : {}),
+        filesIngested: 0,
+        chunksIngested: 0,
+        filesSkipped: 0,
+        filesByType: {},
+        totalBytes: 0,
+        files: [],
+        errors: [
+          {
+            source_id: walkRoot,
+            error: `dossier failed: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        truncated: false,
+        memories: { brief: 0, decisions: 0, references: 0 },
+      };
+    }
+    reportProgress(jobId, { phase: "full", message: "running full per-file walk" });
+    const fullOut = await walkAndIngest(baseArgs, ctx, jobId);
+
+    // Merge: dossier produced memories.brief/decisions/references;
+    // full produced everything else. Errors concatenated (cap at 50).
+    return {
+      mode: "both",
+      resolvedPath: walkRoot,
+      cloned,
+      ...(cloneSource ? { source: cloneSource } : {}),
+      filesIngested: fullOut.filesIngested,
+      chunksIngested: fullOut.chunksIngested,
+      filesSkipped: fullOut.filesSkipped,
+      filesByType: fullOut.filesByType,
+      totalBytes: fullOut.totalBytes,
+      files: fullOut.files,
+      errors: [...dossierOut.errors, ...fullOut.errors].slice(0, 50),
+      truncated: fullOut.truncated,
+      memories: {
+        ...dossierOut.memories,
+        chunks: fullOut.memories.chunks ?? fullOut.chunksIngested,
+      },
+    };
   } finally {
     if (cloneTmpDir) {
       try { await rm(cloneTmpDir, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
@@ -321,9 +476,23 @@ async function runIngestRepo(
   }
 }
 
+/**
+ * Bridge to the JobRegistry's progress reporter. No-ops when jobId is
+ * null (synchronous mode) so the dossier path can call it
+ * unconditionally without branching on async at every phase boundary.
+ */
+function reportProgress(
+  jobId: string | null,
+  patch: Record<string, unknown>,
+): void {
+  if (jobId === null) return;
+  jobs.progress(jobId, patch);
+}
+
 async function walkAndIngest(
   args: z.infer<typeof inputSchema> & { resolvedPath: string; cloned: boolean; source?: string },
-  ctx: Parameters<typeof ingestContent.handler>[1],
+  ctx: ToolContext,
+  jobId: string | null,
 ): Promise<Output> {
   const input = args;
   {
@@ -457,9 +626,18 @@ async function walkAndIngest(
         }
       }
       if (truncated) break;
+      // Mid-walk progress: how many files we've visited so far. The
+      // dashboard's Jobs view renders this as a "X / Y" counter when
+      // present.
+      reportProgress(jobId, {
+        phase: "full",
+        doneUnits: visited,
+        message: `walked ${visited} files`,
+      });
     }
 
     return {
+      mode: args.mode === "both" ? "both" : "full",
       resolvedPath: args.resolvedPath,
       cloned: args.cloned,
       ...(args.source ? { source: args.source } : {}),
@@ -471,6 +649,245 @@ async function walkAndIngest(
       files,
       errors,
       truncated,
+      memories: { chunks: chunksIngested },
     };
+  }
+}
+
+/**
+ * Dossier-mode runner. SHA-gates the run against any prior dossier
+ * brief for the same source_id prefix, invokes the code-dossier
+ * pipeline when needed, and persists the returned memories via
+ * engram. Memory categorization (brief / decisions / references) is
+ * read off the pipeline's `metadata.type` field — Slice A's
+ * pipeline emits one brief, N decisions, M references.
+ *
+ * `args.resolvedPath` is the absolute local directory (already
+ * cloned if the input was a git URL). The pipeline takes over from
+ * there — Slice B doesn't peek inside the tree.
+ */
+async function runDossier(
+  args: z.infer<typeof inputSchema> & { resolvedPath: string; cloned: boolean; source?: string },
+  ctx: ToolContext,
+  jobId: string | null,
+): Promise<Output> {
+  // Validate the resolved path before invoking the pipeline — Slice A's
+  // run() may not surface a missing-directory error cleanly, and we
+  // want the failure to land in the same place as the full-walk's
+  // existing precondition check.
+  const rootInfo = await stat(args.resolvedPath).catch(() => null);
+  if (!rootInfo || !rootInfo.isDirectory()) {
+    throw new Error(`ingest_repo: ${args.resolvedPath} is not a directory`);
+  }
+
+  // Build the dossier pipeline input. `sourceIdPrefix` is what
+  // dedupes a re-run against a prior dossier of the same repo:
+  //   - git URL: the clone URL itself (so re-cloning from the same
+  //     URL hits the dedupe key)
+  //   - local path: `repo:<absolutePath>` (the absolute path is
+  //     stable as long as the repo lives in the same place)
+  const sourceIdPrefix = args.source ?? `repo:${args.resolvedPath}`;
+  const dossierInput: CodeDossierInput = {
+    repoPath: args.resolvedPath,
+    sourceIdPrefix,
+    project: args.project,
+    tags: args.tags,
+    ...(args.source ? { sourceUrl: args.source } : {}),
+  };
+
+  reportProgress(jobId, { phase: "structural", message: "computing inputs SHA" });
+  const sha = await computeInputsSha(dossierInput);
+
+  // SHA gate. Search for a prior brief with the same sourceIdPrefix +
+  // sha tag combination. A hit means the dossier inputs haven't
+  // changed since the last run — skip unless the caller forced a
+  // re-derivation via skipIfUnchanged=false.
+  if (args.skipIfUnchanged) {
+    const prior = await findPriorDossierBrief(ctx, sourceIdPrefix);
+    if (prior && prior.sha === sha) {
+      ctx.logger.info("ingest_repo.dossier.sha_gate.skipped", {
+        sourceIdPrefix,
+        sha,
+        ...(prior.jobId ? { priorJobId: prior.jobId } : {}),
+      });
+      reportProgress(jobId, {
+        phase: "skipped",
+        message: "inputs unchanged since prior dossier",
+      });
+      return {
+        mode: "dossier",
+        resolvedPath: args.resolvedPath,
+        cloned: args.cloned,
+        ...(args.source ? { source: args.source } : {}),
+        filesIngested: 0,
+        chunksIngested: 0,
+        filesSkipped: 0,
+        filesByType: {},
+        totalBytes: 0,
+        files: [],
+        errors: [],
+        truncated: false,
+        memories: { brief: 0, decisions: 0, references: 0 },
+        skipped: true,
+        skipReason: "unchanged",
+        ...(prior.jobId ? { priorJobId: prior.jobId } : {}),
+      };
+    }
+  }
+
+  // No SHA match (or skipIfUnchanged=false) — run the pipeline.
+  reportProgress(jobId, { phase: "synthesis", message: "running dossier pipeline" });
+  const traceId = ctx.traceId ?? randomUUID();
+  const pipelineCtx = buildPipelineContext({
+    logger: ctx.logger.child({ tool: "ingest_repo", traceId, mode: "dossier" }),
+    traceId,
+    signal: new AbortController().signal,
+    ...(ctx.llmRouter ? { llmRouter: ctx.llmRouter } : {}),
+  });
+
+  const memories = await codeDossierPipeline.run(dossierInput, pipelineCtx);
+
+  reportProgress(jobId, { phase: "brief", message: "persisting dossier memories" });
+
+  // Categorize, stamp the SHA + jobId on the brief, persist. Errors
+  // surface per-memory so a single bad write doesn't drop the batch.
+  let briefCount = 0;
+  let decisionCount = 0;
+  let referenceCount = 0;
+  const errors: Array<{ source_id: string; error: string }> = [];
+
+  for (const mem of memories) {
+    const type = typeof mem.metadata.type === "string" ? mem.metadata.type : "note";
+    const existingTags = Array.isArray(mem.metadata.tags) ? mem.metadata.tags : [];
+
+    // Brief memories get the SHA + jobId stamped so a future SHA
+    // gate check can match against this run. Other memory types
+    // pass through unmodified.
+    const extraTags: string[] = [];
+    if (type === "brief") {
+      extraTags.push(
+        `dossier_brief:1`,
+        `dossier_source:${sourceIdPrefix}`,
+        `inputs_sha:${sha}`,
+      );
+      if (jobId) extraTags.push(`job_id:${jobId}`);
+    }
+
+    const metadata: MemoryMetadata = {
+      ...mem.metadata,
+      tags: [...existingTags, ...extraTags],
+      ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
+    };
+
+    const memSourceId =
+      typeof metadata.source_id === "string" ? metadata.source_id : sourceIdPrefix;
+
+    const parsed = memoryMetadataSchema.safeParse(metadata);
+    if (!parsed.success) {
+      ctx.logger.warn("ingest_repo.dossier.metadata_invalid", {
+        sourceId: memSourceId,
+        traceId,
+        issues: parsed.error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
+      if (errors.length < 50) {
+        errors.push({
+          source_id: memSourceId,
+          error: `metadata contract violation: ${parsed.error.issues
+            .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+            .join("; ")}`,
+        });
+      }
+      continue;
+    }
+
+    try {
+      await ctx.engram.ingest({ content: mem.content, metadata: parsed.data });
+      if (type === "brief") briefCount += 1;
+      else if (type === "decision") decisionCount += 1;
+      else if (type === "reference") referenceCount += 1;
+      // Other types (e.g. note pass-through) still get persisted but
+      // don't count toward the named buckets.
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (errors.length < 50) errors.push({ source_id: memSourceId, error: msg });
+    }
+  }
+
+  ctx.logger.info("ingest_repo.dossier.done", {
+    sourceIdPrefix,
+    sha,
+    brief: briefCount,
+    decisions: decisionCount,
+    references: referenceCount,
+    failed: errors.length,
+    traceId,
+  });
+
+  return {
+    mode: "dossier",
+    resolvedPath: args.resolvedPath,
+    cloned: args.cloned,
+    ...(args.source ? { source: args.source } : {}),
+    filesIngested: 0,
+    chunksIngested: 0,
+    filesSkipped: 0,
+    filesByType: {},
+    totalBytes: 0,
+    files: [],
+    errors,
+    truncated: false,
+    memories: {
+      brief: briefCount,
+      decisions: decisionCount,
+      references: referenceCount,
+    },
+  };
+}
+
+/**
+ * Look up a prior dossier brief for `sourceIdPrefix` in engram. Reads
+ * the recorded `inputs_sha:<sha>` and `job_id:<id>` tags off the
+ * brief so the SHA gate can decide whether to re-run and so the
+ * skipped response can echo `priorJobId`.
+ *
+ * Returns null when no prior brief exists. Soft-fails (returns null)
+ * on search errors so a broken engram search doesn't block the
+ * pipeline — better to spend a few LLM dollars than to silently
+ * never re-run because the lookup is wedged.
+ */
+async function findPriorDossierBrief(
+  ctx: ToolContext,
+  sourceIdPrefix: string,
+): Promise<{ sha: string; jobId?: string } | null> {
+  try {
+    const candidates = await ctx.engram.search({
+      // engram's text search hits content + tags; the source-id
+      // prefix is the tightest pre-filter we have.
+      query: sourceIdPrefix,
+      type: "brief",
+      limit: 20,
+      ...(ctx.sessionWorkspace ? { workspace: ctx.sessionWorkspace } : {}),
+    });
+    for (const m of candidates) {
+      const tags = (m.tags ?? []) as string[];
+      if (!tags.includes(`dossier_source:${sourceIdPrefix}`)) continue;
+      if (!tags.includes("dossier_brief:1")) continue;
+      const shaTag = tags.find((t) => t.startsWith("inputs_sha:"));
+      if (!shaTag) continue;
+      const sha = shaTag.slice("inputs_sha:".length);
+      const jobTag = tags.find((t) => t.startsWith("job_id:"));
+      const jobId = jobTag ? jobTag.slice("job_id:".length) : undefined;
+      return { sha, ...(jobId ? { jobId } : {}) };
+    }
+    return null;
+  } catch (err) {
+    ctx.logger.warn("ingest_repo.dossier.sha_gate.search_failed", {
+      sourceIdPrefix,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
   }
 }

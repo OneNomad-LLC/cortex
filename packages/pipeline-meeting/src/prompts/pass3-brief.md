@@ -1,4 +1,4 @@
-Write a meeting brief in markdown optimized for a reader with ADHD:
+Write a meeting brief in markdown optimized for a busy reader scanning quickly:
 front-load what matters, use headings, keep sentences short.
 
 Structure:

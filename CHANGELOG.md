@@ -2,10 +2,125 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.6.0 — 2026-05-22
+
+**Behavior change**: `ingest_repo` now defaults to `mode: 'dossier'` — produces a small set of high-signal memories describing the repo (architectural brief, ADR decisions, public API references) instead of dumping every source file as chunks. The legacy per-file walk is still available via `mode: 'full'`, and `mode: 'both'` runs both pipelines. Existing scheduled GitHub syncs flip to dossier mode unless `mode: 'full'` or per-repo `repoModes` override is set in `cortex.yaml`.
+
+- feat(pipeline-code-dossier): new package — 3-pass LLM extraction (structural → synthesis → brief) over README / ARCHITECTURE.md / CLAUDE.md / AGENTS.md / docs/DECISIONS.md / docs/ADR-*.md / CHANGELOG.md / package manifests / entry points. Emits 1 `brief` + N `decision` (per ADR) + N `reference` (per API surface) memories. Graceful degradation when no LLM provider is configured (structural-only brief).
+- feat(ingest_repo): `mode: 'dossier' | 'full' | 'both'` parameter (default `dossier`) + `skipIfUnchanged: boolean` (default `true`) for SHA-gated re-derivation over dossier-input files. Skipped runs return `{ skipped: true, skipReason: 'unchanged', priorJobId }`.
+- feat(adapter-github): `mode` config field (default `dossier`) + per-repo `repoModes` overrides. Wizard step + per-repo override step. `fetch()` delegates to `ingest_repo` via injected `setRepoIngester` seam (avoids circular dep). SETUP.md rewritten to lead with dossier semantics.
+- feat(dashboard): `/_dashboard/memories` browser — paginated list with type / source / project / since / query filters, dossier badge on `type:brief` + `tag:dossier`, detail modal with markdown rendering.
+- feat(dashboard): GitHub Repos page — per-row "Knowledge mode" dropdown (Dossier / Full / Both / Adapter default), persists to `cortex.yaml` `repoModes`. Bulk-sync threads per-row mode overrides.
+- feat(dashboard): Connectors GitHub card surfaces current adapter-level mode as subtitle.
+- feat(server): `wireGithubRepoIngester` at boot binds adapter ingester to `ingest_repo.handler` with `toolContext` — scheduled syncs now route through the mode-aware pipeline.
+- feat(server): `GET/POST /api/dashboard/memories` admin-gated routes; `POST /api/dashboard/github/repos/:owner/:name/mode` for per-repo mode persistence; `GET /api/dashboard/github/repos` rows extended with `mode` / `adapterMode` / `modeOverride`.
+
+
+## v0.5.1 — 2026-05-22
+
+- feat(auth): bridge GitHub OAuth token → adapter config on sign-in
+
+
+## v0.5.0 — 2026-05-22
+
+- feat(dashboard): Access settings page + cortex-init allowlist prompt
+- feat: integrate v0.5.0 slices + must-fixes + cheap wins
+- feat(dashboard): GitHub UI slice — login flow, repos table, connectors directory
+- feat(server): github repos dashboard API + cortex_github_ingest_repo MCP tool
+- feat(server): add GitHub Device Flow OAuth dashboard sign-in + persistent sessions (Slice A)
+
+
+## v0.4.6 — 2026-05-21
+
+- fix(dashboard): drop /_dashboard prefix from in-app navigation hrefs
+
+
+## v0.4.5 — 2026-05-21
+
+- fix(server): depend on @onenomad/przm-cortex-dashboard so npm install pulls in the SPA
+
+
+## v0.4.4 — 2026-05-21
+
+- feat(dashboard): make package publishable + npm-aware dist resolution
+
+
+## v0.4.3 — 2026-05-21
+
+- fix(release): always pnpm -r build before publish
+
+
+## v0.4.2 — 2026-05-21
+
+- fix(release): drop SIGPIPE-prone 'git log | head -1' in CHANGELOG window
+- chore(release): add scripts/release.sh + pnpm release shortcuts
+- feat(deploy): cortex update CLI + GHCR image publishing
+- fix(dashboard): reconcile shell+wizard+ops integration
+- feat(dashboard): Ops slice — jobs persistence + logs/jobs/stats/ingest routes + SPA pages
+- feat(dashboard): wizard renderer + adapter management (Phase 2)
+- feat(dashboard): shell — router, auth helpers, workspaces, identity (Phase 2)
+- feat(dashboard): token-based auth — CLI + middleware + login/logout/whoami
+- feat(dashboard): scaffold @onenomad/przm-cortex-dashboard SPA + /_dashboard route
+- release: 0.4.1 — ship wizard fixes
+- chore(wizard): bring init wizard up to date for przm-cortex 0.4
+- release: 0.4.0 — przm-cortex publish-ready
+- chore: regenerate pnpm lockfile after package renames
+- docs: fix stale Engram/Persona dependency claims + rename identifiers
+- rename(deploy): cortex-base/workers → przm-cortex-base/workers, CORTEX_* → PRZM_CORTEX_*
+- rename(source): CORTEX_* env vars → PRZM_CORTEX_* + update package imports
+- rename(packages): @onenomad/cortex-* → @onenomad/przm-cortex-*
+- Merge pull request #65 from OneNomad-LLC/development
+- fix(boot): reload cortex config after seed_llm_provider mutates disk (#64)
+- Merge pull request #63 from OneNomad-LLC/development
+- feat(enrichment): auto-extract action items + decisions on ingest (#62)
+- Merge pull request #61 from OneNomad-LLC/development
+- fix(memory): useLocalEmbedder flag — pin embeddings to Xenova when LLM provider can't embed (#60)
+- Merge pull request #59 from OneNomad-LLC/development
+- feat(bootstrap): seedLlmProviderFromEnv — auto-wire openrouter on first boot (#58)
+- Merge pull request #57 from OneNomad-LLC/development
+- docs: AGENTS.md — drop-in instructions for AI agents using the OneNomad trio (#56)
+- Merge pull request #55 from OneNomad-LLC/development
+- feat(worker): execute claimed jobs by calling tenant invoke endpoint (P2.3) (#54)
+- Merge pull request #53 from OneNomad-LLC/development
+- feat(cli): cortex worker entrypoint + cortex-workers Fly config (P2.1) (#52)
+- Merge pull request #51 from OneNomad-LLC/development
+- feat(jobs): per-process concurrency cap on background ingest runner (#50)
+- feat(ingest): default async=true on ingest_repo and ingest_url (#49)
+- Merge pull request #48 from OneNomad-LLC/development
+- fix(workspace): use workspace:* for internal cortex deps in server + memory-remote (#47)
+- Merge pull request #46 from OneNomad-LLC/development
+- fix(docker): install ca-certificates so git can clone over HTTPS (#45)
+- Merge pull request #44 from OneNomad-LLC/development
+- feat(onboarder): @onenomad/cortex-onboarder MCP package for friction-free Cortex login (#43)
+- chore: add TRADEMARK.md alongside Apache 2.0 LICENSE (#42)
+- Merge pull request #41 from OneNomad-LLC/development
+- feat: absorb cortex-kit packages back into cortex monorepo (#40)
+- chore: consume cortex-kit packages from npm (#39)
+
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.4.1] - 2026-05-21
+
+### Fixed
+- **`przm-cortex init` wizard** brought up to date for cortex 0.4: removed the vestigial "Engram and Persona" pre-flight step (cortex 0.3 dropped those companion-MCP dependencies per ADR-012 — `detectDeps()` already returned `[]`, but the wizard section header still ran and confused new users). Removed `ENGRAM_MCP_URL` / `PERSONA_MCP_URL` from the generated `.env`. Renamed `cortex <verb>` examples in user-facing messages to `przm-cortex <verb>` (the unscoped `cortex` bin still works as a backward-compat alias).
+- **Generated `cortex.yaml` default memory backend** changed from `engram` to `pgvector` with `useLocalEmbedder: true` (bundled Xenova/all-MiniLM-L6-v2). Fresh installs were writing a config that pointed at an MCP service the runtime no longer consumed.
+
+## [0.4.0] - 2026-05-21
+
+### Changed
+- **Brand rename: `cortex` → `przm-cortex`.** The npm package previously published (or scheduled to publish) as `@onenomad/cortex` is now `@onenomad/przm-cortex`. Every internal workspace package follows the same pattern: `@onenomad/cortex-*` → `@onenomad/przm-cortex-*`. The cortex CLI binary keeps the unscoped `cortex` alias for backward compatibility, with `przm-cortex` as the canonical name. Brings cortex into the przm-* family alongside `@onenomad/przm-memory` and `@onenomad/przm-voice`.
+- **Environment variable prefix: `CORTEX_*` → `PRZM_CORTEX_*`.** All runtime env vars (`CORTEX_HOME`, `CORTEX_MCP_TRANSPORT`, `CORTEX_MCP_PORT`, `CORTEX_MCP_AUTH_TOKEN`, etc.) renamed to `PRZM_CORTEX_*`. Self-host operators upgrading from 0.3.x: update systemd unit `Environment=` lines and any `.env` files.
+- **First public release of the workspace packages.** Every package previously at `0.1.0` (workspace-internal) is now `0.4.0` and published to npm under the Apache-2.0 license. The server (`@onenomad/przm-cortex`) ships with `publishConfig.access: public` so global install (`npm install -g @onenomad/przm-cortex`) works end-to-end.
+
+### Fixed
+- **Stale "built on top of Engram/Persona" claims** in `README.md`, `CLAUDE.md`, and `AGENTS.md` removed. As of ADR-012 (2026-04-22), cortex no longer consumes Engram (now `@onenomad/przm-memory`) at runtime — its memory layer is the bundled pgvector backend. Docs now reflect that.
+
+### Removed
+- `docs/handoffs/cortex-evaluation-2026-05-21.md` — internal work-in-progress note that shouldn't have shipped publicly.
 
 ### Added
 - **Auto-enrichment on `ingest_content`** — when the workspace has an LLM router wired and the content type is `doc` / `note` / `meeting` / `conversation`, every successful ingest now fires a one-shot extraction pass that pulls structured items out of the body and persists each as its own memory:
@@ -18,9 +133,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`memory.pgvector.useLocalEmbedder` config flag** — pin embeddings to the bundled Xenova model even when an LLM router is wired. Required when the configured provider is chat-only (Azure gpt-4o-mini, Anthropic). Set automatically by `seedLlmProviderFromEnv` since the openrouter-shim path is almost always pointed at a chat model.
 - **`seedLlmProviderFromEnv`** — env-driven LLM provider bootstrap so a fresh Cortex Cloud tenant comes up enrichment-capable without an SSH-and-patch step. Reads `OPENROUTER_API_KEY` + `CORTEX_LLM_BASE_URL` + `CORTEX_LLM_DEFAULT_MODEL`, applies the openrouter wizard, stamps the default LLM task, pins local embeddings.
 - **`setDefaultLlmTask` + `setUseLocalEmbedder` helpers** in `cli/config-mutation.ts` — programmatic config writes that other parts of the system (CLI, tests, future admin endpoints) can reuse.
-- **`cortex worker` subcommand** — long-running entrypoint for the cortex-workers Fly fleet. Polls pyre-web's `/api/cortex/jobs/claim` endpoint, executes claimed jobs by calling back to the tenant's MCP server's `/api/mcp/tools/{kind}/invoke` (gateway-secret-authed, runs inline), reports results via `/api/cortex/jobs/complete`. Idle-exits after `CORTEX_WORKER_IDLE_EXIT_MS` (default 60s) so Fly's `auto_stop_machines` can park the machine. See Pyre Business Plan doc 25.
+- **`cortex worker` subcommand** — long-running entrypoint for the przm-cortex-workers Fly fleet. Polls pyre-web's `/api/cortex/jobs/claim` endpoint, executes claimed jobs by calling back to the tenant's MCP server's `/api/mcp/tools/{kind}/invoke` (gateway-secret-authed, runs inline), reports results via `/api/cortex/jobs/complete`. Idle-exits after `PRZM_CORTEX_WORKER_IDLE_EXIT_MS` (default 60s) so Fly's `auto_stop_machines` can park the machine. See Pyre Business Plan doc 25.
 - `deploy/workers/fly.toml` — autoscale-to-zero Fly app config for the worker fleet (`min_machines_running=0`, `auto_start_machines=true`, `auto_stop_machines=stop`, `shared-cpu-2x@2GB`).
-- Required env on worker machines: `PYRE_WEB_URL`, `CORTEX_WORKER_SECRET`. Optional: `WORKER_ID`, `CORTEX_WORKER_POLL_MS`, `CORTEX_WORKER_IDLE_EXIT_MS`.
+- Required env on worker machines: `PYRE_WEB_URL`, `CORTEX_WORKER_SECRET`. Optional: `WORKER_ID`, `CORTEX_WORKER_POLL_MS`, `PRZM_CORTEX_WORKER_IDLE_EXIT_MS`.
 
 ### Changed
 - **`ingest_repo` and `ingest_url` MCP tools default to `async: true`.** The MCP HTTP transport drops connections when sync ingest exceeds its timeout; reproducible OOM-and-disconnect on a 1GB Fly box during a 1k-chunk ingest. Async returns `{ jobId, queued: true }` immediately; caller polls `kb_job_status({ jobId })`. Pass `async: false` explicitly when you know the work is small and want it inline.

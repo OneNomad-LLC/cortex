@@ -1,4 +1,4 @@
-import { LLMError } from "@onenomad/cortex-llm-core";
+import { LLMError } from "@onenomad/przm-cortex-llm-core";
 
 export interface RetryOptions {
   maxAttempts?: number;

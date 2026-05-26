@@ -11,7 +11,7 @@ import path from "node:path";
  * on Windows, where pnpm/npm bin dirs often aren't on the system
  * PATH). `require.resolve` uses Node's own module resolution, which
  * looks at node_modules upward from this file — always correct when
- * the package is a dep of @onenomad/cortex.
+ * the package is a dep of @onenomad/przm-cortex.
  */
 export interface ResolvedBin {
   /** Path to the node script that implements the bin. */

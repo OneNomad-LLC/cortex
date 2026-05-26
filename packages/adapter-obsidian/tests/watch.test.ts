@@ -2,7 +2,7 @@ import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StreamContext } from "@onenomad/cortex-core";
+import type { StreamContext } from "@onenomad/przm-cortex-core";
 import { watchVault } from "../src/watch.js";
 
 const tempRoots: string[] = [];

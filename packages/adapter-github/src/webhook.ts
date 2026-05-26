@@ -4,8 +4,8 @@ import type {
   VerifyResult,
   WebhookHandler,
   WebhookRequest,
-} from "@onenomad/cortex-core";
-import { matchesGlobs } from "@onenomad/cortex-adapter-sdk";
+} from "@onenomad/przm-cortex-core";
+import { matchesGlobs } from "@onenomad/przm-cortex-adapter-sdk";
 
 export interface GithubWebhookOptions {
   /**

@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { LoadedTaxonomy } from "../taxonomy.js";
-import type { Logger, MemoryTypeRegistry } from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
+import type { Logger, MemoryTypeRegistry } from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { EnrichmentQueue } from "../enrichment.js";
 

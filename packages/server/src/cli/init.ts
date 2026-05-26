@@ -12,9 +12,7 @@ import {
 import { openBrowser } from "./open-browser.js";
 import { findRepoRoot, loadDotEnv } from "./dotenv.js";
 import {
-  detectDeps,
   detectOllama,
-  installGlobally,
   installOllama,
   ollamaHasModel,
   ollamaPullModel,
@@ -22,7 +20,7 @@ import {
 } from "./detect.js";
 import { writeConfig, type ProviderChoice } from "./write-config.js";
 import { runSmoke } from "./smoke.js";
-import { applyWizardResult } from "./config-mutation.js";
+import { applyWizardResult, mergeEnv } from "./config-mutation.js";
 import { runWizard } from "./wizard-runner.js";
 import { listWizards, wizardsByCategory } from "./wizard-registry.js";
 import {
@@ -40,14 +38,14 @@ export interface InitArgs {
 export async function runInit(args: InitArgs): Promise<number> {
   if (!process.stdin.isTTY) {
     process.stderr.write(
-      "cortex init: interactive wizard requires a TTY. " +
+      "przm-cortex init: interactive wizard requires a TTY. " +
         "Run from a real terminal.\n",
     );
     return 2;
   }
 
   const repoRoot = findRepoRoot(process.cwd());
-  header("Cortex setup");
+  header("przm-cortex setup");
 
   // -1. Pick setup surface — terminal or browser. Users with a
   //     preference pass `--cli` / `--web` so they don't see the prompt.
@@ -62,8 +60,15 @@ export async function runInit(args: InitArgs): Promise<number> {
   //    context the user may want to manage later.
   const writeRoot = await stepWorkspace(repoRoot);
 
-  // 1. Engram + Persona
-  await stepDependencies();
+  // 0a. Dashboard sign-in setup — ask for the operator's GitHub
+  //     username so the OAuth allowlist is pre-populated. Skips the
+  //     manual `.env` edit step after first install. Silently no-ops
+  //     on no-tty (CI) or when the user declines.
+  await stepDashboardAllowlist(writeRoot);
+
+  // 1. (Removed) Engram + Persona pre-flight — cortex 0.3 dropped those
+  //    runtime dependencies (ADR-012). detectDeps() returns [] today;
+  //    if a future companion service is added, plug a check in here.
 
   // 2. Provider selection + config
   const providers = await stepProviders();
@@ -110,7 +115,7 @@ export async function runInit(args: InitArgs): Promise<number> {
 
   if (shouldSmoke) {
     section("Smoke test");
-    process.env.CORTEX_CONFIG_PATH = result.configPath;
+    process.env.PRZM_CORTEX_CONFIG_PATH = result.configPath;
     // Propagate the secrets we just collected directly into the current
     // process environment. loadDotEnv alone isn't enough — a parent shell
     // may already have these vars set to empty, which makes loadDotEnv skip
@@ -123,23 +128,23 @@ export async function runInit(args: InitArgs): Promise<number> {
     if (code !== 0) {
       warn(
         "Smoke test reported failures. Check the logs above; re-run " +
-          "`cortex smoke` after fixing config.",
+          "`przm-cortex smoke` after fixing config.",
       );
       return code;
     }
   }
 
   section("Next steps");
-  line("  - Add a data source adapter:  `cortex add notion`  (or github, slack, etc.)");
+  line("  - Add a data source adapter:  `przm-cortex add notion`  (or github, slack, etc.)");
   line(`  - Edit ${path.join(writeRoot, "config", "cortex.yaml")} for backend / provider tuning`);
   line("  - Ingest your first doc / URL / repo:");
-  line("      `cortex ingest file <path>`  /  `ingest url <url>`  /  `ingest repo <path>`");
+  line("      `przm-cortex ingest file <path>`  /  `ingest url <url>`  /  `ingest repo <path>`");
   line("  - Wire Cortex into your MCP client (Claude Code / Pyre / etc.):");
   line(
-    '      { "mcpServers": { "cortex": { "command": "cortex", "args": ["start"] } } }',
+    '      { "mcpServers": { "przm-cortex": { "command": "przm-cortex", "args": ["start"] } } }',
   );
-  line("  - Run `cortex start` directly for debugging");
-  line("  - Launch the dashboard with `cortex dashboard` (needs api.enabled: true)");
+  line("  - Run `przm-cortex start` directly for debugging");
+  line("  - Launch the dashboard with `przm-cortex dashboard` (needs api.enabled: true)");
   line("");
   return 0;
 }
@@ -165,7 +170,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   line(
     "  A workspace is an isolated bundle of config + .env + memory state.\n" +
       "  Create one per job, client, or personal context. Switch between\n" +
-      "  them any time with `cortex workspace switch <slug>`.",
+      "  them any time with `przm-cortex workspace switch <slug>`.",
   );
 
   const createOne = await confirm({
@@ -175,13 +180,13 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   if (!createOne) {
     warn(
       "Skipping — init will write to the repo's ./config and .env instead. " +
-        "You can migrate later with `cortex workspace add <slug> --from .`.",
+        "You can migrate later with `przm-cortex workspace add <slug> --from .`.",
     );
     return repoRoot;
   }
 
   const slug = await input({
-    message: "Workspace slug (kebab-case — e.g. elevate, one-nomad, personal)",
+    message: "Workspace slug (kebab-case — e.g. onenomad, acme, personal)",
     validate: (v) => {
       const trimmed = v.trim();
       if (!trimmed) return "required";
@@ -198,7 +203,7 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
       default: true,
     });
     if (!overwrite) {
-      warn("Skipped — pick a different slug and re-run `cortex init`.");
+      warn("Skipped — pick a different slug and re-run `przm-cortex init`.");
       return repoRoot;
     }
     await switchWorkspace(clean);
@@ -231,45 +236,73 @@ async function stepWorkspace(repoRoot: string): Promise<string> {
   return ws.path;
 }
 
-async function stepDependencies(): Promise<void> {
-  section("Engram and Persona");
-  const deps = await detectDeps();
+// stepDependencies removed in cortex 0.4. Pre-cortex-0.3 it probed for
+// Engram + Persona companion MCP binaries; ADR-012 made cortex
+// standalone. detectDeps() is preserved in cli/detect.ts as an
+// extension point for any future runtime companion.
 
-  for (const d of deps) {
-    if (d.installed) {
-      ok(`${d.bin} installed${d.version ? ` (${d.version})` : ""}${d.path ? ` at ${d.path}` : ""}`);
-    } else {
-      miss(`${d.bin} not found on PATH`);
-    }
+/**
+ * Pre-populate the GitHub OAuth allowlist for the dashboard's "Sign
+ * in with GitHub" flow. The dashboard's `/_dashboard/login` page is
+ * fail-closed by default — empty allowlist → nobody signs in. Two
+ * scenarios we want to cover here:
+ *
+ *   1. Private-bound install (127.0.0.1 / Tailscale / RFC1918):
+ *      auto-claim-first-user already covers this at runtime, but it
+ *      requires the user to actually attempt sign-in once. Asking
+ *      them now is faster.
+ *   2. Public-bound install (0.0.0.0 behind a TLS proxy etc.):
+ *      auto-claim is disabled there — the OPERATOR has to pre-write
+ *      the allowlist or they're locked out. We MUST ask here.
+ *
+ * Either way, the prompt is "what's your github username?" — empty
+ * answer skips writing. We also accept `--no-github` / non-tty as a
+ * skip-no-prompt path so CI installs don't hang.
+ */
+async function stepDashboardAllowlist(writeRoot: string): Promise<void> {
+  section("Dashboard sign-in");
+  line(
+    "The browser dashboard signs in with GitHub OAuth. Add your GitHub",
+  );
+  line(
+    "username now so 'Continue with GitHub' works on first run — skip",
+  );
+  line(
+    "with empty input and you can edit the workspace .env later.",
+  );
+  let username: string;
+  try {
+    username = await input({
+      message: "GitHub username (leave blank to skip):",
+      default: "",
+      validate: (raw) => {
+        const v = raw.trim();
+        if (v.length === 0) return true; // skip-by-empty
+        // GitHub usernames are alphanumeric + hyphens, ≤39 chars,
+        // can't start/end with hyphen. Strict-ish to catch typos.
+        if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(v)) {
+          return "doesn't look like a github username (a-z, 0-9, hyphens; ≤39 chars)";
+        }
+        return true;
+      },
+    });
+  } catch {
+    // No TTY / inquirer can't prompt → skip silently.
+    return;
   }
-
-  const missing = deps.filter((d) => !d.installed);
-  if (missing.length === 0) return;
-
-  const doInstall = await confirm({
-    message: `Install ${missing.map((m) => m.pkg).join(" + ")} globally now?`,
-    default: true,
+  const clean = username.trim();
+  if (clean.length === 0) {
+    line("  Skipped. Add later with: PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST=<login>");
+    return;
+  }
+  // Write to the workspace's .env via the shared atomic-write helper.
+  // mergeEnv handles read-or-create and key-replacement-or-append.
+  const envPath = path.join(writeRoot, ".env");
+  await mergeEnv(envPath, {
+    PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST: clean,
   });
-
-  if (!doInstall) {
-    warn(
-      "Skipping install. You can install later with:\n" +
-        `      npm install -g ${missing.map((m) => m.pkg).join(" ")}`,
-    );
-    return;
-  }
-
-  const code = await installGlobally(missing.map((m) => m.pkg));
-  if (code !== 0) {
-    warn(`npm install exited with ${code}. Continuing — fix and retry later.`);
-    return;
-  }
-
-  const after = await detectDeps();
-  for (const d of after) {
-    if (d.installed) ok(`${d.bin} installed`);
-    else warn(`${d.bin} still not on PATH (shell restart may be required)`);
-  }
+  ok(`added '${clean}' to PRZM_CORTEX_DASHBOARD_GITHUB_ALLOWLIST`);
+  line(`  ${envPath}`);
 }
 
 async function stepProviders(): Promise<ProviderChoice[]> {
@@ -345,7 +378,7 @@ async function stepOllamaLocal(providers: ProviderChoice[]): Promise<void> {
       default: true,
     });
     if (!doInstall) {
-      warn("Skipped. Install manually from https://ollama.com/download then re-run `cortex init`.");
+      warn("Skipped. Install manually from https://ollama.com/download then re-run `przm-cortex init`.");
       return;
     }
     const code = await installOllama();
@@ -532,15 +565,15 @@ async function stepAdapters(repoRoot: string): Promise<void> {
     } catch (err) {
       warn(
         `${wizard.name} setup failed: ${err instanceof Error ? err.message : String(err)}. ` +
-          `You can re-run it later with \`cortex add ${moduleId}\`.`,
+          `You can re-run it later with \`przm-cortex add ${moduleId}\`.`,
       );
     }
   }
 
   if (selected.length === 0) {
     line(
-      "  Skipped. You can enable adapters later with `cortex add <module>` — " +
-        `list options via \`cortex modules\`.`,
+      "  Skipped. You can enable adapters later with `przm-cortex add <module>` — " +
+        `list options via \`przm-cortex modules\`.`,
     );
   }
 
@@ -582,7 +615,7 @@ async function pickSetupMode(args: readonly string[]): Promise<"cli" | "web"> {
 /**
  * The web setup path. Writes a minimal bootstrap workspace so the
  * dashboard has somewhere to land, then hands off to `docker compose
- * up` (or `cortex up`). The browser finishes setup in the dashboard's
+ * up` (or `przm-cortex up`). The browser finishes setup in the dashboard's
  * /setup page — wizards, secrets, and adapter wiring all live there.
  *
  * We don't spawn anything ourselves: long-running detached processes
@@ -590,7 +623,6 @@ async function pickSetupMode(args: readonly string[]): Promise<"cli" | "web"> {
  * is a cleaner way to keep Cortex alive across terminals.
  */
 async function runWebSetup(repoRoot: string): Promise<number> {
-  await stepDependencies();
   const writeRoot = await stepWorkspace(repoRoot);
   await ensureBootstrapConfig(writeRoot);
 
@@ -600,7 +632,7 @@ async function runWebSetup(repoRoot: string): Promise<number> {
   line("  Run ONE of these in a separate terminal, then come back here:");
   line("");
   line("    docker compose up -d       # recommended — always-on, survives reboots");
-  line("    cortex start               # local dev — foreground, ctrl+C to stop");
+  line("    przm-cortex start          # local dev — foreground, ctrl+C to stop");
   line("");
   line(`  The dashboard lives at ${dashboardUrl}/setup — finish configuration there.`);
   line("");
@@ -631,7 +663,7 @@ async function ensureBootstrapConfig(writeRoot: string): Promise<void> {
 
   if (!existsSync(cfgPath)) {
     const stub = [
-      "# Bootstrap config written by `cortex init --web`. The web",
+      "# Bootstrap config written by `przm-cortex init --web`. The web",
       "# setup page fills in providers, secrets, and adapters.",
       "",
       "llm:",

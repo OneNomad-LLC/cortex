@@ -4,7 +4,7 @@ import {
   setUseLocalEmbedder,
 } from "./config-mutation.js";
 import { getActiveWorkspace } from "./workspace/manager.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 
 /**
  * Seed an LLM provider config from environment variables. The intended
@@ -28,10 +28,10 @@ import type { Logger } from "@onenomad/cortex-core";
  *
  * Env contract:
  *   OPENROUTER_API_KEY       required to fire the seed
- *   CORTEX_LLM_BASE_URL      optional — defaults to OpenRouter's URL
+ *   PRZM_CORTEX_LLM_BASE_URL      optional — defaults to OpenRouter's URL
  *                             when unset. For Azure OpenAI, set:
  *                             https://<resource>.openai.azure.com/openai/v1
- *   CORTEX_LLM_DEFAULT_MODEL optional — defaults to the OpenRouter
+ *   PRZM_CORTEX_LLM_DEFAULT_MODEL optional — defaults to the OpenRouter
  *                             package's bootstrap default. For Azure
  *                             set the deployment name (e.g. `gpt-4o-mini`).
  *
@@ -42,9 +42,9 @@ export async function seedLlmProviderFromEnv(logger: Logger): Promise<void> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return;
 
-  const baseUrl = process.env.CORTEX_LLM_BASE_URL ?? "https://openrouter.ai/api/v1";
+  const baseUrl = process.env.PRZM_CORTEX_LLM_BASE_URL ?? "https://openrouter.ai/api/v1";
   const defaultModel =
-    process.env.CORTEX_LLM_DEFAULT_MODEL ?? "anthropic/claude-haiku-4.5";
+    process.env.PRZM_CORTEX_LLM_DEFAULT_MODEL ?? "anthropic/claude-haiku-4.5";
 
   const workspace = await getActiveWorkspace();
   if (!workspace) {

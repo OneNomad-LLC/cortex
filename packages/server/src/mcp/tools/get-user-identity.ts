@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireSessionWorkspace } from "../../session-workspace-helpers.js";
 import { readPeople } from "../../taxonomy-mutation.js";
 import type { McpTool } from "../tool.js";
-import type { Person } from "@onenomad/cortex-core";
+import type { Person } from "@onenomad/przm-cortex-core";
 
 const inputSchema = z.object({});
 

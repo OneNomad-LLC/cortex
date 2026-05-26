@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireSessionWorkspace } from "../../session-workspace-helpers.js";
 import { upsertJobProfile } from "../../taxonomy-mutation.js";
 import type { McpTool } from "../tool.js";
-import type { JobProfile } from "@onenomad/cortex-core";
+import type { JobProfile } from "@onenomad/przm-cortex-core";
 
 const slugSchema = z
   .string()

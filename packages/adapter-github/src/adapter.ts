@@ -9,9 +9,9 @@ import type {
   RawSourceItem,
   WebhookContext,
   WebhookHandler,
-} from "@onenomad/cortex-core";
-import { BaseAdapter, matchesGlobs } from "@onenomad/cortex-adapter-sdk";
-import { tryReadGithubToken } from "@onenomad/cortex-github-auth";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter, matchesGlobs } from "@onenomad/przm-cortex-adapter-sdk";
+import { tryReadGithubToken } from "@onenomad/przm-cortex-github-auth";
 import { GithubClient, type GithubTreeEntry } from "./client.js";
 import { createGithubWebhook } from "./webhook.js";
 
@@ -29,11 +29,38 @@ async function resolveGithubToken(
   return envToken && envToken.length > 0 ? envToken : undefined;
 }
 
+/**
+ * Per-repo ingestion modes. Mirrors the `mode` parameter of the
+ * `ingest_repo` MCP tool (Slice B):
+ *   - `dossier` — produce a 1 brief + N decisions + N references summary
+ *                 per repo. Default; what cortex KNOWS about the repo.
+ *   - `full`    — chunk every source file into the vector store. The
+ *                 historical behavior; useful when callers want raw
+ *                 source search.
+ *   - `both`    — produce BOTH a dossier AND full-file chunks. Most
+ *                 expensive; pick only when both retrieval modes matter.
+ */
+export const githubModeSchema = z.enum(["dossier", "full", "both"]);
+export type GithubMode = z.infer<typeof githubModeSchema>;
+
 export const githubConfigSchema = z.object({
   /** `owner/repo` identifiers. */
   repos: z.array(z.string().min(1)).default([]),
   /** Empty = each repo's default branch. */
   branch: z.string().default(""),
+  /**
+   * Ingestion mode applied to every repo by default. The recommended
+   * value is `dossier` — most queries want "what does cortex know about
+   * this project", not raw source chunks. Per-repo overrides via
+   * `repoModes` let power users opt specific repos into `full` or
+   * `both` without flipping the whole adapter.
+   */
+  mode: githubModeSchema.default("dossier"),
+  /**
+   * Per-repo mode override keyed by `owner/repo`. Missing entries
+   * (or `undefined` values) fall back to the adapter-level `mode`.
+   */
+  repoModes: z.record(githubModeSchema).optional(),
   includeGlobs: z
     .array(z.string().min(1))
     .default([
@@ -65,6 +92,50 @@ export const githubConfigSchema = z.object({
 });
 
 export type GithubConfig = z.infer<typeof githubConfigSchema>;
+
+/**
+ * Per-repo delegation surface. The server wires a concrete implementation
+ * (typically a thin wrapper around the `ingest_repo` MCP tool's handler)
+ * via {@link GithubAdapter.setRepoIngester}. Decoupled this way to avoid
+ * the adapter package depending on `@onenomad/przm-cortex-server`.
+ *
+ * Slice B owns the matching `ingest_repo` tool signature. The shape here
+ * is the consumer view — Cortex's server registry maps it onto the tool
+ * handler's input contract at wire-time.
+ */
+export interface GithubRepoIngestRequest {
+  /** Clone URL — `https://github.com/{owner}/{name}.git`. */
+  path: string;
+  /** Resolved mode for this specific repo. */
+  mode: GithubMode;
+  /** Project slug to stamp on every emitted memory. */
+  project: string;
+  /** Free-form tags forwarded to the ingest tool. */
+  tags: string[];
+  /** Web URL of the repo (no `.git` suffix) — used in memory metadata. */
+  sourceUrl: string;
+  /**
+   * Skip work when the repo's HEAD SHA matches the last seen value
+   * (server-side dedup). True for scheduled syncs; false when the user
+   * explicitly asked for a re-derivation.
+   */
+  skipIfUnchanged: boolean;
+}
+
+export interface GithubRepoIngestResult {
+  /** True when SHA gating short-circuited the run. */
+  skipped?: boolean;
+  /** Files chunked into memories (full + both modes). */
+  filesIngested?: number;
+  /** Chunks emitted across pipelines. */
+  chunksIngested?: number;
+  /** Dossier sections written (dossier + both modes). */
+  dossierSections?: number;
+}
+
+export type RepoIngestFn = (
+  req: GithubRepoIngestRequest,
+) => Promise<GithubRepoIngestResult>;
 
 const CAPABILITIES: AdapterCapabilities = {
   supportsIncrementalSync: false,
@@ -108,10 +179,47 @@ export class GithubAdapter extends BaseAdapter {
   // init on env-var presence.
   readonly requiredSecrets = [] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-code"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-code"] as const;
 
   private client!: GithubClient;
   private cfg!: GithubConfig;
+  private repoIngester: RepoIngestFn | undefined;
+
+  /**
+   * Server-side wiring hook. The adapter registry calls this after
+   * `init()` with a function that drives the `ingest_repo` MCP tool's
+   * handler. When set, scheduled syncs delegate per-repo to the
+   * configured `mode` (dossier / full / both) and the per-file walk
+   * is bypassed.
+   *
+   * When unset, `fetch()` falls back to the legacy per-file walk +
+   * `pipeline-code` flow so existing setups keep working unchanged.
+   */
+  setRepoIngester(fn: RepoIngestFn): void {
+    this.repoIngester = fn;
+  }
+
+  /**
+   * Resolve the effective mode for a `owner/repo` string. Per-repo
+   * overrides win over the adapter-level default. Exposed for tests
+   * and dashboard surfaces that need to mirror the routing decision.
+   */
+  resolveMode(fullName: string): GithubMode {
+    return this.cfg.repoModes?.[fullName] ?? this.cfg.mode;
+  }
+
+  /**
+   * Pick the project slug to stamp on a repo's ingested memories.
+   * `repoToProject` wins; `defaultProject` is the fallback; finally
+   * the literal "default" sentinel (same fallback `ingest_content` uses)
+   * so we never call `ingest_repo` with an empty project.
+   */
+  resolveProject(fullName: string): string {
+    const mapped = this.cfg.repoToProject[fullName];
+    if (mapped && mapped.length > 0) return mapped;
+    if (this.cfg.defaultProject.length > 0) return this.cfg.defaultProject;
+    return "default";
+  }
 
   protected override async onInit(): Promise<void> {
     this.cfg = this.configSchema.parse(this.ctx.config);
@@ -145,6 +253,52 @@ export class GithubAdapter extends BaseAdapter {
         "github adapter: `repos` must be non-empty (safer than scanning every repo you can see)",
       );
     }
+
+    // Delegated path: when the server wired a repoIngester (Slice B's
+    // ingest_repo bridge), drive every repo through it per the resolved
+    // mode. SHA-gated re-derivation lives in ingest_repo itself, so
+    // scheduled runs no-op for unchanged repos — no work crosses the
+    // wire to scheduler / pipelines.
+    if (this.repoIngester) {
+      for (const fullName of this.cfg.repos) {
+        const [owner, repo] = splitRepo(fullName);
+        const mode = this.resolveMode(fullName);
+        const project = this.resolveProject(fullName);
+        const req: GithubRepoIngestRequest = {
+          path: `https://github.com/${owner}/${repo}.git`,
+          mode,
+          project,
+          tags: [],
+          sourceUrl: `https://github.com/${owner}/${repo}`,
+          skipIfUnchanged: true,
+        };
+        try {
+          const result = await this.repoIngester(req);
+          this.ctx.logger.info("github.repo_ingested", {
+            repo: fullName,
+            mode,
+            project,
+            skipped: result.skipped ?? false,
+            filesIngested: result.filesIngested ?? 0,
+            chunksIngested: result.chunksIngested ?? 0,
+            dossierSections: result.dossierSections ?? 0,
+          });
+        } catch (err) {
+          this.ctx.logger.warn("github.repo_ingest_failed", {
+            repo: fullName,
+            mode,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+      this.markSuccess();
+      return;
+    }
+
+    // Legacy per-file walk + pipeline-code flow. Preserved so an older
+    // server build (or a test harness that doesn't wire setRepoIngester)
+    // keeps producing memories. Once every deployed server wires the
+    // ingester this branch can be retired.
     let remaining =
       this.cfg.maxFilesPerRun > 0 ? this.cfg.maxFilesPerRun : Infinity;
 

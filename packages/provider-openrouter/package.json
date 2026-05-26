@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-provider-openrouter",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-provider-openrouter",
+  "version": "0.6.0",
   "description": "OpenRouter LLM provider for Cortex (BYOK cloud aggregator).",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,9 +23,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-llm-core": "workspace:*",
-    "@onenomad/cortex-llm-sdk": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-llm-core": "workspace:*",
+    "@onenomad/przm-cortex-llm-sdk": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

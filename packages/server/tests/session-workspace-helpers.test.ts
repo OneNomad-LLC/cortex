@@ -23,21 +23,21 @@ import {
  */
 describe("session-workspace-helpers", () => {
   let tmp: string;
-  const originalState = process.env.CORTEX_STATE_PATH;
-  const originalRoot = process.env.CORTEX_WORKSPACES_ROOT;
+  const originalState = process.env.PRZM_CORTEX_STATE_PATH;
+  const originalRoot = process.env.PRZM_CORTEX_WORKSPACES_ROOT;
 
   beforeEach(async () => {
     tmp = await mkdtemp(path.join(os.tmpdir(), "cortex-swh-"));
-    process.env.CORTEX_STATE_PATH = path.join(tmp, "state.json");
-    process.env.CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
+    process.env.PRZM_CORTEX_STATE_PATH = path.join(tmp, "state.json");
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT = path.join(tmp, "workspaces");
     evictStaleSessions(0);
   });
 
   afterEach(async () => {
-    if (originalState === undefined) delete process.env.CORTEX_STATE_PATH;
-    else process.env.CORTEX_STATE_PATH = originalState;
-    if (originalRoot === undefined) delete process.env.CORTEX_WORKSPACES_ROOT;
-    else process.env.CORTEX_WORKSPACES_ROOT = originalRoot;
+    if (originalState === undefined) delete process.env.PRZM_CORTEX_STATE_PATH;
+    else process.env.PRZM_CORTEX_STATE_PATH = originalState;
+    if (originalRoot === undefined) delete process.env.PRZM_CORTEX_WORKSPACES_ROOT;
+    else process.env.PRZM_CORTEX_WORKSPACES_ROOT = originalRoot;
     await rm(tmp, { recursive: true, force: true });
   });
 

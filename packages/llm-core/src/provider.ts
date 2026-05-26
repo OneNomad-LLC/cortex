@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { HealthStatus } from "@onenomad/cortex-core";
+import type { HealthStatus } from "@onenomad/przm-cortex-core";
 import type {
   EmbedRequest,
   EmbedResponse,

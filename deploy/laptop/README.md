@@ -14,7 +14,7 @@ Reverse-proxy and systemd assets for running Cortex on your own machine — a ho
 
 ```sh
 # 1. Install cortex globally
-npm install -g @onenomad/cortex
+npm install -g @onenomad/przm-cortex
 
 # 2. Configure env
 sudo cp deploy/laptop/cortex.env.template /etc/cortex.env

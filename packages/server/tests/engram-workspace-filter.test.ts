@@ -21,24 +21,24 @@ function mem(id: string, workspace?: string): EngramMemory {
 
 describe("filterByWorkspace", () => {
   it("returns the input unchanged when no workspace filter is given", () => {
-    const input = [mem("1", "onenomad"), mem("2"), mem("3", "elevate")];
+    const input = [mem("1", "onenomad"), mem("2"), mem("3", "acme")];
     expect(filterByWorkspace(input, undefined)).toBe(input);
   });
 
   it("keeps memories whose workspace matches", () => {
-    const input = [mem("1", "onenomad"), mem("2", "elevate")];
+    const input = [mem("1", "onenomad"), mem("2", "acme")];
     const out = filterByWorkspace(input, "onenomad");
     expect(out.map((m) => m.id)).toEqual(["1"]);
   });
 
   it("drops memories with a mismatched workspace", () => {
-    const input = [mem("1", "elevate"), mem("2", "onenomad")];
+    const input = [mem("1", "acme"), mem("2", "onenomad")];
     const out = filterByWorkspace(input, "onenomad");
     expect(out.map((m) => m.id)).toEqual(["2"]);
   });
 
   it("keeps memories with no workspace field (legacy / pre-scoping ingests)", () => {
-    const input = [mem("1"), mem("2", "onenomad"), mem("3", "elevate")];
+    const input = [mem("1"), mem("2", "onenomad"), mem("3", "acme")];
     const out = filterByWorkspace(input, "onenomad");
     // id 1 kept because it's legacy; id 2 matches; id 3 dropped.
     expect(out.map((m) => m.id)).toEqual(["1", "2"]);

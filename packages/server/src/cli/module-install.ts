@@ -34,7 +34,7 @@ import { getActiveWorkspace } from "./workspace/manager.js";
  * Why the container-path-translation: ADR-017 made Docker compose
  * the primary run path. Cortex reads cortex.yaml from inside the
  * container, so `privateModules` entries need to be paths Cortex
- * will see there. We install modules under $CORTEX_HOME_HOST/modules/
+ * will see there. We install modules under $PRZM_CORTEX_HOME_HOST/modules/
  * which is already bind-mounted at /root/.cortex in the container —
  * no docker-compose.yml edits required.
  */
@@ -71,7 +71,7 @@ export interface InstallOptions {
   pathOnly?: boolean;
   /** Write host paths to config instead of container paths. */
   native?: boolean;
-  /** Override the host install root (default: CORTEX_HOME_HOST/modules). */
+  /** Override the host install root (default: PRZM_CORTEX_HOME_HOST/modules). */
   hostRoot?: string;
   /** Override the container modules root (default: /root/.cortex/modules). */
   containerRoot?: string;
@@ -416,7 +416,7 @@ function printHelp(): void {
       `  --no-build      Skip pnpm install + pnpm build (for already-built modules)\n` +
       `  --path-only     Don't copy/clone — register the path as-is\n` +
       `  --native        Write host paths to config (no Docker translation)\n\n` +
-      `Default install target: $CORTEX_HOME_HOST/modules/<name>\n` +
+      `Default install target: $PRZM_CORTEX_HOME_HOST/modules/<name>\n` +
       `                        (or ./.cortex-data/modules/<name> when unset)\n`,
   );
 }
@@ -434,7 +434,7 @@ function parseFlags(args: readonly string[]): InstallFlags {
     else if (a.startsWith("--name=")) flags.name = a.slice("--name=".length);
     else if (a.startsWith("--")) {
       // Unknown flag — tolerate silently so a future flag doesn't crash
-      // an older binary. Matt would rather see the module install than
+      // an older binary. The user would rather see the module install than
       // a parse error.
       continue;
     } else if (!flags.source) flags.source = a;
@@ -467,13 +467,13 @@ export function deriveName(source: string): string {
 }
 
 function hostModulesRoot(): string {
-  const home = process.env.CORTEX_HOME_HOST;
+  const home = process.env.PRZM_CORTEX_HOME_HOST;
   if (home && home.trim().length > 0) {
     return path.resolve(home, "modules");
   }
   // Matches docker-compose.yml's default: `./.cortex-data` relative to
   // cwd. In practice the user runs `cortex module install` from the
-  // cortex repo root; if they're elsewhere, they can set CORTEX_HOME_HOST.
+  // cortex repo root; if they're elsewhere, they can set PRZM_CORTEX_HOME_HOST.
   return path.resolve(process.cwd(), ".cortex-data", "modules");
 }
 

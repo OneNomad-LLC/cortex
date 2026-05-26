@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TaxonomyCache } from "../src/taxonomy-cache.js";
 
@@ -75,18 +75,18 @@ async function seedWorkspace(
 describe("TaxonomyCache", () => {
   let tmp: string;
   let root: string;
-  const originalRoot = process.env.CORTEX_WORKSPACES_ROOT;
+  const originalRoot = process.env.PRZM_CORTEX_WORKSPACES_ROOT;
 
   beforeEach(async () => {
     tmp = await mkdtemp(path.join(os.tmpdir(), "cortex-tc-"));
     root = path.join(tmp, "workspaces");
     await mkdir(root, { recursive: true });
-    process.env.CORTEX_WORKSPACES_ROOT = root;
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT = root;
   });
 
   afterEach(async () => {
-    if (originalRoot === undefined) delete process.env.CORTEX_WORKSPACES_ROOT;
-    else process.env.CORTEX_WORKSPACES_ROOT = originalRoot;
+    if (originalRoot === undefined) delete process.env.PRZM_CORTEX_WORKSPACES_ROOT;
+    else process.env.PRZM_CORTEX_WORKSPACES_ROOT = originalRoot;
     await rm(tmp, { recursive: true, force: true });
   });
 

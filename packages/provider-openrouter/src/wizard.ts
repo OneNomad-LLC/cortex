@@ -1,4 +1,4 @@
-import type { WizardModule } from "@onenomad/cortex-core";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
 import { openrouterConfigSchema, type OpenRouterConfig } from "./provider.js";
 
 export const openrouterWizard: WizardModule<OpenRouterConfig> = {

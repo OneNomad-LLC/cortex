@@ -42,7 +42,7 @@ describe("config-mutation", () => {
       { repoRoot: root },
       {
         moduleId: "confluence",
-        config: { workspace: "elevate-digital", spaces: ["DrivenBrands"] },
+        config: { workspace: "acme-co", spaces: ["ExampleCorp"] },
         secrets: {},
       },
     );
@@ -55,9 +55,9 @@ describe("config-mutation", () => {
       "utf8",
     );
     expect(local).toContain("confluence:");
-    expect(local).toContain("package: \"@onenomad/cortex-adapter-confluence\"");
+    expect(local).toContain("package: \"@onenomad/przm-cortex-adapter-confluence\"");
     expect(local).toContain("enabled: true");
-    expect(local).toContain("elevate-digital");
+    expect(local).toContain("acme-co");
   });
 
   it("merges secrets into .env, creating it if absent", async () => {
@@ -249,7 +249,7 @@ describe("config-mutation", () => {
       "utf8",
     );
     expect(local).toMatch(/llm:\s*\n(?:.*\n)*?\s*providers:\s*\n(?:.*\n)*?\s*openrouter:/);
-    expect(local).toContain("package: \"@onenomad/cortex-provider-openrouter\"");
+    expect(local).toContain("package: \"@onenomad/przm-cortex-provider-openrouter\"");
     expect(local).toContain("appTitle: Cortex");
     // Should NOT land under adapters.
     const adaptersMatch = local.match(/^adapters:\s*\n((?:  [^\n]*\n)*)/m);
@@ -341,7 +341,7 @@ describe("config-mutation", () => {
     );
     expect(local).toContain("confluence:");
     expect(local).toContain("jira:");
-    expect(local).toContain("package: \"@onenomad/cortex-adapter-jira\"");
+    expect(local).toContain("package: \"@onenomad/przm-cortex-adapter-jira\"");
     expect(local).toContain("ENG");
     expect(local).toContain("OPS");
 

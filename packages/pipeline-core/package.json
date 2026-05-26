@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-pipeline-core",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-pipeline-core",
+  "version": "0.6.0",
   "description": "Generic multi-stage pipeline framework for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,7 +23,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*"
+    "@onenomad/przm-cortex-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

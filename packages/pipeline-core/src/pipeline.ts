@@ -2,11 +2,11 @@ import type {
   ClassifiedItem,
   EnrichmentClient,
   MemoryMetadata,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 
 /**
  * Pipelines take classified items and emit one or more memories to ingest
- * into Engram. A pipeline is a package id (e.g., "@onenomad/cortex-pipeline-meeting")
+ * into Engram. A pipeline is a package id (e.g., "@onenomad/przm-cortex-pipeline-meeting")
  * that adapters declare via `SourceAdapter.pipelines`.
  */
 export interface Pipeline<Input = ClassifiedItem, Output = PipelineMemory> {

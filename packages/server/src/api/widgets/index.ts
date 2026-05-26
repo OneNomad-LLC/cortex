@@ -1,4 +1,4 @@
-import type { CacheStorage } from "@onenomad/cortex-cache-sqlite";
+import type { CacheStorage } from "@onenomad/przm-cortex-cache-sqlite";
 import type { Widget } from "../types.js";
 import { withCache, type WithCacheOptions } from "../cache/wrap.js";
 import { recentActivityWidget } from "./recent-activity.js";

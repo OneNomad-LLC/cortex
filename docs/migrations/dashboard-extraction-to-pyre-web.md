@@ -21,7 +21,7 @@
 - Delete `packages/dashboard/` entirely
 - Delete `packages/server/src/dashboard-child.ts` and the `resolveDashboardDir` walk
 - Delete the `cortex dashboard` CLI command (`cli/dashboard.ts` and the help-text entry)
-- Drop `CORTEX_DASHBOARD_AUTOSTART` and `CORTEX_DASHBOARD_PORT` env vars
+- Drop `PRZM_CORTEX_DASHBOARD_AUTOSTART` and `PRZM_CORTEX_DASHBOARD_PORT` env vars
 - Simplify Dockerfile (drop `cp -r .next/static` dance, drop `EXPOSE 3030`, drop `pnpm -r build` in favor of server-only build)
 - Update README + CHANGELOG
 - This is **task #3 + #4** in the parent task list — gated on pyre-web side being verified live
@@ -79,7 +79,7 @@ public/           → public/cortex/             (cortex-specific images, icons)
 ```
 
 Adjust:
-- All API base-URL references swap from `process.env.CORTEX_API_URL` to relative `/api/cortex/<tenantSlug>/...`
+- All API base-URL references swap from `process.env.PRZM_CORTEX_API_URL` to relative `/api/cortex/<tenantSlug>/...`
 - Remove anything that assumes single-tenant context — every page now reads `params.tenantSlug` and forwards it
 
 ### 4. Dependencies

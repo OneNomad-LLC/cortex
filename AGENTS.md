@@ -94,7 +94,7 @@ context already incorporated.
 
 ## Quick links
 
-- Cortex source + docs: <https://github.com/OneNomad-LLC/cortex>
+- Cortex source + docs: <https://github.com/OneNomad-LLC/przm-cortex>
 - Engram source + docs: <https://github.com/OneNomad-LLC/engram>
 - Persona source + docs: <https://github.com/OneNomad-LLC/persona>
 - Pyre marketing site: <https://pyre.sh>
@@ -102,7 +102,7 @@ context already incorporated.
 To pull the latest version of this file into your project:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/OneNomad-LLC/cortex/main/AGENTS.md \
+curl -sL https://raw.githubusercontent.com/OneNomad-LLC/przm-cortex/main/AGENTS.md \
   -o AGENTS.md
 ```
 

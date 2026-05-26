@@ -3,16 +3,16 @@ import type {
   AdapterFactory,
   Logger,
   SourceAdapter,
-} from "@onenomad/cortex-core";
-import { createAdapter as createBitbucketAdapter } from "@onenomad/cortex-adapter-bitbucket";
-import { createAdapter as createConfluenceAdapter } from "@onenomad/cortex-adapter-confluence";
-import { createAdapter as createGithubAdapter } from "@onenomad/cortex-adapter-github";
-import { createAdapter as createJiraAdapter } from "@onenomad/cortex-adapter-jira";
-import { createAdapter as createLinearAdapter } from "@onenomad/cortex-adapter-linear";
-import { createAdapter as createLoomAdapter } from "@onenomad/cortex-adapter-loom";
-import { createAdapter as createNotionAdapter } from "@onenomad/cortex-adapter-notion";
-import { createAdapter as createObsidianAdapter } from "@onenomad/cortex-adapter-obsidian";
-import { createAdapter as createSlackAdapter } from "@onenomad/cortex-adapter-slack";
+} from "@onenomad/przm-cortex-core";
+import { createAdapter as createBitbucketAdapter } from "@onenomad/przm-cortex-adapter-bitbucket";
+import { createAdapter as createConfluenceAdapter } from "@onenomad/przm-cortex-adapter-confluence";
+import { createAdapter as createGithubAdapter } from "@onenomad/przm-cortex-adapter-github";
+import { createAdapter as createJiraAdapter } from "@onenomad/przm-cortex-adapter-jira";
+import { createAdapter as createLinearAdapter } from "@onenomad/przm-cortex-adapter-linear";
+import { createAdapter as createLoomAdapter } from "@onenomad/przm-cortex-adapter-loom";
+import { createAdapter as createNotionAdapter } from "@onenomad/przm-cortex-adapter-notion";
+import { createAdapter as createObsidianAdapter } from "@onenomad/przm-cortex-adapter-obsidian";
+import { createAdapter as createSlackAdapter } from "@onenomad/przm-cortex-adapter-slack";
 import type { CortexConfig } from "../config.js";
 
 /**
@@ -21,27 +21,27 @@ import type { CortexConfig } from "../config.js";
  * `require()` — keeps the TypeScript check honest.
  */
 const adapterFactories: Record<string, AdapterFactory> = {
-  "@onenomad/cortex-adapter-bitbucket": createBitbucketAdapter,
-  "@onenomad/cortex-adapter-confluence": createConfluenceAdapter,
-  "@onenomad/cortex-adapter-github": createGithubAdapter,
-  "@onenomad/cortex-adapter-jira": createJiraAdapter,
-  "@onenomad/cortex-adapter-linear": createLinearAdapter,
-  "@onenomad/cortex-adapter-loom": createLoomAdapter,
-  "@onenomad/cortex-adapter-notion": createNotionAdapter,
-  "@onenomad/cortex-adapter-obsidian": createObsidianAdapter,
-  "@onenomad/cortex-adapter-slack": createSlackAdapter,
+  "@onenomad/przm-cortex-adapter-bitbucket": createBitbucketAdapter,
+  "@onenomad/przm-cortex-adapter-confluence": createConfluenceAdapter,
+  "@onenomad/przm-cortex-adapter-github": createGithubAdapter,
+  "@onenomad/przm-cortex-adapter-jira": createJiraAdapter,
+  "@onenomad/przm-cortex-adapter-linear": createLinearAdapter,
+  "@onenomad/przm-cortex-adapter-loom": createLoomAdapter,
+  "@onenomad/przm-cortex-adapter-notion": createNotionAdapter,
+  "@onenomad/przm-cortex-adapter-obsidian": createObsidianAdapter,
+  "@onenomad/przm-cortex-adapter-slack": createSlackAdapter,
 };
 
 /**
  * Look up an adapter factory by the short id used in wizard specs
- * (e.g. `github` → `@onenomad/cortex-adapter-github`). The wizard registry
+ * (e.g. `github` → `@onenomad/przm-cortex-adapter-github`). The wizard registry
  * and the adapter registry use different keying (wizard id vs.
  * package name), so we map at the boundary.
  */
 export function factoryByWizardId(
   wizardId: string,
 ): AdapterFactory | undefined {
-  return adapterFactories[`@onenomad/cortex-adapter-${wizardId}`];
+  return adapterFactories[`@onenomad/przm-cortex-adapter-${wizardId}`];
 }
 
 export interface AdapterRegistry {

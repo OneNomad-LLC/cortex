@@ -1,8 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { Logger } from "@onenomad/cortex-core";
-import { createPgPool } from "@onenomad/cortex-memory-pgvector";
+import type { Logger } from "@onenomad/przm-cortex-core";
+import { createPgPool } from "@onenomad/przm-cortex-memory-pgvector";
 import {
   resolveLocalFirst,
   type CortexConfig,
@@ -31,20 +31,20 @@ interface CheckResult {
 }
 
 const ADAPTER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
-  "@onenomad/cortex-adapter-bitbucket": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@onenomad/cortex-adapter-confluence": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@onenomad/cortex-adapter-github": ["GITHUB_TOKEN"],
-  "@onenomad/cortex-adapter-jira": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
-  "@onenomad/cortex-adapter-linear": ["LINEAR_API_KEY"],
-  "@onenomad/cortex-adapter-loom": ["LOOM_API_KEY"],
-  "@onenomad/cortex-adapter-notion": ["NOTION_API_KEY"],
-  "@onenomad/cortex-adapter-obsidian": [],
-  "@onenomad/cortex-adapter-slack": ["SLACK_BOT_TOKEN"],
+  "@onenomad/przm-cortex-adapter-bitbucket": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/przm-cortex-adapter-confluence": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/przm-cortex-adapter-github": ["GITHUB_TOKEN"],
+  "@onenomad/przm-cortex-adapter-jira": ["ATLASSIAN_EMAIL", "ATLASSIAN_API_TOKEN"],
+  "@onenomad/przm-cortex-adapter-linear": ["LINEAR_API_KEY"],
+  "@onenomad/przm-cortex-adapter-loom": ["LOOM_API_KEY"],
+  "@onenomad/przm-cortex-adapter-notion": ["NOTION_API_KEY"],
+  "@onenomad/przm-cortex-adapter-obsidian": [],
+  "@onenomad/przm-cortex-adapter-slack": ["SLACK_BOT_TOKEN"],
 };
 
 const PROVIDER_PACKAGE_TO_SECRETS: Record<string, readonly string[]> = {
-  "@onenomad/cortex-provider-ollama": [],
-  "@onenomad/cortex-provider-openrouter": ["OPENROUTER_API_KEY"],
+  "@onenomad/przm-cortex-provider-ollama": [],
+  "@onenomad/przm-cortex-provider-openrouter": ["OPENROUTER_API_KEY"],
 };
 
 export async function runDoctor(args: readonly string[]): Promise<number> {

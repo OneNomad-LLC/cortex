@@ -58,6 +58,25 @@ export type WizardStep =
   | RepeatPerStep
   | RecordStep;
 
+/**
+ * Canonical list of step `type` discriminators. Mirrors the union above
+ * but as a runtime value so guardrail tests can iterate it. The CI
+ * completeness check in `tests/wizard-renderer-completeness.test.ts`
+ * asserts every kind here has a renderer component in the dashboard
+ * package. Adding a new kind to `WizardStep`? Add the literal here too.
+ */
+export const WIZARD_STEP_KINDS = [
+  "text",
+  "password",
+  "boolean",
+  "select",
+  "list",
+  "repeat-per",
+  "record",
+] as const;
+
+export type WizardStepKind = (typeof WIZARD_STEP_KINDS)[number];
+
 interface BaseStep {
   key: string;
   prompt: string;

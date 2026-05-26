@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WizardModule } from "@onenomad/cortex-core";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
 import { ollamaConfigSchema, type OllamaConfig } from "./provider.js";
 
 export const ollamaWizard: WizardModule<OllamaConfig> = {

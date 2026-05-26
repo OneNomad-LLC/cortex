@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-adapter-obsidian",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-adapter-obsidian",
+  "version": "0.6.0",
   "description": "Obsidian vault source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-adapter-sdk": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-adapter-sdk": "workspace:*",
     "chokidar": "^4.0.1",
     "zod": "^3.23.8"
   },

@@ -25,14 +25,14 @@ export async function runUse(args: string[]): Promise<number> {
   if (target === "cloud" && !current.mcp_url && !current.fromEnv) {
     process.stderr.write(
       `cortex use cloud: no cloud credentials configured.\n` +
-        `Run \`cortex login <pyre-web-url>\` first, or set CORTEX_MCP_URL + CORTEX_MCP_TOKEN.\n`,
+        `Run \`cortex login <pyre-web-url>\` first, or set PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN.\n`,
     );
     return 1;
   }
 
   if (current.fromEnv) {
     process.stdout.write(
-      `cortex use ${target}: env vars (CORTEX_MCP_URL + CORTEX_MCP_TOKEN) are set ` +
+      `cortex use ${target}: env vars (PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN) are set ` +
         `and take precedence over the credentials file. Mode flag on disk ` +
         `won't have any effect while those are present.\n`,
     );

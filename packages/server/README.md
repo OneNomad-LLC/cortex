@@ -1,4 +1,4 @@
-# @onenomad/cortex
+# @onenomad/przm-cortex
 
 Cortex MCP server + CLI. Loads config, wires up providers and adapters,
 schedules ingestion, and exposes work-specific tools to AI clients over MCP.
@@ -28,13 +28,13 @@ cortex help    # usage
 ## Running
 
 ```bash
-pnpm --filter @onenomad/cortex dev    # watch mode, runs `cortex start`
-pnpm --filter @onenomad/cortex build && pnpm --filter @onenomad/cortex start
+pnpm --filter @onenomad/przm-cortex dev    # watch mode, runs `cortex start`
+pnpm --filter @onenomad/przm-cortex build && pnpm --filter @onenomad/przm-cortex start
 ```
 
 Tests:
 
 ```bash
-pnpm --filter @onenomad/cortex test       # unit
-pnpm --filter @onenomad/cortex test:int   # integration (requires live Ollama)
+pnpm --filter @onenomad/przm-cortex test       # unit
+pnpm --filter @onenomad/przm-cortex test:int   # integration (requires live Ollama)
 ```

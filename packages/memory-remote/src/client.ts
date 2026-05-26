@@ -5,7 +5,7 @@ import type {
   Transport,
 } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import type {
   EngramMemory,
   EngramSearchArgs,

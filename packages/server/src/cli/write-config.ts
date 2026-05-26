@@ -59,11 +59,7 @@ export async function writeConfig(
 
 function buildEnv(input: WriteConfigInput): string {
   const lines: string[] = [
-    "# Written by `cortex init`. Regenerated on every run — back up customizations.",
-    "",
-    "# Upstream MCP services",
-    `ENGRAM_MCP_URL=${input.secrets.ENGRAM_MCP_URL ?? "http://localhost:3101"}`,
-    `PERSONA_MCP_URL=${input.secrets.PERSONA_MCP_URL ?? "http://localhost:3102"}`,
+    "# Written by `przm-cortex init`. Regenerated on every run — back up customizations.",
     "",
     "# LLM provider credentials",
   ];
@@ -86,12 +82,12 @@ function buildEnv(input: WriteConfigInput): string {
     "# Runtime",
     "NODE_ENV=development",
     "LOG_LEVEL=info",
-    // No CORTEX_CONFIG_PATH default — the CLI walks up from cwd to find
+    // No PRZM_CORTEX_CONFIG_PATH default — the CLI walks up from cwd to find
     // config/cortex.yaml, then falls back to ~/.cortex/config/cortex.yaml.
     // Uncomment and set an absolute path below only if you want to pin
     // a specific file (e.g. testing with a non-standard location).
-    "# CORTEX_CONFIG_PATH=/absolute/path/to/cortex.yaml",
-    "CORTEX_MCP_PORT=3100",
+    "# PRZM_CORTEX_CONFIG_PATH=/absolute/path/to/cortex.yaml",
+    "PRZM_CORTEX_MCP_PORT=3100",
     "",
   );
 
@@ -115,10 +111,10 @@ function buildCortexYaml(input: WriteConfigInput): string {
     `    brief:      { provider: ${input.defaultTask.provider}, model: "${input.defaultTask.model}" }`,
     `    classify:   { provider: ${input.defaultTask.provider}, model: "${input.defaultTask.model}" }`,
   ];
-  // Only emit an embed task when an embedding-capable provider is on. Today
-  // that's Ollama. OpenRouter proxies chat completions but not embeddings,
-  // and when memory.primary=engram the embed task isn't called anyway —
-  // Engram handles its own vectorization internally.
+  // Only emit an explicit embed task when Ollama is enabled. OpenRouter
+  // proxies chat completions but not embeddings, and the pgvector backend
+  // ships with a bundled local Xenova embedder (memory.pgvector.useLocalEmbedder)
+  // that runs in-process — no provider task needed for the common case.
   const ollama = input.providers.find((p) => p.id === "ollama" && p.enabled);
   if (ollama) {
     tasks.push(`    embed:      { provider: ollama, model: "nomic-embed-text" }`);
@@ -130,7 +126,7 @@ function buildCortexYaml(input: WriteConfigInput): string {
     .map((p) => p.id);
 
   return [
-    "# Written by `cortex init`. Re-run the wizard to regenerate.",
+    "# Written by `przm-cortex init`. Re-run the wizard to regenerate.",
     "",
     "llm:",
     "  providers:",
@@ -142,11 +138,10 @@ function buildCortexYaml(input: WriteConfigInput): string {
     `  fallbackChain: [${fallbackIds.join(", ")}]`,
     "",
     "memory:",
-    "  primary: engram",
-    "  # fallback: pgvector     # uncomment to enable the native Postgres fallback",
-    "  # pgvector:",
-    "  #   connectionString: \"${POSTGRES_URL}\"",
-    "  #   embeddingDim: 768    # must match the embed model's dimension",
+    "  primary: pgvector",
+    "  pgvector:",
+    "    useLocalEmbedder: true   # bundled Xenova/all-MiniLM-L6-v2 (384-dim) — no API key needed",
+    "    # connectionString: \"${POSTGRES_URL}\"  # leave commented to use embedded PGlite (zero-dep default)",
     "",
     "adapters: {}",
     "",
@@ -156,8 +151,8 @@ function buildCortexYaml(input: WriteConfigInput): string {
 function buildProviderBlock(p: ProviderChoice): string[] {
   const pkg =
     p.id === "ollama"
-      ? "@onenomad/cortex-provider-ollama"
-      : "@onenomad/cortex-provider-openrouter";
+      ? "@onenomad/przm-cortex-provider-ollama"
+      : "@onenomad/przm-cortex-provider-openrouter";
 
   const cfg: string[] = [];
   if (p.id === "ollama") {

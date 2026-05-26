@@ -1,7 +1,7 @@
 import { writeFile, readFile, mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 
 export interface AdapterRunStats {
   /** Cron expression this adapter is scheduled on. */
@@ -41,12 +41,12 @@ export interface HeartbeatWriterOptions {
 }
 
 /**
- * Location of the heartbeat file. Override via `CORTEX_HEARTBEAT_PATH`
+ * Location of the heartbeat file. Override via `PRZM_CORTEX_HEARTBEAT_PATH`
  * so operators can point multiple hosts at a shared volume.
  */
 export function defaultHeartbeatPath(): string {
   return (
-    process.env.CORTEX_HEARTBEAT_PATH ??
+    process.env.PRZM_CORTEX_HEARTBEAT_PATH ??
     path.join(os.homedir(), ".cortex", "heartbeat.json")
   );
 }

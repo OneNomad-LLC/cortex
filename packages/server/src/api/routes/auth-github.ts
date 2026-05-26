@@ -19,11 +19,11 @@ import {
   tryReadGithubToken,
   writeGithubToken,
   type DeviceCodeGrant,
-} from "@onenomad/cortex-github-auth";
+} from "@onenomad/przm-cortex-github-auth";
 
 const pendingGithubGrants = new Map<string, DeviceCodeGrant>();
 const GITHUB_CLIENT_ID =
-  process.env.CORTEX_GITHUB_CLIENT_ID ?? "Ov23lidpaSywVEHtcXa4";
+  process.env.PRZM_CORTEX_GITHUB_CLIENT_ID ?? "Ov23lidpaSywVEHtcXa4";
 
 export async function handle(
   req: IncomingMessage,

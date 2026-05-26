@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AdapterContext } from "@onenomad/cortex-core";
+import type { AdapterContext } from "@onenomad/przm-cortex-core";
 import { LoomAdapter } from "../src/adapter.js";
 
 function makeCtx(cfg: Record<string, unknown>): AdapterContext {
@@ -142,7 +142,7 @@ describe("LoomAdapter", () => {
 
   it("declares pipeline-meeting so the server routes output correctly", () => {
     const adapter = new LoomAdapter();
-    expect(adapter.pipelines).toEqual(["@onenomad/cortex-pipeline-meeting"]);
+    expect(adapter.pipelines).toEqual(["@onenomad/przm-cortex-pipeline-meeting"]);
   });
 
   it("init throws without LOOM_API_KEY", async () => {

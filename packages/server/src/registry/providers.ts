@@ -2,9 +2,9 @@ import type {
   LLMProvider,
   LLMProviderFactory,
   LLMRouterConfig,
-} from "@onenomad/cortex-llm-core";
-import { LLMRouter } from "@onenomad/cortex-llm-core";
-import type { Logger } from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-llm-core";
+import { LLMRouter } from "@onenomad/przm-cortex-llm-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import type { CortexConfig } from "../config.js";
 
 /**
@@ -21,12 +21,12 @@ const providerLoaders: Record<
   string,
   () => Promise<LLMProviderFactory>
 > = {
-  "@onenomad/cortex-provider-ollama": async () => {
-    const mod = await import("@onenomad/cortex-provider-ollama");
+  "@onenomad/przm-cortex-provider-ollama": async () => {
+    const mod = await import("@onenomad/przm-cortex-provider-ollama");
     return mod.createOllamaProvider;
   },
-  "@onenomad/cortex-provider-openrouter": async () => {
-    const mod = await import("@onenomad/cortex-provider-openrouter");
+  "@onenomad/przm-cortex-provider-openrouter": async () => {
+    const mod = await import("@onenomad/przm-cortex-provider-openrouter");
     return mod.createOpenRouterProvider;
   },
 };

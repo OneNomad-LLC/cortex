@@ -10,12 +10,12 @@
  *
  * Required env:
  *   PYRE_WEB_URL          — e.g. https://pyre.sh or https://dev.pyre.sh
- *   CORTEX_WORKER_SECRET  — shared bearer for /api/cortex/jobs/* endpoints
+ *   PRZM_CORTEX_WORKER_SECRET  — shared bearer for /api/cortex/jobs/* endpoints
  *   WORKER_ID             — opaque id, defaults to FLY_MACHINE_ID or hostname
  *
  * Optional env:
- *   CORTEX_WORKER_POLL_MS — poll interval when queue is empty (default 5000)
- *   CORTEX_WORKER_IDLE_EXIT_MS — exit after this many ms of empty polls
+ *   PRZM_CORTEX_WORKER_POLL_MS — poll interval when queue is empty (default 5000)
+ *   PRZM_CORTEX_WORKER_IDLE_EXIT_MS — exit after this many ms of empty polls
  *                                 so Fly auto_stop_machines can park us
  *                                 (default 60000; 0 disables idle exit)
  */
@@ -45,17 +45,17 @@ interface ClaimedJob {
 
 function readConfig(): WorkerConfig {
   const pyreWebUrl = process.env.PYRE_WEB_URL?.replace(/\/+$/, "");
-  const workerSecret = process.env.CORTEX_WORKER_SECRET;
+  const workerSecret = process.env.PRZM_CORTEX_WORKER_SECRET;
   if (!pyreWebUrl || !workerSecret) {
     throw new Error(
-      "cortex worker: PYRE_WEB_URL and CORTEX_WORKER_SECRET must both be set",
+      "cortex worker: PYRE_WEB_URL and PRZM_CORTEX_WORKER_SECRET must both be set",
     );
   }
   const workerId =
     process.env.WORKER_ID ?? process.env.FLY_MACHINE_ID ?? `worker-${process.pid}`;
-  const pollMs = Number.parseInt(process.env.CORTEX_WORKER_POLL_MS ?? "5000", 10);
+  const pollMs = Number.parseInt(process.env.PRZM_CORTEX_WORKER_POLL_MS ?? "5000", 10);
   const idleExitMs = Number.parseInt(
-    process.env.CORTEX_WORKER_IDLE_EXIT_MS ?? "60000",
+    process.env.PRZM_CORTEX_WORKER_IDLE_EXIT_MS ?? "60000",
     10,
   );
   return { pyreWebUrl, workerSecret, workerId, pollMs, idleExitMs };

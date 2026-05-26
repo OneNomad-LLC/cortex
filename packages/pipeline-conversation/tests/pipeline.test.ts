@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ClassifiedItem } from "@onenomad/cortex-core";
-import type { PipelineContext } from "@onenomad/cortex-pipeline-core";
+import type { ClassifiedItem } from "@onenomad/przm-cortex-core";
+import type { PipelineContext } from "@onenomad/przm-cortex-pipeline-core";
 import { createConversationPipeline } from "../src/pipeline.js";
 
 function makeItem(overrides: Partial<ClassifiedItem> = {}): ClassifiedItem {

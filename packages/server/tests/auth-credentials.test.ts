@@ -30,8 +30,8 @@ beforeEach(async () => {
   // Point all path-resolvers at the tmp dir.
   process.env.PYRE_CREDENTIALS_FILE = sharedFile;
   process.env.XDG_CONFIG_HOME = path.join(tmpDir, "legacy");
-  delete process.env.CORTEX_MCP_URL;
-  delete process.env.CORTEX_MCP_TOKEN;
+  delete process.env.PRZM_CORTEX_MCP_URL;
+  delete process.env.PRZM_CORTEX_MCP_TOKEN;
   _resetMigrationGuardForTests();
 });
 
@@ -81,7 +81,7 @@ describe("saveCortexCredentials", () => {
     writeSharedCredentials({
       api_url: "https://pyre.sh",
       api_key: "sk_pyre_engram",
-      label: "matt-laptop",
+      label: "my-laptop",
       scopes: ["engram", "persona"],
       issued_at: "2026-05-14T00:00:00Z",
     });
@@ -93,7 +93,7 @@ describe("saveCortexCredentials", () => {
 
     const file = readSharedCredentials();
     expect(file?.api_key).toBe("sk_pyre_engram");
-    expect(file?.label).toBe("matt-laptop");
+    expect(file?.label).toBe("my-laptop");
     expect(file?.scopes).toEqual(["engram", "persona"]);
     expect(file?.cortex?.active_tenant).toBe("acme");
     expect(file?.cortex?.tenants).toHaveLength(1);
@@ -134,8 +134,8 @@ describe("loadCortexCredentials", () => {
   });
 
   it("env vars override file and report fromEnv=true", () => {
-    process.env.CORTEX_MCP_URL = "https://env.cortex.example/mcp";
-    process.env.CORTEX_MCP_TOKEN = "env-bearer";
+    process.env.PRZM_CORTEX_MCP_URL = "https://env.cortex.example/mcp";
+    process.env.PRZM_CORTEX_MCP_TOKEN = "env-bearer";
     saveCortexCredentials({
       tenants: [{ slug: "file", mcp_url: "https://file.cortex.example/mcp", bearer: "file-bearer" }],
       active_tenant: "file",
@@ -149,7 +149,7 @@ describe("loadCortexCredentials", () => {
   it("resolves the active tenant's mcp_url and bearer", () => {
     writeSharedCredentials({
       api_url: "https://pyre.sh",
-      label: "matt@example.com",
+      label: "alice@example.com",
     });
     saveCortexCredentials({
       tenants: [
@@ -163,7 +163,7 @@ describe("loadCortexCredentials", () => {
     expect(creds.tenant_slug).toBe("beta");
     expect(creds.mcp_url).toBe("https://beta.cortex.pyre.sh");
     expect(creds.bearer).toBe("beta-bearer");
-    expect(creds.user_email).toBe("matt@example.com");
+    expect(creds.user_email).toBe("alice@example.com");
     expect(creds.login_server).toBe("https://pyre.sh");
     expect(creds.tenant_count).toBe(2);
   });
@@ -184,7 +184,7 @@ describe("clearCortexCredentials", () => {
     writeSharedCredentials({
       api_url: "https://pyre.sh",
       api_key: "sk_pyre_engram",
-      label: "matt-laptop",
+      label: "my-laptop",
     });
     saveCortexCredentials({
       tenants: [{ slug: "acme", mcp_url: "x", bearer: "y" }],
@@ -235,7 +235,7 @@ describe("migrateLegacyCredentials", () => {
       mcpUrl: "https://acme.cortex.pyre.sh",
       bearer: "sk_pyre_acme",
       tenantSlug: "acme",
-      userEmail: "matt@acme.example",
+      userEmail: "alice@acme.example",
       loginServer: "https://pyre.sh",
       updatedAt: "2026-05-14T00:00:00Z",
     });
@@ -243,7 +243,7 @@ describe("migrateLegacyCredentials", () => {
     expect(migrateLegacyCredentials()).toBe(true);
 
     const file = readSharedCredentials();
-    expect(file?.label).toBe("matt@acme.example");
+    expect(file?.label).toBe("alice@acme.example");
     expect(file?.api_url).toBe("https://pyre.sh");
     expect(file?.cortex?.active_tenant).toBe("acme");
     expect(file?.cortex?.tenants).toHaveLength(1);

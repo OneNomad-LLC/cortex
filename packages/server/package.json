@@ -1,7 +1,7 @@
-﻿{
-  "name": "@onenomad/cortex",
-  "version": "0.0.0",
-  "description": "Cortex MCP server: unified work-knowledge layer on Engram and Persona.",
+{
+  "name": "@onenomad/przm-cortex",
+  "version": "0.6.0",
+  "description": "przm Cortex MCP server: unified work-knowledge layer.",
   "keywords": [
     "mcp",
     "claude",
@@ -10,11 +10,12 @@
     "memory"
   ],
   "author": "OneNomad",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
+    "przm-cortex": "./dist/index.js",
     "cortex": "./dist/index.js"
   },
   "files": [
@@ -35,26 +36,29 @@
   "dependencies": {
     "@inquirer/prompts": "^7.0.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@onenomad/cortex-adapter-bitbucket": "workspace:*",
-    "@onenomad/cortex-adapter-confluence": "workspace:*",
-    "@onenomad/cortex-adapter-github": "workspace:*",
-    "@onenomad/cortex-adapter-jira": "workspace:*",
-    "@onenomad/cortex-adapter-linear": "workspace:*",
-    "@onenomad/cortex-adapter-loom": "workspace:*",
-    "@onenomad/cortex-adapter-notion": "workspace:*",
-    "@onenomad/cortex-adapter-obsidian": "workspace:*",
-    "@onenomad/cortex-adapter-sdk": "workspace:*",
-    "@onenomad/cortex-adapter-slack": "workspace:*",
-    "@onenomad/cortex-cache-sqlite": "workspace:*",
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-github-auth": "workspace:*",
-    "@onenomad/cortex-llm-core": "workspace:*",
-    "@onenomad/cortex-memory-pgvector": "workspace:*",
-    "@onenomad/cortex-pipeline-code": "workspace:*",
-    "@onenomad/cortex-pipeline-conversation": "workspace:*",
-    "@onenomad/cortex-pipeline-core": "workspace:*",
-    "@onenomad/cortex-pipeline-doc": "workspace:*",
-    "@onenomad/cortex-pipeline-meeting": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "@onenomad/przm-cortex-adapter-bitbucket": "workspace:*",
+    "@onenomad/przm-cortex-adapter-confluence": "workspace:*",
+    "@onenomad/przm-cortex-adapter-github": "workspace:*",
+    "@onenomad/przm-cortex-adapter-jira": "workspace:*",
+    "@onenomad/przm-cortex-adapter-linear": "workspace:*",
+    "@onenomad/przm-cortex-adapter-loom": "workspace:*",
+    "@onenomad/przm-cortex-adapter-notion": "workspace:*",
+    "@onenomad/przm-cortex-adapter-obsidian": "workspace:*",
+    "@onenomad/przm-cortex-adapter-sdk": "workspace:*",
+    "@onenomad/przm-cortex-adapter-slack": "workspace:*",
+    "@onenomad/przm-cortex-cache-sqlite": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-dashboard": "workspace:*",
+    "@onenomad/przm-cortex-github-auth": "workspace:*",
+    "@onenomad/przm-cortex-llm-core": "workspace:*",
+    "@onenomad/przm-cortex-memory-pgvector": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-code": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-code-dossier": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-conversation": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-core": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-doc": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-meeting": "workspace:*",
     "pdf-parse": "^2.4.5",
     "ws": "^8.18.0",
     "yaml": "^2.6.0",
@@ -62,9 +66,9 @@
     "zod-to-json-schema": "^3.23.5"
   },
   "optionalDependencies": {
-    "@onenomad/cortex-llm-sdk": "workspace:*",
-    "@onenomad/cortex-provider-ollama": "workspace:*",
-    "@onenomad/cortex-provider-openrouter": "workspace:*"
+    "@onenomad/przm-cortex-llm-sdk": "workspace:*",
+    "@onenomad/przm-cortex-provider-ollama": "workspace:*",
+    "@onenomad/przm-cortex-provider-openrouter": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "^8.5.13",
@@ -74,5 +78,8 @@
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

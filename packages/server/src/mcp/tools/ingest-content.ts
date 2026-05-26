@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { createCodePipeline } from "@onenomad/cortex-pipeline-code";
-import { createConversationPipeline } from "@onenomad/cortex-pipeline-conversation";
-import { createDocPipeline } from "@onenomad/cortex-pipeline-doc";
+import { createCodePipeline } from "@onenomad/przm-cortex-pipeline-code";
+import { createConversationPipeline } from "@onenomad/przm-cortex-pipeline-conversation";
+import { createDocPipeline } from "@onenomad/przm-cortex-pipeline-doc";
 import {
   memoryMetadataSchema,
   type ClassifiedItem,
   type ContentType,
   type MemoryMetadata,
   type SourceType,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import { buildPipelineContext } from "../../sync.js";
 import {
   extractStructuredItems,
@@ -416,7 +416,7 @@ export const ingestContent: McpTool<typeof inputSchema, Output> = {
           enrichedDecisions++;
         }
         // Entities aren't persisted as memories — they'd flood the
-        // KB with low-signal "Matt is a person" rows. They get
+        // KB with low-signal "Alice is a person" rows. They get
         // surfaced in the response so a future taxonomy auto-suggest
         // can use them, and a follow-up PR can wire them into
         // add_person / add_project for high-confidence cases.

@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-llm-sdk",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-llm-sdk",
+  "version": "0.6.0",
   "description": "Base classes and helpers for building LLM provider packages.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-llm-core": "workspace:*",
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-llm-core": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

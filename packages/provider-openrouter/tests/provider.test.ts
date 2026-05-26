@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LLMError } from "@onenomad/cortex-llm-core";
+import { LLMError } from "@onenomad/przm-cortex-llm-core";
 import {
   OpenRouterProvider,
   openrouterConfigSchema,

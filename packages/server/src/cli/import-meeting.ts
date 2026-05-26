@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import type { ClassifiedItem, SourceType } from "@onenomad/cortex-core";
-import { createMeetingPipeline } from "@onenomad/cortex-pipeline-meeting";
+import type { ClassifiedItem, SourceType } from "@onenomad/przm-cortex-core";
+import { createMeetingPipeline } from "@onenomad/przm-cortex-pipeline-meeting";
 import { loadCortexConfig } from "../config.js";
 import { createMemoryClient } from "../clients/memory.js";
 import { createLogger } from "../logger.js";
@@ -16,7 +16,7 @@ import { findRepoRoot, loadDotEnv } from "./dotenv.js";
  * Pure-text transcript importer — the workaround for Loom + any other
  * source without API access. Reads a file (VTT, SRT, or plain text /
  * markdown), strips transcript markup, and runs the content through
- * `@onenomad/cortex-pipeline-meeting` exactly as if the meeting had been fetched
+ * `@onenomad/przm-cortex-pipeline-meeting` exactly as if the meeting had been fetched
  * by an API adapter.
  *
  * Why a dedicated command instead of the Obsidian adapter: Obsidian
@@ -262,7 +262,7 @@ Accepted file types: .vtt, .srt, .md, .txt (plain transcript text).
 
 Examples:
   cortex import meeting ./loom-kickoff.vtt --project alpha \\
-    --date 2026-04-22 --attendees matt,alex \\
+    --date 2026-04-22 --attendees alice,alex \\
     --source loom --source-url https://www.loom.com/share/xxxxxxxx
   cortex import meeting notes.md --project alpha --dry-run`;
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withCache } from "../src/api/cache/wrap.js";
 import type { Widget, WidgetContext } from "../src/api/types.js";
-import type { CacheStorage, CacheReadResult } from "@onenomad/cortex-cache-sqlite";
+import type { CacheStorage, CacheReadResult } from "@onenomad/przm-cortex-cache-sqlite";
 
 interface FakeOps {
   reads: Array<{ widget: string; workspace: string; key: string }>;

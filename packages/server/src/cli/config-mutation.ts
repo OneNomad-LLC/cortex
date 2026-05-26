@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { DerivedTaxonomy, WizardResult } from "@onenomad/cortex-core";
+import type { DerivedTaxonomy, WizardResult } from "@onenomad/przm-cortex-core";
 
 /**
  * Atomic multi-file config mutation for Cortex.
@@ -272,7 +272,7 @@ const DEFAULT_SCHEDULES: Record<string, string> = {
 
 function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
   const entry: Record<string, unknown> = {
-    package: `@onenomad/cortex-adapter-${result.moduleId}`,
+    package: `@onenomad/przm-cortex-adapter-${result.moduleId}`,
     enabled: true,
     config: result.config as Record<string, unknown>,
   };
@@ -283,7 +283,7 @@ function buildAdapterEntry(result: WizardResult): Record<string, unknown> {
 
 function buildProviderEntry(result: WizardResult): Record<string, unknown> {
   return {
-    package: `@onenomad/cortex-provider-${result.moduleId}`,
+    package: `@onenomad/przm-cortex-provider-${result.moduleId}`,
     enabled: true,
     config: result.config as Record<string, unknown>,
   };
@@ -418,8 +418,11 @@ async function tryReadYaml(filePath: string): Promise<Record<string, unknown> | 
  * Append/update key=value entries in .env. Preserves existing lines and
  * their order; unknown keys are appended with a section header the first
  * time a group is added (for readability).
+ *
+ * Exported so the dashboard token CLI can share the same atomic write
+ * path — every place that touches `.env` should go through here.
  */
-async function mergeEnv(
+export async function mergeEnv(
   filePath: string,
   entries: Record<string, string>,
 ): Promise<void> {
@@ -452,6 +455,39 @@ async function mergeEnv(
       .join("\n")
       .replace(/\n{3,}/g, "\n\n");
   await atomicWrite(filePath, combined.endsWith("\n") ? combined : `${combined}\n`);
+}
+
+/**
+ * Remove keys from a .env file. No-op if a key isn't present. Returns
+ * the set of keys actually removed so callers can report `revoked: 0`
+ * vs `revoked: N` without re-reading the file.
+ */
+export async function removeEnvKeys(
+  filePath: string,
+  keys: ReadonlyArray<string>,
+): Promise<string[]> {
+  let existing = await readFile(filePath, "utf8").catch((err) => {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return "";
+    throw err;
+  });
+  if (existing.length === 0) return [];
+  if (existing && !existing.endsWith("\n")) existing += "\n";
+  const lines = existing.split("\n");
+  const keySet = new Set(keys);
+  const removed: string[] = [];
+  const kept: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/^([A-Z0-9_]+)\s*=/);
+    if (m && keySet.has(m[1]!)) {
+      removed.push(m[1]!);
+      continue;
+    }
+    kept.push(line);
+  }
+  if (removed.length === 0) return [];
+  const combined = kept.join("\n").replace(/\n{3,}/g, "\n\n");
+  await atomicWrite(filePath, combined.endsWith("\n") ? combined : `${combined}\n`);
+  return removed;
 }
 
 function quoteIfNeeded(value: string): string {

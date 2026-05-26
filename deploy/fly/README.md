@@ -8,10 +8,10 @@ This directory exists as a documentation pointer — see `deploy/README.md` for 
 
 ```sh
 # From the repo root:
-fly deploy -a cortex-base --build-only --push
+fly deploy -a przm-cortex-base --build-only --push
 ```
 
-That's it. The `cortex-base` Fly app is a build target only — nothing actually runs in it. pyre-web's tenant provisioner pulls `registry.fly.io/cortex-base:latest` and creates per-tenant Fly Machines from it.
+That's it. The `przm-cortex-base` Fly app is a build target only — nothing actually runs in it. pyre-web's tenant provisioner pulls `registry.fly.io/przm-cortex-base:latest` and creates per-tenant Fly Machines from it.
 
 ## Why isn't fly.toml here?
 

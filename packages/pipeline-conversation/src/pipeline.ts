@@ -1,16 +1,16 @@
-import { defaultTrustForSource } from "@onenomad/cortex-core";
+import { defaultTrustForSource } from "@onenomad/przm-cortex-core";
 import type {
   ClassifiedItem,
   MemoryMetadata,
   SourceType,
-} from "@onenomad/cortex-core";
+} from "@onenomad/przm-cortex-core";
 import {
   extractSignals,
   type ExtractedSignals,
   type Pipeline,
   type PipelineContext,
   type PipelineMemory,
-} from "@onenomad/cortex-pipeline-core";
+} from "@onenomad/przm-cortex-pipeline-core";
 import { parseConversation, serializeConversation } from "./parse.js";
 
 export interface ConversationPipelineOptions {
@@ -30,7 +30,7 @@ export function createConversationPipeline(
   const multiDaySplit = opts.multiDaySplitThreshold ?? 3;
 
   return {
-    id: "@onenomad/cortex-pipeline-conversation",
+    id: "@onenomad/przm-cortex-pipeline-conversation",
     version: "0.1.0",
 
     async run(

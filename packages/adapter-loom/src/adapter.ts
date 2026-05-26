@@ -6,8 +6,8 @@ import type {
   ClassifiedItem,
   NormalizedItem,
   RawSourceItem,
-} from "@onenomad/cortex-core";
-import { BaseAdapter } from "@onenomad/cortex-adapter-sdk";
+} from "@onenomad/przm-cortex-core";
+import { BaseAdapter } from "@onenomad/przm-cortex-adapter-sdk";
 import {
   LoomClient,
   type LoomRecording,
@@ -54,7 +54,7 @@ export class LoomAdapter extends BaseAdapter {
   readonly configSchema = loomConfigSchema;
   readonly requiredSecrets = ["LOOM_API_KEY"] as const;
   readonly capabilities = CAPABILITIES;
-  readonly pipelines = ["@onenomad/cortex-pipeline-meeting"] as const;
+  readonly pipelines = ["@onenomad/przm-cortex-pipeline-meeting"] as const;
 
   private client!: LoomClient;
   private cfg!: LoomConfig;

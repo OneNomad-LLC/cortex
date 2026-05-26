@@ -139,11 +139,11 @@ describe("engram client — ingest", () => {
       metadata: {
         type: "action_item",
         project: "legacy",
-        workspace: "elevatedigital",
+        workspace: "acmeco",
         source: "slack",
         source_id: "action-2026-04-24-brandon",
         domain: "work",
-        tags: ["owner:matt", "due:2026-04-24"],
+        tags: ["owner:alice", "due:2026-04-24"],
       },
     });
     // engram's schema is flat — no nested `metadata` object.
@@ -158,10 +158,10 @@ describe("engram client — ingest", () => {
     const tags = (sent.tags as string).split(",");
     expect(tags).toContain("cortex_type:action_item");
     expect(tags).toContain("project:legacy");
-    expect(tags).toContain("workspace:elevatedigital");
+    expect(tags).toContain("workspace:acmeco");
     expect(tags).toContain("source:slack");
     expect(tags).toContain("source_id:action-2026-04-24-brandon");
-    expect(tags).toContain("owner:matt");
+    expect(tags).toContain("owner:alice");
     expect(tags).toContain("due:2026-04-24");
   });
 
@@ -233,8 +233,8 @@ describe("engram client — search", () => {
               source: "action-brandon-legacy-help",
               tags: [
                 "cortex_type:action_item",
-                "workspace:elevatedigital",
-                "owner:matt",
+                "workspace:acmeco",
+                "owner:alice",
                 "due:2026-04-24",
               ],
               score: 0.92,
@@ -248,12 +248,12 @@ describe("engram client — search", () => {
       query: "brandon",
       type: "action_item",
       domain: "work",
-      workspace: "elevatedigital",
+      workspace: "acmeco",
     });
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.id).toBe("m1");
-    expect(row.tags).toContain("owner:matt");
+    expect(row.tags).toContain("owner:alice");
     expect(row.tags).toContain("due:2026-04-24");
     // Shim for downstream code that reads meta.tags / meta.source
     const meta = row.metadata ?? {};
@@ -272,7 +272,7 @@ describe("engram client — search", () => {
             {
               id: "match",
               content: "a",
-              tags: ["cortex_type:action_item", "workspace:elevatedigital"],
+              tags: ["cortex_type:action_item", "workspace:acmeco"],
             },
             {
               id: "miss",
@@ -292,7 +292,7 @@ describe("engram client — search", () => {
     const rows = await client.search({
       query: "q",
       type: "action_item",
-      workspace: "elevatedigital",
+      workspace: "acmeco",
     });
     // Keep match + legacy (no workspace tag), drop miss.
     expect(rows.map((r) => r.id)).toEqual(["match", "legacy"]);

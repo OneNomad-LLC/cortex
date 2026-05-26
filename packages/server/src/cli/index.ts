@@ -1,5 +1,7 @@
 import { runBackfillCli } from "./backfill.js";
+import { runDashboard } from "./dashboard.js";
 import { runDockerDown, runDockerLogs, runDockerUp } from "./docker.js";
+import { runUpdate } from "./update.js";
 import { autoLoadDotEnv } from "./dotenv.js";
 import { runDoctor } from "./doctor.js";
 import { runImportMeeting } from "./import-meeting.js";
@@ -54,7 +56,7 @@ Commands:
   whoami                     Print the active mode + endpoint. Never
                                echoes the bearer.
   use local|cloud            Flip the mode flag. Cloud requires prior
-                               login (or CORTEX_MCP_URL + CORTEX_MCP_TOKEN).
+                               login (or PRZM_CORTEX_MCP_URL + PRZM_CORTEX_MCP_TOKEN).
   tenant list                List all tenants signed in on this machine.
   tenant switch <slug>       Change the active tenant. \`cortex serve\` uses
                                whichever tenant is active. Pure file edit,
@@ -68,6 +70,13 @@ Commands:
                                --foreground to run attached.
   down [-- args...]          Stop the Docker stack (wraps \`docker compose down\`).
   logs [-- args...]          Tail Docker stack logs (wraps \`docker compose logs -f\`).
+  update [--build|--skip-pull|-y]
+                             Upgrade the running cortex container in place.
+                               Default: docker compose pull + recreate (~5s
+                               downtime, no rebuild). --build runs git pull
+                               + docker compose build for setups without a
+                               registry. Workspace state (PRZM_CORTEX_HOME_HOST)
+                               is preserved.
 
   status                     Show daemon heartbeat (uptime, adapter stats).
   doctor [--connect]         Pre-flight checks: config, secrets, tokens, taxonomy.
@@ -108,10 +117,15 @@ Commands:
   github-login [--scopes <csv>]
                              Device-flow OAuth with GitHub. No PAT paste needed.
 
+  dashboard <sub>            Manage browser-session login tokens for the
+                             Cortex dashboard UI. Subcommands:
+                               create-token, rotate-token, revoke-token,
+                               list-tokens.
+
   help                       Show this message.
 
 Environment:
-  CORTEX_CONFIG_PATH   Path to cortex.yaml (default: ./config/cortex.yaml)
+  PRZM_CORTEX_CONFIG_PATH   Path to cortex.yaml (default: ./config/cortex.yaml)
   ENGRAM_MCP_URL       Override Engram MCP endpoint
   PERSONA_MCP_URL      Override Persona MCP endpoint
   LOG_LEVEL            debug | info (default info)
@@ -185,6 +199,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case "backfill":
       return runBackfillCli(rest);
 
+    case "dashboard":
+      return runDashboard(rest);
+
     case "start":
       await startServer();
       return 0;
@@ -215,6 +232,9 @@ export async function runCli(argv: string[]): Promise<number> {
 
     case "logs":
       return runDockerLogs(rest);
+
+    case "update":
+      return runUpdate(rest);
 
     case "worker":
       return runWorker();

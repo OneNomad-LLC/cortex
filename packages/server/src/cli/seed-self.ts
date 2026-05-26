@@ -6,7 +6,7 @@ import {
 } from "./workspace/manager.js";
 import { readPeople, markSelf, upsertPerson } from "../taxonomy-mutation.js";
 import { upsertJobProfile } from "../taxonomy-mutation.js";
-import type { Logger, Person, JobProfile } from "@onenomad/cortex-core";
+import type { Logger, Person, JobProfile } from "@onenomad/przm-cortex-core";
 
 /**
  * Seed the workspace's `self` person from environment variables. The
@@ -21,27 +21,27 @@ import type { Logger, Person, JobProfile } from "@onenomad/cortex-core";
  * since made via the MCP tool).
  *
  * Env contract:
- *   CORTEX_SEED_SELF_SLUG       required to fire the seed
- *   CORTEX_SEED_SELF_NAME       required
- *   CORTEX_SEED_SELF_EMAIL      required
- *   CORTEX_SEED_SELF_ROLE       optional
- *   CORTEX_SEED_SELF_TEAM       optional
- *   CORTEX_SEED_SELF_TIMEZONE   optional
- *   CORTEX_SEED_SELF_WORKSPACE  optional — workspace slug to seed.
+ *   PRZM_CORTEX_SEED_SELF_SLUG       required to fire the seed
+ *   PRZM_CORTEX_SEED_SELF_NAME       required
+ *   PRZM_CORTEX_SEED_SELF_EMAIL      required
+ *   PRZM_CORTEX_SEED_SELF_ROLE       optional
+ *   PRZM_CORTEX_SEED_SELF_TEAM       optional
+ *   PRZM_CORTEX_SEED_SELF_TIMEZONE   optional
+ *   PRZM_CORTEX_SEED_SELF_WORKSPACE  optional — workspace slug to seed.
  *                               Defaults to the active workspace, or
  *                               "personal" when no workspace exists yet
  *                               (auto-creates + activates it).
  *
- * No-op when CORTEX_SEED_SELF_SLUG is unset — self-hosted Cortex
+ * No-op when PRZM_CORTEX_SEED_SELF_SLUG is unset — self-hosted Cortex
  * installs don't carry the env vars and continue with the existing
  * web setup-wizard flow.
  */
 export async function seedSelfFromEnv(logger: Logger): Promise<void> {
   const env = process.env;
-  const slug = env.CORTEX_SEED_SELF_SLUG;
+  const slug = env.PRZM_CORTEX_SEED_SELF_SLUG;
   if (!slug) return;
-  const name = env.CORTEX_SEED_SELF_NAME;
-  const email = env.CORTEX_SEED_SELF_EMAIL;
+  const name = env.PRZM_CORTEX_SEED_SELF_NAME;
+  const email = env.PRZM_CORTEX_SEED_SELF_EMAIL;
   if (!name || !email) {
     logger.warn("seed_self.skipped_incomplete_env", {
       hasSlug: !!slug,
@@ -52,7 +52,7 @@ export async function seedSelfFromEnv(logger: Logger): Promise<void> {
   }
 
   let workspace: Workspace | undefined;
-  const desiredSlug = env.CORTEX_SEED_SELF_WORKSPACE ?? null;
+  const desiredSlug = env.PRZM_CORTEX_SEED_SELF_WORKSPACE ?? null;
   if (desiredSlug) {
     workspace = await getActiveWorkspace();
     if (!workspace || workspace.slug !== desiredSlug) {
@@ -104,10 +104,10 @@ export async function seedSelfFromEnv(logger: Logger): Promise<void> {
     email,
     self: true,
   };
-  if (env.CORTEX_SEED_SELF_ROLE) patch.role = env.CORTEX_SEED_SELF_ROLE;
-  if (env.CORTEX_SEED_SELF_TEAM) patch.team = env.CORTEX_SEED_SELF_TEAM;
-  if (env.CORTEX_SEED_SELF_TIMEZONE) {
-    patch.timezone = env.CORTEX_SEED_SELF_TIMEZONE;
+  if (env.PRZM_CORTEX_SEED_SELF_ROLE) patch.role = env.PRZM_CORTEX_SEED_SELF_ROLE;
+  if (env.PRZM_CORTEX_SEED_SELF_TEAM) patch.team = env.PRZM_CORTEX_SEED_SELF_TEAM;
+  if (env.PRZM_CORTEX_SEED_SELF_TIMEZONE) {
+    patch.timezone = env.PRZM_CORTEX_SEED_SELF_TIMEZONE;
   }
 
   const { person, created } = await upsertPerson(paths, patch);
@@ -121,13 +121,13 @@ export async function seedSelfFromEnv(logger: Logger): Promise<void> {
   // Optional job-profile seed — kept separate so a partial seed
   // (identity only) is the easy default. Fires only when title is
   // set; everything else is additive.
-  const title = env.CORTEX_SEED_JOB_TITLE;
-  const employer = env.CORTEX_SEED_JOB_EMPLOYER;
+  const title = env.PRZM_CORTEX_SEED_JOB_TITLE;
+  const employer = env.PRZM_CORTEX_SEED_JOB_EMPLOYER;
   if (title || employer) {
     const jobPatch: Partial<JobProfile> = {};
     if (title) jobPatch.title = title;
     if (employer) jobPatch.employer = employer;
-    if (env.CORTEX_SEED_JOB_TEAM) jobPatch.team = env.CORTEX_SEED_JOB_TEAM;
+    if (env.PRZM_CORTEX_SEED_JOB_TEAM) jobPatch.team = env.PRZM_CORTEX_SEED_JOB_TEAM;
     await upsertJobProfile(paths, jobPatch);
     logger.info("seed_self.job_profile_applied", {
       workspace: workspace.slug,

@@ -104,7 +104,7 @@ export function autoLoadDotEnv(): void {
  */
 function resolveActiveWorkspaceEnv(): string | undefined {
   const statePath =
-    process.env.CORTEX_STATE_PATH ??
+    process.env.PRZM_CORTEX_STATE_PATH ??
     path.join(os.homedir(), ".cortex", "state.json");
   let raw: string;
   try {
@@ -121,7 +121,7 @@ function resolveActiveWorkspaceEnv(): string | undefined {
   const slug = parsed.activeWorkspace;
   if (!slug) return undefined;
   const root =
-    process.env.CORTEX_WORKSPACES_ROOT ??
+    process.env.PRZM_CORTEX_WORKSPACES_ROOT ??
     path.join(os.homedir(), ".cortex", "workspaces");
   return path.join(root, slug, ".env");
 }

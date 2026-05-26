@@ -15,11 +15,6 @@ entity tagging) is delegated to the connected MCP client via the
 runs with zero LLM. Bring your own — locally or via an MCP client
 like Pyre, Claude Desktop, or any custom agent.
 
-Built as an orchestration layer on top of two standalone MCP servers:
-
-- [**@onenomad/engram-memory**](https://www.npmjs.com/package/@onenomad/engram-memory) — memory, hybrid search, knowledge graph
-- [**@onenomad/persona-mcp**](https://www.npmjs.com/package/@onenomad/persona-mcp) — evolving personality, style signals
-
 Cortex adds domain-specific MCP tools (projects, meetings, briefs,
 action items, research) and modular source adapters. Every adapter
 and LLM provider is a standalone package — install only what you use.
@@ -93,7 +88,7 @@ state under `~/.cortex/workspaces/<slug>/`. Manage from the terminal
 (`cortex workspace *`), from Claude via MCP tools, or from the
 dashboard dropdown.
 
-**Local dashboard.** `@onenomad/cortex-dashboard` (Next.js 15 + shadcn/ui)
+**Local dashboard.** `@onenomad/przm-cortex-dashboard` (Next.js 15 + shadcn/ui)
 provides:
 
 - **Today timeline (`/`)** — chronological "what needs your attention
@@ -127,9 +122,9 @@ meeting pipeline.
 **Five pipelines** — doc, meeting (3-pass), code, conversation,
 research (two-pass: extract → brief).
 
-**Pluggable memory backend** — Engram primary, `@onenomad/cortex-memory-pgvector`
+**Pluggable memory backend** — Engram primary, `@onenomad/przm-cortex-memory-pgvector`
 as a native hybrid-search fallback (Postgres + pgvector + tsvector,
-fused via RRF). `@onenomad/cortex-memory-remote` skeleton ready for federated
+fused via RRF). `@onenomad/przm-cortex-memory-remote` skeleton ready for federated
 personal-local + shared-team Engram per ADR-016.
 
 **Cron-based scheduler** runs every enabled adapter on its schedule
@@ -204,9 +199,8 @@ pnpm install
 
 ## First-run setup
 
-Run the interactive wizard. It detects whether Engram and Persona are
-installed globally, offers to install the missing ones, auto-installs
-local Ollama if you pick it, and writes `.env` + `config/cortex.yaml`.
+Run the interactive wizard. It auto-installs local Ollama if you pick
+it, and writes `.env` + `config/cortex.yaml`.
 
 ```bash
 cortex init
@@ -214,13 +208,12 @@ cortex init
 
 The wizard:
 
-1. Probes `persona-mcp` and `engram-memory` on PATH; `npm install -g`s any missing.
-2. If you pick Ollama local: detects `ollama`, offers to auto-install
+1. If you pick Ollama local: detects `ollama`, offers to auto-install
    (winget / brew / shell script), waits for the daemon, pulls the
    chosen model.
-3. Prompts for LLM providers, API keys, host.
-4. Writes config (backs up any existing versions with `.bak.<ts>`).
-5. Runs a live smoke test.
+2. Prompts for LLM providers, API keys, host.
+3. Writes config (backs up any existing versions with `.bak.<ts>`).
+4. Runs a live smoke test.
 
 ## Commands
 
@@ -256,7 +249,7 @@ cortex workspace rename <old> <new>
 
 cortex google-login              # OAuth flow for gmail/calendar/drive
 
-cortex worker                    # long-running worker for the cortex-workers
+cortex worker                    # long-running worker for the przm-cortex-workers
                                  #   Fly fleet (autoscale-to-zero job runner).
                                  #   Polls pyre-web's /api/cortex/jobs/claim,
                                  #   executes ingest jobs by calling back to
@@ -271,18 +264,18 @@ cortex help
 
 | Adapter | Status | Auth | Reuses |
 |---|---|---|---|
-| `@onenomad/cortex-adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
-| `@onenomad/cortex-adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
-| `@onenomad/cortex-adapter-linear` | ✅ shipped | `LINEAR_API_KEY` | `pipeline-doc` |
-| `@onenomad/cortex-adapter-loom` | ✅ shipped | `LOOM_API_KEY` | `pipeline-meeting` |
-| `@onenomad/cortex-adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
-| `@onenomad/cortex-adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
-| `@onenomad/cortex-adapter-google-calendar` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@onenomad/cortex-adapter-google-drive` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@onenomad/cortex-adapter-gmail` | ✅ shipped | Google OAuth | `pipeline-doc` |
-| `@onenomad/cortex-adapter-bitbucket` | ✅ shipped | Atlassian token | `pipeline-code` |
-| `@onenomad/cortex-adapter-github` | ✅ shipped | `GITHUB_TOKEN` | `pipeline-code` |
-| `@onenomad/cortex-adapter-slack` | ✅ shipped | `SLACK_BOT_TOKEN` | `pipeline-conversation` |
+| `@onenomad/przm-cortex-adapter-confluence` | ✅ shipped | Atlassian token | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-jira` | ✅ shipped | Atlassian token (same) | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-linear` | ✅ shipped | `LINEAR_API_KEY` | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-loom` | ✅ shipped | `LOOM_API_KEY` | `pipeline-meeting` |
+| `@onenomad/przm-cortex-adapter-notion` | ✅ shipped | `NOTION_API_KEY` | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-obsidian` | ✅ shipped | (filesystem) | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-google-calendar` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-google-drive` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-gmail` | ✅ shipped | Google OAuth | `pipeline-doc` |
+| `@onenomad/przm-cortex-adapter-bitbucket` | ✅ shipped | Atlassian token | `pipeline-code` |
+| `@onenomad/przm-cortex-adapter-github` | ✅ shipped | `GITHUB_TOKEN` | `pipeline-code` |
+| `@onenomad/przm-cortex-adapter-slack` | ✅ shipped | `SLACK_BOT_TOKEN` | `pipeline-conversation` |
 
 Enabling an adapter is a three-step flip:
 
@@ -349,7 +342,7 @@ back to walk-up / home / cwd.
 
 ```bash
 # Adopt the repo's current config as your first workspace
-cortex workspace add elevate --from .
+cortex workspace add onenomad --from .
 
 # Create a blank one for personal projects and switch
 cortex workspace add one-nomad
@@ -357,7 +350,7 @@ cortex workspace switch one-nomad
 cortex init            # fresh LLM/adapter setup inside one-nomad
 
 # Later
-cortex workspace switch elevate
+cortex workspace switch onenomad
 ```
 
 Manage from Claude instead of the terminal:
@@ -414,12 +407,12 @@ purposes: `default`, `structural`, `synthesis`, `brief`, `classify`,
 
 Provider packages (all optional):
 
-- `@onenomad/cortex-provider-ollama` — local (Ollama, any model it supports;
+- `@onenomad/przm-cortex-provider-ollama` — local (Ollama, any model it supports;
   `think: false` by default; `/api/embed` for embedding tasks)
-- `@onenomad/cortex-provider-openrouter` — BYOK cloud aggregator
+- `@onenomad/przm-cortex-provider-openrouter` — BYOK cloud aggregator
 
-Future: `@onenomad/cortex-provider-anthropic`, `@onenomad/cortex-provider-openai`,
-`@onenomad/cortex-provider-google` for direct-provider BYOK.
+Future: `@onenomad/przm-cortex-provider-anthropic`, `@onenomad/przm-cortex-provider-openai`,
+`@onenomad/przm-cortex-provider-google` for direct-provider BYOK.
 
 ### Enrichment via MCP client (no local LLM)
 
@@ -471,19 +464,17 @@ deployment shape. See [ADR-013](docs/DECISIONS.md).
 
 ## Memory backend
 
-Engram is the primary memory store. For deployments without Engram —
-or for a safety net when the Engram subprocess is down —
-`@onenomad/cortex-memory-pgvector` provides a native hybrid-search backend
+`@onenomad/przm-cortex-memory-pgvector` provides a native hybrid-search backend
 (Postgres + `pgvector` HNSW + `tsvector` GIN, fused via reciprocal
-rank fusion). Both expose the same ingest/search/health contract, so
-tools don't care which one answers.
+rank fusion). `@onenomad/przm-cortex-memory-remote` provides an HTTP MCP
+federation path. All backends expose the same ingest/search/health
+contract, so tools don't care which one answers.
 
 Enable it in `config/cortex.yaml`:
 
 ```yaml
 memory:
-  primary: engram
-  fallback: pgvector
+  primary: pgvector
   pgvector:
     connectionString: "${POSTGRES_URL}"
     embeddingDim: 768          # must match the model bound to llm.tasks.embed
@@ -513,7 +504,7 @@ running Cortex.
 
 **Remote / containerized (HTTP):**
 
-Set `CORTEX_MCP_TRANSPORT=http` on the server side (defaults to port
+Set `PRZM_CORTEX_MCP_TRANSPORT=http` on the server side (defaults to port
 3100). Point Claude Code at the URL:
 
 ```json
@@ -561,53 +552,48 @@ AI Clients                         Browser
        │                                │
        │ MCP (stdio or HTTP)            │ fetch /api/cortex/*
        ▼                                ▼
-Cortex MCP server  ◄── HTTP sidecar ──► @onenomad/cortex-dashboard
+Cortex MCP server  ◄── HTTP sidecar ──► @onenomad/przm-cortex-dashboard
        │                                (Next.js 15, widgets)
        ├── MCP tools             17 shipped — knowledge, research,
        │                         session bridge, workspace mgmt
        │
        ├── LLM provider layer    (pluggable, per-task routing)
-       │     ├── @onenomad/cortex-provider-ollama
-       │     ├── @onenomad/cortex-provider-openrouter
+       │     ├── @onenomad/przm-cortex-provider-ollama
+       │     ├── @onenomad/przm-cortex-provider-openrouter
        │     └── (future: anthropic, openai, google)
        │
        ├── Source adapters       (modular, one package each)
-       │     ├── @onenomad/cortex-adapter-confluence        ✅
-       │     ├── @onenomad/cortex-adapter-jira              ✅
-       │     ├── @onenomad/cortex-adapter-linear            ✅
-       │     ├── @onenomad/cortex-adapter-loom              ✅
-       │     ├── @onenomad/cortex-adapter-notion            ✅
-       │     ├── @onenomad/cortex-adapter-obsidian          ✅
-       │     ├── @onenomad/cortex-adapter-bitbucket         ✅
-       │     ├── @onenomad/cortex-adapter-github            ✅
-       │     ├── @onenomad/cortex-adapter-slack             ✅
-       │     ├── @onenomad/cortex-adapter-google-calendar   ✅  ┐
-       │     ├── @onenomad/cortex-adapter-google-drive      ✅  ├─ share @onenomad/cortex-google-auth
-       │     └── @onenomad/cortex-adapter-gmail             ✅  ┘
+       │     ├── @onenomad/przm-cortex-adapter-confluence        ✅
+       │     ├── @onenomad/przm-cortex-adapter-jira              ✅
+       │     ├── @onenomad/przm-cortex-adapter-linear            ✅
+       │     ├── @onenomad/przm-cortex-adapter-loom              ✅
+       │     ├── @onenomad/przm-cortex-adapter-notion            ✅
+       │     ├── @onenomad/przm-cortex-adapter-obsidian          ✅
+       │     ├── @onenomad/przm-cortex-adapter-bitbucket         ✅
+       │     ├── @onenomad/przm-cortex-adapter-github            ✅
+       │     ├── @onenomad/przm-cortex-adapter-slack             ✅
+       │     ├── @onenomad/przm-cortex-adapter-google-calendar   ✅  ┐
+       │     ├── @onenomad/przm-cortex-adapter-google-drive      ✅  ├─ share @onenomad/przm-cortex-google-auth
+       │     └── @onenomad/przm-cortex-adapter-gmail             ✅  ┘
        │
        ├── Pipelines             (shape-specific, reusable)
-       │     ├── @onenomad/cortex-pipeline-doc           ✅  (prose → chunked memories)
-       │     ├── @onenomad/cortex-pipeline-meeting       ✅  (3-pass: structural → synthesis → brief)
-       │     ├── @onenomad/cortex-pipeline-code          ✅  (per-file, language-aware chunking)
-       │     └── @onenomad/cortex-pipeline-conversation  ✅  (chat threads → transcript + quotes)
+       │     ├── @onenomad/przm-cortex-pipeline-doc           ✅  (prose → chunked memories)
+       │     ├── @onenomad/przm-cortex-pipeline-meeting       ✅  (3-pass: structural → synthesis → brief)
+       │     ├── @onenomad/przm-cortex-pipeline-code          ✅  (per-file, language-aware chunking)
+       │     └── @onenomad/przm-cortex-pipeline-conversation  ✅  (chat threads → transcript + quotes)
        │
-       ├── Memory backend        (pluggable — engram, pgvector, or remote)
-       │     ├── @onenomad/engram-memory     (stdio subprocess — primary)
-       │     ├── @onenomad/cortex-memory-pgvector     (Postgres + pgvector — native fallback)
-       │     └── @onenomad/cortex-memory-remote       (HTTP MCP — federation, ADR-016)
+       ├── Memory backend        (pluggable — pgvector, or remote)
+       │     ├── @onenomad/przm-cortex-memory-pgvector     (Postgres + pgvector — primary)
+       │     └── @onenomad/przm-cortex-memory-remote       (HTTP MCP — federation, ADR-016)
        │
-       ├── Workspace layer       (~/.cortex/workspaces/<slug>/)
-       │     Per-user config + .env + memory state bundles.
-       │     Switch via CLI, MCP, or dashboard.
-       │
-       └── Upstream MCP clients
-             └── @onenomad/persona-mcp       (spawned as stdio subprocess)
+       └── Workspace layer       (~/.cortex/workspaces/<slug>/)
+             Per-user config + .env + memory state bundles.
+             Switch via CLI, MCP, or dashboard.
 ```
 
 Every adapter implements the same `SourceAdapter` contract. Every LLM
 provider implements the same `LLMProvider` contract. Every pipeline
-implements the same `Pipeline` contract. Engram and pgvector both
-implement the same `MemoryBackend` contract. All four layers are
+implements the same `Pipeline` contract. All three layers are
 loaded from config at startup, so swapping or disabling any piece is
 a config edit — not a code change.
 
@@ -644,9 +630,9 @@ Cross-platform; requires Node only. A bash equivalent
 Env vars are read from `.env` automatically. If you need to override at the
 shell level:
 
-- **Windows (PowerShell)**: `$env:CORTEX_MCP_TRANSPORT = "http"`
-- **macOS / Linux (bash/zsh)**: `export CORTEX_MCP_TRANSPORT=http`
-- **Windows (cmd)**: `set CORTEX_MCP_TRANSPORT=http`
+- **Windows (PowerShell)**: `$env:PRZM_CORTEX_MCP_TRANSPORT = "http"`
+- **macOS / Linux (bash/zsh)**: `export PRZM_CORTEX_MCP_TRANSPORT=http`
+- **Windows (cmd)**: `set PRZM_CORTEX_MCP_TRANSPORT=http`
 
 ### Chaining commands
 
@@ -671,8 +657,6 @@ decisions that shaped this structure are in
 
 ## License
 
-Cortex is a commercial product. Source-available, **not open source**. The eventual public license will be the Business Source License (BSL) 1.1 with a multi-year change date to Apache 2.0; production use in a commercial product or service requires a separate commercial license.
+Cortex (`@onenomad/przm-cortex`) is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for the full text.
 
-This is the only piece of the OneNomad stack that's commercial. The brain trio that Cortex composes with — [Engram](https://github.com/OneNomad-LLC/engram-mcp), [Persona](https://github.com/OneNomad-LLC/persona-mcp), and [Pyre Core](https://github.com/OneNomad-LLC/pyre) — are all open source under Apache License 2.0.
-
-For commercial licensing, partnerships, or design-partner inquiries: **matt@onenomad.dev**
+For commercial licensing, partnerships, or design-partner inquiries: **hello@onenomad.dev**

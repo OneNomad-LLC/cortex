@@ -1,16 +1,16 @@
-import type { WizardModule } from "@onenomad/cortex-core";
-import { bitbucketWizard } from "@onenomad/cortex-adapter-bitbucket";
-import { confluenceWizard } from "@onenomad/cortex-adapter-confluence";
-import { githubWizard } from "@onenomad/cortex-adapter-github";
-import { jiraWizard } from "@onenomad/cortex-adapter-jira";
-import { linearWizard } from "@onenomad/cortex-adapter-linear";
-import { loomWizard } from "@onenomad/cortex-adapter-loom";
-import { notionWizard } from "@onenomad/cortex-adapter-notion";
-import { obsidianWizard } from "@onenomad/cortex-adapter-obsidian";
-import { slackWizard } from "@onenomad/cortex-adapter-slack";
-import { pgvectorWizard } from "@onenomad/cortex-memory-pgvector";
-import { ollamaWizard } from "@onenomad/cortex-provider-ollama";
-import { openrouterWizard } from "@onenomad/cortex-provider-openrouter";
+import type { WizardModule } from "@onenomad/przm-cortex-core";
+import { bitbucketWizard } from "@onenomad/przm-cortex-adapter-bitbucket";
+import { confluenceWizard } from "@onenomad/przm-cortex-adapter-confluence";
+import { githubWizard } from "@onenomad/przm-cortex-adapter-github";
+import { jiraWizard } from "@onenomad/przm-cortex-adapter-jira";
+import { linearWizard } from "@onenomad/przm-cortex-adapter-linear";
+import { loomWizard } from "@onenomad/przm-cortex-adapter-loom";
+import { notionWizard } from "@onenomad/przm-cortex-adapter-notion";
+import { obsidianWizard } from "@onenomad/przm-cortex-adapter-obsidian";
+import { slackWizard } from "@onenomad/przm-cortex-adapter-slack";
+import { pgvectorWizard } from "@onenomad/przm-cortex-memory-pgvector";
+import { ollamaWizard } from "@onenomad/przm-cortex-provider-ollama";
+import { openrouterWizard } from "@onenomad/przm-cortex-provider-openrouter";
 import { webhooksWizard } from "./webhooks-wizard.js";
 
 /**

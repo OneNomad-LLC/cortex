@@ -36,7 +36,7 @@ export const LOCAL_EMBEDDING_DIM = 384;
  * be a HuggingFace Xenova id; Cortex doesn't validate the shape
  * (transformers.js will).
  */
-const MODEL_ID = process.env.CORTEX_EMBEDDING_MODEL ?? "Xenova/all-MiniLM-L6-v2";
+const MODEL_ID = process.env.PRZM_CORTEX_EMBEDDING_MODEL ?? "Xenova/all-MiniLM-L6-v2";
 
 let _extractorPromise: Promise<unknown> | null = null;
 

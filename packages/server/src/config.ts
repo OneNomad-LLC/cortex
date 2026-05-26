@@ -110,7 +110,7 @@ export const mcpConfigSchema = z
      * Transport for the MCP server. 'stdio' = subprocess (Pyre / Claude
      * Desktop launch Cortex per-session). 'http' = long-running HTTP
      * server (remote VPS deploys, hosted Cortex, anything where a
-     * client connects over the network). Env var CORTEX_MCP_TRANSPORT
+     * client connects over the network). Env var PRZM_CORTEX_MCP_TRANSPORT
      * still works as an override at boot.
      */
     transport: z.enum(["stdio", "http"]).default("stdio"),
@@ -126,7 +126,7 @@ export const mcpConfigSchema = z
 
 /**
  * Customer-extensible memory taxonomy. Built-in canonical types are
- * defined in `@onenomad/cortex-core > BUILT_IN_MEMORY_TYPES`; this
+ * defined in `@onenomad/przm-cortex-core > BUILT_IN_MEMORY_TYPES`; this
  * stanza adds per-workspace types on top. `source: "auto"` entries
  * are the ones the ingest path registered from unknown classifier
  * output — operators promote them to `"config"` (or delete them) from
@@ -232,16 +232,16 @@ export async function loadCortexConfig(configPath: string): Promise<CortexConfig
  * present — absent vars leave the YAML value untouched.
  */
 export function applyEnvOverrides(cfg: CortexConfig): CortexConfig {
-  const envHost = process.env.CORTEX_API_HOST;
-  const envPort = process.env.CORTEX_API_PORT;
-  const envEnabled = process.env.CORTEX_API_ENABLED;
+  const envHost = process.env.PRZM_CORTEX_API_HOST;
+  const envPort = process.env.PRZM_CORTEX_API_PORT;
+  const envEnabled = process.env.PRZM_CORTEX_API_ENABLED;
   if (!envHost && !envPort && !envEnabled) return cfg;
   return {
     ...cfg,
     api: {
       ...cfg.api,
       ...(envHost ? { host: envHost } : {}),
-      ...(envPort ? { port: parseIntOrThrow("CORTEX_API_PORT", envPort) } : {}),
+      ...(envPort ? { port: parseIntOrThrow("PRZM_CORTEX_API_PORT", envPort) } : {}),
       ...(envEnabled ? { enabled: envEnabled === "true" || envEnabled === "1" } : {}),
     },
   };

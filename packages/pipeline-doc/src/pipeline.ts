@@ -1,10 +1,10 @@
-import { defaultTrustForSource } from "@onenomad/cortex-core";
-import type { ClassifiedItem, MemoryMetadata } from "@onenomad/cortex-core";
+import { defaultTrustForSource } from "@onenomad/przm-cortex-core";
+import type { ClassifiedItem, MemoryMetadata } from "@onenomad/przm-cortex-core";
 import type {
   Pipeline,
   PipelineContext,
   PipelineMemory,
-} from "@onenomad/cortex-pipeline-core";
+} from "@onenomad/przm-cortex-pipeline-core";
 import { chunkByHeading, type DocChunk } from "./chunk.js";
 
 export interface DocPipelineOptions {
@@ -28,7 +28,7 @@ export function createDocPipeline(
   const minChunkChars = opts.minChunkChars ?? 80;
 
   return {
-    id: "@onenomad/cortex-pipeline-doc",
+    id: "@onenomad/przm-cortex-pipeline-doc",
     version: "0.1.0",
 
     async run(

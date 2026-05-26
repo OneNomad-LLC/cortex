@@ -12,7 +12,7 @@
  * edits, wizard applies, workspace-file writes, /api/reload).
  */
 
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import type { ReloadResult } from "../hot-reload.js";
 import type { DashboardApiOptions } from "./server.js";
 

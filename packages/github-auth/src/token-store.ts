@@ -22,10 +22,10 @@ export type GithubToken = z.infer<typeof githubTokenSchema>;
 
 /**
  * Location of the persisted token file. Overridable via
- * CORTEX_GITHUB_TOKEN_PATH for containerized or multi-account setups.
+ * PRZM_CORTEX_GITHUB_TOKEN_PATH for containerized or multi-account setups.
  */
 export function defaultTokenPath(): string {
-  const override = process.env.CORTEX_GITHUB_TOKEN_PATH;
+  const override = process.env.PRZM_CORTEX_GITHUB_TOKEN_PATH;
   if (override) return override;
   return path.join(os.homedir(), ".cortex", "github-token.json");
 }

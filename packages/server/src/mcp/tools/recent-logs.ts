@@ -51,7 +51,7 @@ interface Output {
  * disk file does.
  */
 function resolveRuntimeLogPath(): string {
-  const home = process.env.CORTEX_HOME ?? path.join(os.homedir(), ".cortex");
+  const home = process.env.PRZM_CORTEX_HOME ?? path.join(os.homedir(), ".cortex");
   return path.join(home, "logs", "runtime.log");
 }
 

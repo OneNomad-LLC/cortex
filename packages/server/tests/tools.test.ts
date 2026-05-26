@@ -10,7 +10,7 @@ import { loadTaxonomy, type LoadedTaxonomy } from "../src/taxonomy.js";
 import { getProjectContext } from "../src/mcp/tools/get-project-context.js";
 import type { ToolContext } from "../src/mcp/tool.js";
 import type { EngramClient, EngramMemory } from "../src/clients/engram.js";
-import { MemoryTypeRegistry } from "@onenomad/cortex-core";
+import { MemoryTypeRegistry } from "@onenomad/przm-cortex-core";
 
 const fixturesDir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),

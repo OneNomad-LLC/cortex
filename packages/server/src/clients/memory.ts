@@ -1,8 +1,8 @@
 import os from "node:os";
 import path from "node:path";
-import type { Logger } from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
-import { LOCAL_EMBEDDING_DIM } from "@onenomad/cortex-memory-pgvector";
+import type { Logger } from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
+import { LOCAL_EMBEDDING_DIM } from "@onenomad/przm-cortex-memory-pgvector";
 import type { MemoryConfig } from "../config.js";
 import { createPgVectorClient } from "./pgvector.js";
 import type { EngramClient } from "./engram.js";

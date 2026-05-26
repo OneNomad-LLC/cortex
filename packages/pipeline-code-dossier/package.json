@@ -1,0 +1,50 @@
+{
+  "name": "@onenomad/przm-cortex-pipeline-code-dossier",
+  "version": "0.6.0",
+  "description": "Code dossier pipeline: 3-pass LLM extraction over a checked-out repo (structural -> synthesis -> brief). Emits ~20 high-signal architectural memories instead of ~1000 raw file chunks.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/prompts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-prompts.mjs",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --build",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.0",
+    "eslint": "^9.12.0"
+  },
+  "license": "Apache-2.0",
+  "author": "OneNomad LLC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneNomad-LLC/cortex.git",
+    "directory": "packages/pipeline-code-dossier"
+  },
+  "homepage": "https://github.com/OneNomad-LLC/cortex#readme",
+  "bugs": {
+    "url": "https://github.com/OneNomad-LLC/cortex/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

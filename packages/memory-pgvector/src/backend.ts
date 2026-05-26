@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { HealthStatus } from "@onenomad/cortex-core";
+import type { HealthStatus } from "@onenomad/przm-cortex-core";
 import { isSafeIdentifier, buildBootstrapSql } from "./schema.js";
 import {
   buildDeleteQuery,

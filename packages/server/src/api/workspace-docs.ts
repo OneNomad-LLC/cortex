@@ -4,7 +4,7 @@ import {
 } from "node:http";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import type { Logger } from "@onenomad/cortex-core";
+import type { Logger } from "@onenomad/przm-cortex-core";
 import {
   findWorkspace,
   getActiveWorkspace,

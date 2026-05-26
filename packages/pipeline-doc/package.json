@@ -1,6 +1,6 @@
-﻿{
-  "name": "@onenomad/cortex-pipeline-doc",
-  "version": "0.1.0",
+{
+  "name": "@onenomad/przm-cortex-pipeline-doc",
+  "version": "0.6.0",
   "description": "Doc pipeline: chunk prose content by heading, produce ingestible memories.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,8 +23,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@onenomad/cortex-core": "workspace:*",
-    "@onenomad/cortex-pipeline-core": "workspace:*"
+    "@onenomad/przm-cortex-core": "workspace:*",
+    "@onenomad/przm-cortex-pipeline-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

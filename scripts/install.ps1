@@ -6,7 +6,7 @@
 #
 # What it does:
 #   1. Verify prerequisites (git, node>=22, pnpm).
-#   2. Clone https://github.com/OneNomad-LLC/cortex into the chosen directory.
+#   2. Clone https://github.com/OneNomad-LLC/przm-cortex into the chosen directory.
 #   3. pnpm install + pnpm -r build.
 #   4. Write a zero-config cortex.yaml using the engram backend
 #      (local Xenova embeddings -- no LLM provider, no Docker).
@@ -28,7 +28,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$CortexRepo = if ($env:CORTEX_REPO) { $env:CORTEX_REPO } else { 'https://github.com/OneNomad-LLC/cortex.git' }
+$CortexRepo = if ($env:PRZM_CORTEX_REPO) { $env:PRZM_CORTEX_REPO } else { 'https://github.com/OneNomad-LLC/przm-cortex.git' }
 $DefaultDir = Join-Path $env:USERPROFILE '.cortex-install'
 if (-not $Dir) { $Dir = $DefaultDir }
 
@@ -51,7 +51,7 @@ Options:
   -Help             Print this help
 
 Environment:
-  CORTEX_REPO       Override the source git URL (default: $CortexRepo)
+  PRZM_CORTEX_REPO       Override the source git URL (default: $CortexRepo)
 
 Examples:
   irm https://install.cortex.onenomad.dev/ps1 | iex
@@ -211,7 +211,7 @@ memory:
 llm:
   providers:
     openrouter:
-      package: "@onenomad/cortex-provider-openrouter"
+      package: "@onenomad/przm-cortex-provider-openrouter"
       enabled: false
       config:
         appTitle: "Cortex"
@@ -266,7 +266,7 @@ function Show-NextSteps {
 
   > Wire into Pyre:
       Settings → Agents → MCP Servers → Add. Use the same command/args
-      as above, with id 'cortex' and CORTEX_CONFIG_PATH pointing at
+      as above, with id 'cortex' and PRZM_CORTEX_CONFIG_PATH pointing at
       $($Dir)\config\cortex.yaml in the env block.
 
   > Add a data source:

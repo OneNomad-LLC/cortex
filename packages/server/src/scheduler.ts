@@ -2,8 +2,8 @@ import type {
   EnrichmentClient,
   Logger,
   SourceAdapter,
-} from "@onenomad/cortex-core";
-import type { LLMRouter } from "@onenomad/cortex-llm-core";
+} from "@onenomad/przm-cortex-core";
+import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
 import type { EngramClient } from "./clients/engram.js";
 import { parseCron, nextFireAfter, type CronSchedule } from "./cron.js";
 import type { HeartbeatWriter } from "./heartbeat.js";

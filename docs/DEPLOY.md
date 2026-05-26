@@ -65,7 +65,7 @@ Only two fields are critical for a first boot:
 
 ```dotenv
 OPENROUTER_API_KEY=sk-or-...
-CORTEX_HOME_HOST=/home/YOU/.cortex   # where workspaces + OAuth tokens persist
+PRZM_CORTEX_HOME_HOST=/home/YOU/.cortex   # where workspaces + OAuth tokens persist
 ```
 
 Leave the port settings at their defaults. The compose file binds
@@ -122,14 +122,14 @@ anything else you have wired.
 
 ### Use your existing `~/.cortex` workspace from a laptop
 
-Set `CORTEX_HOME_HOST` to the bind-mount source path. On a fresh VPS
+Set `PRZM_CORTEX_HOME_HOST` to the bind-mount source path. On a fresh VPS
 you'll start with an empty workspace — run through /setup in the
 dashboard, or rsync your laptop's `~/.cortex` to the VPS path you
 bound.
 
 ### Pointing the dashboard at a different port
 
-Set `CORTEX_DASHBOARD_PORT` in `.env` before `docker compose up`.
+Set `PRZM_CORTEX_DASHBOARD_PORT` in `.env` before `docker compose up`.
 
 ### Updates
 
@@ -145,7 +145,7 @@ survive untouched.
 
 ### Backups
 
-LanceDB (engram's store) lives under the `CORTEX_HOME_HOST` bind
+LanceDB (engram's store) lives under the `PRZM_CORTEX_HOME_HOST` bind
 mount. A daily `tar` + upload to Backblaze B2 is enough for single-
 user scale. See HOSTING.md for a sketch.
 

@@ -12,12 +12,12 @@ import { cortexLogout, cortexLogoutInputSchema } from './tools/logout.js'
 import { cortexStatus, cortexStatusInputSchema } from './tools/status.js'
 
 /**
- * @onenomad/cortex-onboarder
+ * @onenomad/przm-cortex-onboarder
  *
  * Stdio MCP server that handles Cortex login + writes the per-tenant
  * Cortex MCP entry into Claude Code's user config. Install once with
  *
- *   claude mcp add cortex-onboarder -- npx -y @onenomad/cortex-onboarder
+ *   claude mcp add cortex-onboarder -- npx -y @onenomad/przm-cortex-onboarder
  *
  * After that the user just says "cortex login" in chat and the
  * cortex_login tool runs the device-code flow end-to-end.

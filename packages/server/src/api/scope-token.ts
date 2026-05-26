@@ -12,7 +12,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * `scopes` field.
  *
  * Signing key: shared with cookie-session — pyre-web's stored
- * `gatewaySecret` per deployment, Cortex's `CORTEX_GATEWAY_SECRET`
+ * `gatewaySecret` per deployment, Cortex's `PRZM_CORTEX_GATEWAY_SECRET`
  * env var. Single key per deployment keeps key management simple
  * for v1; per-key rotation lands with the dedicated cortex-api-keys
  * collection follow-up.
@@ -62,7 +62,7 @@ export function signScopeToken(claims: ScopeClaims, key: string): string {
  *
  * Tokens not starting with the `cscope.` prefix are rejected
  * immediately — they're being presented as Bearer values, but the
- * legacy opaque bearer (CORTEX_API_AUTH_TOKEN) doesn't carry the
+ * legacy opaque bearer (PRZM_CORTEX_API_AUTH_TOKEN) doesn't carry the
  * prefix, so the prefix is the cheap discriminator that lets a
  * single Authorization header serve both paths.
  */

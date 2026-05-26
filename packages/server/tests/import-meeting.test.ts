@@ -49,7 +49,7 @@ describe("normalizeTranscript", () => {
       "WEBVTT",
       "",
       "00:00:00.000 --> 00:00:02.000",
-      "<v Matt>Hey team, quick update.</v>",
+      "<v Alex>Hey team, quick update.</v>",
       "",
     ].join("\n");
     const out = normalizeTranscript(vtt, ".vtt");
@@ -58,7 +58,7 @@ describe("normalizeTranscript", () => {
   });
 
   it("passes markdown through unchanged", () => {
-    const md = "# Kickoff\n\nMatt: We're shipping Monday.\nAlex: Agreed.\n";
+    const md = "# Kickoff\n\nSam: We're shipping Monday.\nAlex: Agreed.\n";
     expect(normalizeTranscript(md, ".md")).toBe(md);
   });
 });

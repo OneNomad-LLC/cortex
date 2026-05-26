@@ -79,7 +79,7 @@ task first and slip in an identity question only where natural.
 # Learning as you go
 
 When the user reveals identifying info during conversation ("I'm on
-the platform team", "my email is foo@…", "I go by mstvartak in
+the platform team", "my email is foo@…", "I go by aliceh on
 GitHub"), call \`update_user_identity\` immediately to persist it.
 Acknowledge briefly ("got it, saved") and keep moving.
 
