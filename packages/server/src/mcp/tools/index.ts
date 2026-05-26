@@ -1,5 +1,6 @@
 import type { AnyMcpTool } from "../tool.js";
 import { addPersonTool } from "./add-person.js";
+import { addProject } from "./add-project.js";
 import { addWorkspaceTool } from "./add-workspace.js";
 import { cortexGithubIngestRepo } from "./cortex-github-ingest-repo.js";
 import { currentWorkspaceTool } from "./current-workspace.js";
@@ -15,6 +16,7 @@ import { kbJobStatus } from "./kb-job-status.js";
 import { kbRecent } from "./kb-recent.js";
 import { kbSearch } from "./kb-search.js";
 import { kbStats } from "./kb-stats.js";
+import { listProjects } from "./list-projects.js";
 import { listUnclassified } from "./list-unclassified.js";
 import { listWorkspacesTool } from "./list-workspaces.js";
 import { recentLogsTool } from "./recent-logs.js";
@@ -62,6 +64,12 @@ import { updateUserIdentityTool } from "./update-user-identity.js";
  *    works for users who want manual taxonomy curation.
  *    `get_project_context` lives on as an internal helper imported
  *    by `kb_dossier`'s project entity-type path.
+ *  - 2026-05-26: restored `add_project` + `list_projects`. The ingest
+ *    tools validate `project` against the taxonomy and their error
+ *    text already pointed at both tools, but neither was exposed —
+ *    so per-repo dossier scoping was impossible over MCP (every
+ *    ingest fell back to "default"). Both are workspace-scoped and
+ *    write through the same registry the ingest path reads.
  *  - 2026-05-10 Architecture-boundary cleanup: removed `research`,
  *    `approve_research` (query-time LLM synthesis — moves to Pyre),
  *    `fetch_pr`, `fetch_ticket` (user-auth fetch — moves to Pyre),
@@ -107,6 +115,12 @@ export const ALL_TOOLS: AnyMcpTool[] = [
   addPersonTool,
   getJobProfileTool,
   updateJobProfileTool,
+  // Project taxonomy. Restored 2026-05-26 — ingest_* validate the
+  // `project` arg against this list and point users at these two
+  // tools when a slug is unknown. Workspace-scoped: both require a
+  // bound session workspace.
+  listProjects,
+  addProject,
   // Persistent runtime log surface. Combines the in-memory ring with
   // the on-disk runtime.log so callers (Pyre's Activity tab) get logs
   // that survive Cortex restarts.
