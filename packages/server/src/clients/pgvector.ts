@@ -137,6 +137,10 @@ function wrapAsEngramClient(
         ...(args.sinceIso !== undefined ? { sinceIso: args.sinceIso } : {}),
         ...(args.domain !== undefined ? { domain: args.domain } : {}),
         ...(args.workspace !== undefined ? { workspace: args.workspace } : {}),
+        ...(args.maxSensitivity !== undefined
+          ? { maxSensitivity: args.maxSensitivity }
+          : {}),
+        ...(args.minTrust !== undefined ? { minTrust: args.minTrust } : {}),
       });
       // The MemoryBackend search shape is already a structural superset of
       // EngramMemory — just forward.

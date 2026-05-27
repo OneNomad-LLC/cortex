@@ -18,6 +18,21 @@ export interface MemoryIngestInput {
   metadata: Record<string, unknown>;
 }
 
+/** Ordered sensitivity levels. Earlier = less sensitive. */
+export const SENSITIVITY_LEVELS = [
+  "public",
+  "internal",
+  "confidential",
+  "restricted",
+] as const;
+
+export type SensitivityLevel = (typeof SENSITIVITY_LEVELS)[number];
+
+/** Ordered trust levels. Earlier = less trusted. */
+export const TRUST_LEVELS = ["external", "experimental", "approved"] as const;
+
+export type TrustLevel = (typeof TRUST_LEVELS)[number];
+
 export interface MemorySearchArgs {
   query: string;
   limit?: number;
@@ -34,6 +49,23 @@ export interface MemorySearchArgs {
    * scoping ingests). Omit to disable workspace scoping.
    */
   workspace?: string;
+  /**
+   * Maximum sensitivity level to include. Rows whose `metadata.sensitivity`
+   * is more sensitive than this level are excluded. Omit (default) to apply
+   * no filter — existing behavior is preserved.
+   *
+   * Ordering: public < internal < confidential < restricted.
+   */
+  maxSensitivity?: SensitivityLevel;
+  /**
+   * Minimum trust level required for results. When set, rows whose
+   * `metadata.trust` is below this level are excluded (strict exclusion).
+   * Omit to use soft down-ranking of `experimental` and `external` rows
+   * instead (they remain in results but score lower).
+   *
+   * Ordering: external < experimental < approved.
+   */
+  minTrust?: TrustLevel;
 }
 
 export interface Memory {

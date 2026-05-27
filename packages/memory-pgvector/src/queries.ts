@@ -1,4 +1,5 @@
 import type { MemorySearchArgs } from "./types.js";
+import { SENSITIVITY_LEVELS, TRUST_LEVELS } from "./types.js";
 import { isSafeIdentifier } from "./schema.js";
 
 /**
@@ -168,6 +169,28 @@ export function buildHybridSearchQuery(args: {
     // bypass the index; comparing as text doesn't.
     where.push(`(metadata->>'date') >= ${push(args.search.sinceIso)}`);
   }
+  if (args.search.maxSensitivity !== undefined) {
+    // Build the set of allowed sensitivity values: all levels up to and
+    // including maxSensitivity, plus rows with no sensitivity stamp
+    // (NULL / absent) which we treat as "public" for backwards compat.
+    const maxIdx = SENSITIVITY_LEVELS.indexOf(args.search.maxSensitivity);
+    const allowed = SENSITIVITY_LEVELS.slice(0, maxIdx + 1);
+    const placeholders = allowed.map((v) => push(v)).join(", ");
+    where.push(
+      `(metadata->>'sensitivity' IS NULL OR metadata->>'sensitivity' IN (${placeholders}))`,
+    );
+  }
+  if (args.search.minTrust !== undefined) {
+    // Strict exclusion: only rows whose trust meets or exceeds minTrust,
+    // plus rows with no trust stamp (NULL / absent) which pass through so
+    // legacy memories without a trust field remain findable.
+    const minIdx = TRUST_LEVELS.indexOf(args.search.minTrust);
+    const allowed = TRUST_LEVELS.slice(minIdx);
+    const placeholders = allowed.map((v) => push(v)).join(", ");
+    where.push(
+      `(metadata->>'trust' IS NULL OR metadata->>'trust' IN (${placeholders}))`,
+    );
+  }
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
   const vecParam = push(vec);
@@ -175,6 +198,20 @@ export function buildHybridSearchQuery(args: {
   const channelLimitParam = push(channelLimit);
   const kParam = push(k);
   const outerLimitParam = push(limit);
+
+  // Trust down-ranking: when the caller has NOT requested strict minTrust
+  // exclusion, apply a small score multiplier so experimental/external rows
+  // rank below approved rows when everything else is equal. A factor of 0.85
+  // (≈15% penalty) is large enough to be meaningful but small enough that a
+  // highly-relevant experimental row still beats a weakly-relevant approved one.
+  // Rows with no trust stamp pass through at full score (backwards compat).
+  const trustScoreExpr =
+    args.search.minTrust === undefined
+      ? `f.fused_score * CASE
+           WHEN m.metadata->>'trust' IN ('experimental', 'external') THEN 0.85
+           ELSE 1.0
+         END`
+      : `f.fused_score`;
 
   const text = `
 WITH vec AS (
@@ -209,10 +246,10 @@ SELECT m.id::text AS id,
        m.content,
        m.metadata,
        m.created_at,
-       f.fused_score AS score
+       ${trustScoreExpr} AS score
 FROM fused f
 JOIN ${args.table} m ON m.id = f.id
-ORDER BY f.fused_score DESC
+ORDER BY score DESC
 LIMIT ${outerLimitParam}
 `.trim();
 

@@ -167,6 +167,135 @@ describe("buildHybridSearchQuery", () => {
   });
 });
 
+describe("buildHybridSearchQuery — maxSensitivity filter (#4)", () => {
+  it("adds a sensitivity IN predicate when maxSensitivity is set", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1, 0.2],
+      queryText: "test",
+      search: { query: "test", limit: 5, maxSensitivity: "internal" },
+    });
+    // Should allow public + internal but not confidential/restricted.
+    expect(q.text).toContain("metadata->>'sensitivity' IS NULL OR metadata->>'sensitivity' IN (");
+    expect(q.values).toContain("public");
+    expect(q.values).toContain("internal");
+    expect(q.values).not.toContain("confidential");
+    expect(q.values).not.toContain("restricted");
+  });
+
+  it("allows all levels up to and including maxSensitivity=confidential", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", maxSensitivity: "confidential" },
+    });
+    expect(q.values).toContain("public");
+    expect(q.values).toContain("internal");
+    expect(q.values).toContain("confidential");
+    expect(q.values).not.toContain("restricted");
+  });
+
+  it("allows only public when maxSensitivity=public", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", maxSensitivity: "public" },
+    });
+    expect(q.values).toContain("public");
+    expect(q.values).not.toContain("internal");
+    expect(q.values).not.toContain("confidential");
+    expect(q.values).not.toContain("restricted");
+  });
+
+  it("omits the sensitivity predicate when maxSensitivity is not set (default)", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test" },
+    });
+    expect(q.text).not.toContain("sensitivity");
+  });
+
+  it("NULL-tolerant: rows with no sensitivity stamp pass the predicate", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", maxSensitivity: "internal" },
+    });
+    // The NULL guard must appear so untagged legacy rows remain visible.
+    expect(q.text).toContain("metadata->>'sensitivity' IS NULL");
+  });
+});
+
+describe("buildHybridSearchQuery — trust ranking (#3)", () => {
+  it("applies a 0.85 penalty multiplier to experimental/external rows by default", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test" },
+    });
+    expect(q.text).toContain("0.85");
+    expect(q.text).toContain("'experimental'");
+    expect(q.text).toContain("'external'");
+    // Score column alias must still be 'score' so the outer caller picks it up.
+    expect(q.text).toContain("AS score");
+    expect(q.text).toContain("ORDER BY score DESC");
+  });
+
+  it("omits the trust multiplier when minTrust is set (strict exclusion path)", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", minTrust: "approved" },
+    });
+    // With strict exclusion, the multiplier CASE is not emitted.
+    expect(q.text).not.toContain("0.85");
+    // The WHERE predicate for trust exclusion should appear.
+    expect(q.text).toContain("metadata->>'trust' IS NULL OR metadata->>'trust' IN (");
+    expect(q.values).toContain("approved");
+  });
+
+  it("minTrust=experimental allows approved + experimental, excludes external", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", minTrust: "experimental" },
+    });
+    expect(q.values).toContain("experimental");
+    expect(q.values).toContain("approved");
+    expect(q.values).not.toContain("external");
+  });
+
+  it("minTrust=external passes all trust values through (only excludes if below external, which is impossible)", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", minTrust: "external" },
+    });
+    expect(q.values).toContain("external");
+    expect(q.values).toContain("experimental");
+    expect(q.values).toContain("approved");
+  });
+
+  it("NULL-tolerant: rows with no trust stamp pass the minTrust predicate", () => {
+    const q = buildHybridSearchQuery({
+      table: "cortex_memories",
+      queryEmbedding: [0.1],
+      queryText: "test",
+      search: { query: "test", minTrust: "approved" },
+    });
+    expect(q.text).toContain("metadata->>'trust' IS NULL");
+  });
+});
+
 describe("buildHealthQuery", () => {
   it("checks pgvector extension, table existence, and an approx row count", () => {
     const sql = buildHealthQuery("cortex_memories");

@@ -182,6 +182,72 @@ describe("createPgVectorBackend", () => {
     expect(h.message).toMatch(/does not exist/);
   });
 
+  it("search() passes maxSensitivity to the query builder", async () => {
+    const pool = fakePool(() => ({ rows: [] }));
+    const backend = createPgVectorBackend({
+      pool,
+      embed: async () => [0.1, 0.2, 0.3],
+      config: { embeddingDim: 3 },
+      logger: silentLogger,
+    });
+    await backend.search({
+      query: "test",
+      maxSensitivity: "internal",
+    });
+    const sql = pool.calls[0]!.sql;
+    const vals = pool.calls[0]!.values ?? [];
+    expect(sql).toContain("metadata->>'sensitivity' IS NULL");
+    expect(vals).toContain("public");
+    expect(vals).toContain("internal");
+    expect(vals).not.toContain("confidential");
+  });
+
+  it("search() omits sensitivity predicate when maxSensitivity is not set", async () => {
+    const pool = fakePool(() => ({ rows: [] }));
+    const backend = createPgVectorBackend({
+      pool,
+      embed: async () => [0.1, 0.2, 0.3],
+      config: { embeddingDim: 3 },
+      logger: silentLogger,
+    });
+    await backend.search({ query: "test" });
+    const sql = pool.calls[0]!.sql;
+    expect(sql).not.toContain("sensitivity");
+  });
+
+  it("search() passes minTrust to the query builder (strict exclusion)", async () => {
+    const pool = fakePool(() => ({ rows: [] }));
+    const backend = createPgVectorBackend({
+      pool,
+      embed: async () => [0.1, 0.2, 0.3],
+      config: { embeddingDim: 3 },
+      logger: silentLogger,
+    });
+    await backend.search({ query: "test", minTrust: "approved" });
+    const sql = pool.calls[0]!.sql;
+    const vals = pool.calls[0]!.values ?? [];
+    expect(sql).toContain("metadata->>'trust' IS NULL");
+    expect(vals).toContain("approved");
+    expect(vals).not.toContain("experimental");
+    // With strict exclusion, the 0.85 multiplier should NOT appear.
+    expect(sql).not.toContain("0.85");
+  });
+
+  it("search() applies trust down-rank multiplier when minTrust is unset", async () => {
+    const pool = fakePool(() => ({ rows: [] }));
+    const backend = createPgVectorBackend({
+      pool,
+      embed: async () => [0.1, 0.2, 0.3],
+      config: { embeddingDim: 3 },
+      logger: silentLogger,
+    });
+    await backend.search({ query: "test" });
+    const sql = pool.calls[0]!.sql;
+    expect(sql).toContain("0.85");
+    expect(sql).toContain("'experimental'");
+    expect(sql).toContain("'external'");
+  });
+
   it("healthCheck() swallows pool errors and returns unhealthy", async () => {
     const pool: PgPoolLike = {
       async query() {

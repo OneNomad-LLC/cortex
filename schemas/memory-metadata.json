@@ -10,7 +10,6 @@
     "source",
     "source_id",
     "source_url",
-    "project",
     "type",
     "people",
     "date",
@@ -131,6 +130,25 @@
       "type": "string",
       "minLength": 1,
       "description": "Dev team slug. Cross-cuts engagements — same team often works across multiple clients."
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Extracted deadline (ISO 8601). Set by the temporal-extractor when content has time-bound phrases; relative phrases resolve against `date`. Absent = open-ended."
+    },
+    "urgency": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Urgency bucket derived from content tone. Unset when nothing suggests urgency."
+    },
+    "mentions_me": {
+      "type": "boolean",
+      "description": "True when content mentions the Cortex user (the self entry in people.yaml). Powers needs_my_attention and digest boosts."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owner slug when content attributes work to someone specific. Unset when ownership is ambiguous or absent."
     },
     "workspace": {
       "type": "string",

@@ -40,6 +40,18 @@ export interface EngramSearchArgs {
    * scoping ingests) still pass so legacy memories remain findable.
    */
   workspace?: string;
+  /**
+   * Maximum sensitivity level to include. Rows with higher sensitivity are
+   * excluded. Omit (default) = no filter. Ordering: public < internal <
+   * confidential < restricted.
+   */
+  maxSensitivity?: "public" | "internal" | "confidential" | "restricted";
+  /**
+   * Minimum trust level for strict exclusion. Omit to use the default soft
+   * down-ranking of `experimental` and `external` rows. Ordering:
+   * external < experimental < approved.
+   */
+  minTrust?: "external" | "experimental" | "approved";
 }
 
 export interface EngramMemory {

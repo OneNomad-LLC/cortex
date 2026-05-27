@@ -4,7 +4,12 @@ import {
   getCurrentSessionState,
   setSessionWorkspace,
 } from "../../session-context.js";
-import { findWorkspace, listWorkspaces } from "../../cli/workspace/manager.js";
+import {
+  findWorkspace,
+  getActiveWorkspace,
+  listWorkspaces,
+} from "../../cli/workspace/manager.js";
+import { updateState } from "../../cli/workspace/state.js";
 import type { McpTool } from "../tool.js";
 
 /**
@@ -22,6 +27,12 @@ const getSchema = z.object({});
 interface GetOutput {
   sessionId?: string;
   workspace: string | null;
+  /**
+   * Last-active workspace, offered as a resume default when the session
+   * is unbound. Present only when `workspace` is null because the session
+   * never picked one (not when the user explicitly chose "none").
+   */
+  suggestedWorkspace?: string;
   firstSeenAt?: string;
   lastSeenAt?: string;
   /** When workspace is null, tells Claude what to do next. */
@@ -35,14 +46,18 @@ export const getSessionWorkspace: McpTool<typeof getSchema, GetOutput> = {
     "ALWAYS call at the start of every conversation. When it returns " +
     "`workspace: null`, call `list_workspaces`, show the user their " +
     "options (existing / create new / work outside any workspace), " +
-    "then call `set_session_workspace` with their choice. Workspace- " +
-    "scoped tools (memory, identity, adapters, ingest) require this " +
-    "to be set.",
+    "then call `set_session_workspace` with their choice. If " +
+    "`suggestedWorkspace` is present it's the last-active workspace — " +
+    "offer to resume it rather than prompting cold. Workspace-scoped " +
+    "tools (memory, identity, adapters, ingest) require this to be set.",
   inputSchema: getSchema,
   async handler() {
     const sessionId = getCurrentSessionId();
     const state = getCurrentSessionState();
-    const workspace = state?.workspace ?? null;
+    // Distinguish "never picked" (undefined → suggest a resume) from
+    // "explicitly chose none" (null → honor the opt-out).
+    const bound = state?.workspace;
+    const workspace = typeof bound === "string" ? bound : null;
     const out: GetOutput = {
       workspace,
       ...(sessionId ? { sessionId } : {}),
@@ -54,12 +69,32 @@ export const getSessionWorkspace: McpTool<typeof getSchema, GetOutput> = {
         : {}),
     };
     if (workspace === null) {
-      out.guidance =
-        "This session isn't in a workspace yet. Call `list_workspaces`, " +
-        "ask the user which one to use (or offer to create a new one, " +
-        "or proceed without — in which case only global tools work), " +
-        "then call `set_session_workspace` with their choice. Don't " +
-        "invent a workspace.";
+      if (bound === undefined) {
+        // Unbound: suggest the last-active workspace so the client can
+        // offer "resume <slug>?" instead of a cold onboarding prompt.
+        const active = await getActiveWorkspace();
+        if (active) {
+          out.suggestedWorkspace = active.slug;
+          out.guidance =
+            `This session isn't bound to a workspace yet. Your last active ` +
+            `workspace was '${active.slug}' — call ` +
+            `set_session_workspace({ slug: "${active.slug}" }) to resume it, ` +
+            `or list_workspaces to pick another (or "none" to run without ` +
+            `one). Don't invent a workspace.`;
+        } else {
+          out.guidance =
+            "This session isn't in a workspace yet. Call `list_workspaces`, " +
+            "ask the user which one to use (or offer to create a new one, " +
+            "or proceed without — in which case only global tools work), " +
+            "then call `set_session_workspace` with their choice. Don't " +
+            "invent a workspace.";
+        }
+      } else {
+        // Explicit "none" — the user opted out; don't nag with a suggestion.
+        out.guidance =
+          "Running in no-workspace mode (you chose 'none'). Call " +
+          "`set_session_workspace` with a slug to bind one.";
+      }
     }
     return out;
   },
@@ -119,6 +154,10 @@ export const setSessionWorkspaceTool: McpTool<typeof setSchema, SetOutput> = {
       );
     }
     setSessionWorkspace(sessionId, found.slug);
+    // Remember this as the last-active workspace so a future unbound
+    // session can suggest resuming it (hybrid behavior). Binding to
+    // "none" returns earlier and intentionally leaves the pointer alone.
+    await updateState({ activeWorkspace: found.slug });
     ctx.logger.info("session_workspace.set", {
       sessionId,
       workspace: found.slug,

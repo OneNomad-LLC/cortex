@@ -30,6 +30,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { sendJson } from "../http.js";
 import type { RouteContext } from "../route-context.js";
 import { requireDashboardAuth } from "../middleware/require-dashboard-auth.js";
+import { getActiveWorkspace } from "../../cli/workspace/manager.js";
 import type { EngramMemory } from "../../clients/engram.js";
 
 /**
@@ -117,7 +118,16 @@ export async function handle(
   const gate = requireDashboardAuth(["admin"]);
   const session = await gate(req, res);
   if (!session) return true;
-  const workspace = session.session.workspace ?? "";
+  // Hybrid fallback: when the dashboard session hasn't explicitly bound a
+  // workspace, scope to the last-active workspace (state.json) instead of
+  // leaking every workspace's memories into the browser. engram.search
+  // scopes by the resolved slug; only a session that is both unbound AND
+  // has no active pointer sees the unscoped set.
+  let workspace = session.session.workspace ?? "";
+  if (!workspace) {
+    const active = await getActiveWorkspace();
+    workspace = active?.slug ?? "";
+  }
 
   // Detail route: /api/dashboard/memories/:id
   // Memory ids in engram are opaque slugs; allow anything except a slash.
