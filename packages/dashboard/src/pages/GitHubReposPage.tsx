@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { ApiError, api, apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * GitHub repos directory. Renders the list returned by Slice B's
@@ -348,11 +349,16 @@ export function GitHubReposPage(): React.ReactElement {
         </CardHeader>
         <CardContent>
           {repos.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading repos…</p>
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
           ) : repos.isError ? (
-            <p className="text-sm text-destructive">
-              Failed to load repos: {String(repos.error)}
-            </p>
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              Failed to load repos:{" "}
+              {repos.error instanceof Error ? repos.error.message : String(repos.error)}
+            </div>
           ) : visibleRepos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {debouncedFilter

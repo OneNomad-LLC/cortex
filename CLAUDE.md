@@ -1,8 +1,12 @@
 # Cortex
 
-A universal memory + on-prem company knowledge engine for AI agents.
+A **multi-tenant, multi-project, multi-user, AI-friendly knowledgebase** — the
+**knowledge plane** of the przm platform (with przm-memory = per-user/agent
+memory, przm-voice = persona). Cortex is **cloud-deployed** and may run heavier
+than the local-first przm libraries.
+
 Cortex is the **data plane**: storage, retrieval, ingestion adapters.
-It runs with zero LLM. The **compute plane** (LLM-backed enrichment
+It runs with zero LLM at query time. The **compute plane** (LLM-backed enrichment
 — categorization, action extraction, summarization, entity tagging)
 is delegated to the connected MCP client (Pyre, Claude Desktop,
 custom agents) via the Cortex Enrichment Protocol, OR handled
@@ -54,8 +58,13 @@ See `docs/ARCHITECTURE.md` for detailed component responsibilities and data flow
 
 ## Core Concepts
 
-**Project**: A unit of work with its own context, people, and content. Cortex
-tracks a dozen+ concurrently. Defined in `config/projects.yaml`.
+**Tenant (workspace)**: The isolation boundary — one customer/org. Every memory
+is stamped with its workspace; retrieval (and, with `przm-access`, Postgres RLS)
+scope to it. Users belong to tenants with a role; access composes tenant +
+project + role.
+
+**Project**: A unit of work with its own context, people, and content, scoped
+within a tenant. Cortex tracks many concurrently. Defined in `config/projects.yaml`.
 
 **Source**: Where content originated. One of: `loom`, `confluence`, `bitbucket`,
 `obsidian`, `calendar`. Stored as metadata on every ingested memory.
@@ -264,6 +273,22 @@ Each step should be independently useful. Don't build #10 before #5 works.
 
 ## Owner / Context
 
-Single-user project. The system is the author's daily driver, so reliability
-and low cognitive overhead are paramount. Features that require constant
-manual curation will not be used and therefore should not be built.
+Cortex is evolving from a single-user daily driver into a **cloud-deployed,
+multi-tenant knowledgebase** — the knowledge plane of the przm platform, aimed
+at SMB→mid-market businesses. Design for that posture:
+
+- **Multi-tenant / multi-project / multi-user.** Tenant isolation, project
+  scoping, and per-user access are first-class. Isolation must be enforced in
+  the substrate (Postgres RLS via the shared `przm-access` plane), not by
+  convention — a forgotten application filter must not be able to leak across
+  tenants.
+- **Heavier is acceptable** here (unlike the local-first przm-memory / przm-voice
+  libraries) — cloud infra, ingest-time LLM enrichment, and a real access model
+  are in scope.
+- Reliability still matters, but "single-user, low-overhead, no curation" is no
+  longer the binding constraint. Light curation is fine when it serves the
+  multi-tenant knowledgebase goal.
+
+Identity, tenancy, and access control live in the separate **`przm-access`**
+plane (private), which cortex integrates via a thin contract + RLS session
+context — not re-implemented here.

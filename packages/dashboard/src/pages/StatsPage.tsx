@@ -7,6 +7,7 @@
  * engram chatter.
  */
 
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -15,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api";
 import {
   Bar,
@@ -88,7 +90,21 @@ export default function StatsPage() {
         </p>
       </header>
 
-      {isLoading && <div className="text-muted-foreground">Loading…</div>}
+      {isLoading && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2 h-8 w-16" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           {(error as { error?: string }).error ?? String(error)}
@@ -97,6 +113,22 @@ export default function StatsPage() {
 
       {data && (
         <>
+          {(data.kb.total_chunks ?? 0) === 0 &&
+            data.recentActivity.last24h === 0 && (
+              <div className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                <p className="font-medium">Nothing ingested yet</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Connect a source on the{" "}
+                  <Link
+                    href="/adapters"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Adapters
+                  </Link>{" "}
+                  page to start populating your knowledge base.
+                </p>
+              </div>
+            )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Total chunks"

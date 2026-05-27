@@ -47,8 +47,16 @@ export default function IngestPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Ingest</h1>
         <p className="text-sm text-muted-foreground">
-          Push content into the knowledge base. URL ingests queue asynchronously
-          and return a jobId — track progress on the Jobs page.
+          One-off ingestion for content that doesn't have a scheduled adapter.
+          For recurring sources (GitHub, Slack, Notion, etc.) use{" "}
+          <Link
+            href="/adapters"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Adapters
+          </Link>{" "}
+          instead. URL ingests queue asynchronously and return a jobId —
+          track progress on the Jobs page.
         </p>
       </header>
 
@@ -276,9 +284,14 @@ function FileIngestForm() {
           {submitting ? "Ingesting…" : "Ingest file"}
         </Button>
         {lastResult && (
-          <pre className="rounded-md bg-muted p-3 text-xs">
-            {JSON.stringify(lastResult, null, 2)}
-          </pre>
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {lastResult.jobId
+              ? `Job queued: ${lastResult.jobId}`
+              : `Ingested ${lastResult.ingested ?? 0} chunk${(lastResult.ingested ?? 0) === 1 ? "" : "s"}`}
+            {lastResult.sourceId ? (
+              <span className="ml-2 font-mono">{lastResult.sourceId}</span>
+            ) : null}
+          </div>
         )}
       </form>
     </FormCard>
@@ -407,9 +420,12 @@ function ContentIngestForm() {
           {submitting ? "Ingesting…" : "Ingest content"}
         </Button>
         {lastResult && (
-          <pre className="rounded-md bg-muted p-3 text-xs">
-            {JSON.stringify(lastResult, null, 2)}
-          </pre>
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Ingested {lastResult.ingested} chunk{lastResult.ingested === 1 ? "" : "s"}
+            {lastResult.sourceId ? (
+              <span className="ml-2 font-mono">{lastResult.sourceId}</span>
+            ) : null}
+          </div>
         )}
       </form>
     </FormCard>

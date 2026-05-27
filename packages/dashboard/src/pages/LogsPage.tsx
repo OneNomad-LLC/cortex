@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Level = "" | "debug" | "info" | "warn" | "error";
 
@@ -143,15 +144,20 @@ export default function LogsPage() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  Loading…
+                <TableCell colSpan={4} className="py-4">
+                  <div className="space-y-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-8 w-full" />
+                    ))}
+                  </div>
                 </TableCell>
               </TableRow>
             )}
-            {error && (
+            {error && !isLoading && (
               <TableRow>
                 <TableCell colSpan={4} className="py-8 text-center text-destructive">
-                  {String((error as { error?: string }).error ?? error)}
+                  Failed to load logs:{" "}
+                  {String((error as { error?: string }).error ?? (error instanceof Error ? error.message : String(error)))}
                 </TableCell>
               </TableRow>
             )}

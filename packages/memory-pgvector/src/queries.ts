@@ -20,6 +20,144 @@ function toFiniteFloat(n: number): string {
   return Number(n).toString();
 }
 
+// ---------------------------------------------------------------------------
+// Filter translator
+// ---------------------------------------------------------------------------
+//
+// Maps a small Mongo-style filter object to a parameterized SQL fragment.
+// Supported operators:
+//   $eq        — col = $N
+//   $in        — col IN ($N, ...)
+//   $gte       — col >= $N
+//   $eqOrNull  — (col = $N OR col IS NULL)      workspace backwards-compat
+//   $inOrNull  — (col IS NULL OR col IN (...))   sensitivity / trust backwards-compat
+//   $and       — (...) AND (...)
+//   $or        — (...) OR (...)
+//
+// Parameters are appended into the caller-owned `values` array. The translator
+// never allocates its own array — it writes into the one from the outer query
+// builder so parameter numbering is always consistent across translated
+// fragments that share a single query.
+//
+// Column expressions are trusted (they come from this file, not user input).
+// The translator does not escape them.
+
+type FilterValue = string | number | boolean | null;
+
+interface EqFilter {
+  $eq: FilterValue;
+}
+interface InFilter {
+  $in: FilterValue[];
+}
+interface GteFilter {
+  $gte: FilterValue;
+}
+interface EqOrNullFilter {
+  $eqOrNull: FilterValue;
+}
+interface InOrNullFilter {
+  $inOrNull: FilterValue[];
+}
+interface AndFilter {
+  $and: FilterNode[];
+}
+interface OrFilter {
+  $or: FilterNode[];
+}
+
+type FilterOp =
+  | EqFilter
+  | InFilter
+  | GteFilter
+  | EqOrNullFilter
+  | InOrNullFilter
+  | AndFilter
+  | OrFilter;
+
+/**
+ * A filter node is either:
+ *   - a logical combinator ($and / $or), or
+ *   - a single column → operator entry.
+ *
+ * Multi-key objects are treated as an implicit $and over each entry.
+ */
+export type FilterNode =
+  | AndFilter
+  | OrFilter
+  | { [column: string]: FilterOp };
+
+/**
+ * Translate a FilterNode into a SQL fragment. Parameters are appended to
+ * `values` in order; placeholders reference their 1-based position in that
+ * array.
+ *
+ * Returns a SQL string (no leading WHERE keyword). Wrap in `WHERE (...)` or
+ * compose with `AND` / `OR` at the call site.
+ */
+export function translateFilter(node: FilterNode, values: unknown[]): string {
+  const push = (v: unknown): string => {
+    values.push(v);
+    return `$${values.length}`;
+  };
+
+  // Logical combinators
+  if ("$and" in node) {
+    const parts = (node as AndFilter).$and.map((child) =>
+      translateFilter(child, values),
+    );
+    return parts.map((p) => `(${p})`).join(" AND ");
+  }
+  if ("$or" in node) {
+    const parts = (node as OrFilter).$or.map((child) =>
+      translateFilter(child, values),
+    );
+    return parts.map((p) => `(${p})`).join(" OR ");
+  }
+
+  // Column-level operator(s)
+  const entries = Object.entries(node) as [string, FilterOp][];
+  if (entries.length === 0) {
+    throw new Error("memory-pgvector/filter: empty filter node");
+  }
+  if (entries.length > 1) {
+    // Implicit $and over multiple column entries
+    const parts = entries.map(([col, op]) =>
+      translateFilter({ [col]: op } as FilterNode, values),
+    );
+    return parts.map((p) => `(${p})`).join(" AND ");
+  }
+
+  const [col, op] = entries[0]!;
+
+  if ("$eq" in op) {
+    return `${col} = ${push((op as EqFilter).$eq)}`;
+  }
+  if ("$gte" in op) {
+    return `${col} >= ${push((op as GteFilter).$gte)}`;
+  }
+  if ("$in" in op) {
+    const placeholders = (op as InFilter).$in.map((v) => push(v)).join(", ");
+    return `${col} IN (${placeholders})`;
+  }
+  if ("$eqOrNull" in op) {
+    const placeholder = push((op as EqOrNullFilter).$eqOrNull);
+    return `(${col} = ${placeholder} OR ${col} IS NULL)`;
+  }
+  if ("$inOrNull" in op) {
+    const placeholders = (op as InOrNullFilter).$inOrNull
+      .map((v) => push(v))
+      .join(", ");
+    return `(${col} IS NULL OR ${col} IN (${placeholders}))`;
+  }
+
+  throw new Error(
+    `memory-pgvector/filter: unknown operator on column '${col}'`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 export interface IngestQuery {
   text: string;
   values: unknown[];
@@ -128,28 +266,41 @@ export function buildHybridSearchQuery(args: {
   const k = args.k ?? 60;
   const vec = vectorLiteral(args.queryEmbedding);
 
-  // Build the shared WHERE clause + param list, then reuse it in both CTEs.
+  // Accumulate parameters for the whole query. The translator appends into
+  // this array so positional placeholders are consistent across all fragments.
   const values: unknown[] = [];
-  const where: string[] = [];
   const push = (v: unknown): string => {
     values.push(v);
     return `$${values.length}`;
   };
 
+  // Collect individual WHERE predicate SQL strings.
+  const where: string[] = [];
+
   if (args.search.domain !== undefined) {
-    where.push(`domain = ${push(args.search.domain)}`);
+    where.push(
+      translateFilter({ "domain": { $eq: args.search.domain } }, values),
+    );
   }
   if (args.search.workspace !== undefined) {
     // Scope to this workspace OR rows with no workspace (legacy ingests
     // predate session binding; they remain visible in every workspace
     // for backwards compat).
-    const wParam = push(args.search.workspace);
-    where.push(`(workspace = ${wParam} OR workspace IS NULL)`);
+    where.push(
+      translateFilter(
+        { "workspace": { $eqOrNull: args.search.workspace } },
+        values,
+      ),
+    );
   }
   if (args.search.project !== undefined) {
     // Match either a string-valued project OR an array that contains
     // this slug. jsonb `@>` reads "left contains right"; we wrap the
     // probe in a JSON array to cover both shapes in one predicate.
+    //
+    // The array-containment branch (`@> to_jsonb(ARRAY[$N::text])`) re-uses
+    // the same parameter as the equality branch, so we push the value once
+    // and reference the placeholder in both branches.
     const pParam = push(args.search.project);
     where.push(
       `(metadata->>'project' = ${pParam} ` +
@@ -157,17 +308,32 @@ export function buildHybridSearchQuery(args: {
     );
   }
   if (args.search.type !== undefined) {
-    where.push(`metadata->>'type' = ${push(args.search.type)}`);
+    where.push(
+      translateFilter(
+        { [`metadata->>'type'`]: { $eq: args.search.type } },
+        values,
+      ),
+    );
   }
   if (args.search.source !== undefined) {
-    where.push(`metadata->>'source' = ${push(args.search.source)}`);
+    where.push(
+      translateFilter(
+        { [`metadata->>'source'`]: { $eq: args.search.source } },
+        values,
+      ),
+    );
   }
   if (args.search.sinceIso !== undefined) {
     // metadata.date is ISO 8601 — strings sort lexicographically the same
     // as chronologically, so the text-only index on (metadata->>'date')
     // serves this range query directly. Casting to timestamptz here would
     // bypass the index; comparing as text doesn't.
-    where.push(`(metadata->>'date') >= ${push(args.search.sinceIso)}`);
+    where.push(
+      translateFilter(
+        { [`(metadata->>'date')`]: { $gte: args.search.sinceIso } },
+        values,
+      ),
+    );
   }
   if (args.search.maxSensitivity !== undefined) {
     // Build the set of allowed sensitivity values: all levels up to and
@@ -175,9 +341,11 @@ export function buildHybridSearchQuery(args: {
     // (NULL / absent) which we treat as "public" for backwards compat.
     const maxIdx = SENSITIVITY_LEVELS.indexOf(args.search.maxSensitivity);
     const allowed = SENSITIVITY_LEVELS.slice(0, maxIdx + 1);
-    const placeholders = allowed.map((v) => push(v)).join(", ");
     where.push(
-      `(metadata->>'sensitivity' IS NULL OR metadata->>'sensitivity' IN (${placeholders}))`,
+      translateFilter(
+        { [`metadata->>'sensitivity'`]: { $inOrNull: [...allowed] } },
+        values,
+      ),
     );
   }
   if (args.search.minTrust !== undefined) {
@@ -186,11 +354,14 @@ export function buildHybridSearchQuery(args: {
     // legacy memories without a trust field remain findable.
     const minIdx = TRUST_LEVELS.indexOf(args.search.minTrust);
     const allowed = TRUST_LEVELS.slice(minIdx);
-    const placeholders = allowed.map((v) => push(v)).join(", ");
     where.push(
-      `(metadata->>'trust' IS NULL OR metadata->>'trust' IN (${placeholders}))`,
+      translateFilter(
+        { [`metadata->>'trust'`]: { $inOrNull: [...allowed] } },
+        values,
+      ),
     );
   }
+
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
   const vecParam = push(vec);
