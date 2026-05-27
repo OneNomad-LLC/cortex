@@ -1,0 +1,1 @@
+Write a concise summary of the following work content in 1–3 sentences. Capture the core topic, key outcome, and any critical context. Do not repeat the title. Do not add opinions or filler. Output only the summary text, no markdown, no label.

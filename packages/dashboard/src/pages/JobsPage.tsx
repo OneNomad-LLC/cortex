@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface JobView {
   jobId: string;
@@ -96,11 +97,15 @@ function JobsTable({
   title,
   description,
   data,
+  error,
+  isLoading,
   refreshing,
 }: {
   title: string;
   description: string;
   data: JobView[] | undefined;
+  error?: Error | null;
+  isLoading: boolean;
   refreshing: boolean;
 }) {
   return (
@@ -127,7 +132,25 @@ function JobsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.length === 0 && (
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={7} className="py-4">
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full" />
+                  ))}
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && error && (
+            <TableRow>
+              <TableCell colSpan={7} className="py-6 text-center text-destructive">
+                Failed to load jobs: {error.message}
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && !error && data?.length === 0 && (
             <TableRow>
               <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                 Nothing here yet.
@@ -179,13 +202,13 @@ function JobsTable({
 }
 
 export default function JobsPage() {
-  const inflight = useQuery<JobsResponse>({
+  const inflight = useQuery<JobsResponse, Error>({
     queryKey: ["dashboard-jobs", "in_progress"],
     queryFn: () =>
       apiFetch<JobsResponse>(`/api/dashboard/jobs?status=in_progress&limit=50`),
     refetchInterval: 5000,
   });
-  const recent = useQuery<JobsResponse>({
+  const recent = useQuery<JobsResponse, Error>({
     queryKey: ["dashboard-jobs", "recent"],
     queryFn: () =>
       apiFetch<JobsResponse>(`/api/dashboard/jobs?status=recent&limit=100`),
@@ -212,14 +235,18 @@ export default function JobsPage() {
         title="In flight"
         description="Queued + running"
         data={inflight.data?.jobs}
-        refreshing={inflight.isFetching}
+        error={inflight.error}
+        isLoading={inflight.isLoading}
+        refreshing={inflight.isFetching && !inflight.isLoading}
       />
 
       <JobsTable
         title="Recent"
         description="Completed + failed within 24h"
         data={recent.data?.jobs}
-        refreshing={recent.isFetching}
+        error={recent.error}
+        isLoading={recent.isLoading}
+        refreshing={recent.isFetching && !recent.isLoading}
       />
     </section>
   );

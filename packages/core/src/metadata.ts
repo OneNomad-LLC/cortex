@@ -139,6 +139,21 @@ export const memoryMetadataSchema = z.object({
    * "belongs to any workspace" (backwards compat).
    */
   workspace: z.string().min(1).optional(),
+  /**
+   * LLM-generated concise gist of the memory's content. Produced by
+   * the summary extractor at ingest time (ADR-020). Absent when the
+   * extractor is disabled or not yet run. Both the tsvector column
+   * and the embedding compose this in when present.
+   */
+  summary: z.string().optional(),
+  /**
+   * LLM-extracted domain terms, acronyms, and jargon from the content.
+   * Produced by the keywords extractor at ingest time (ADR-020). Empty
+   * or absent when the extractor is disabled. Indexed into the tsvector
+   * column and the embedding so domain-specific terms surface on both
+   * BM25 and vector channels.
+   */
+  keywords: z.array(z.string()).optional(),
 });
 
 export type MemoryMetadata = z.infer<typeof memoryMetadataSchema>;

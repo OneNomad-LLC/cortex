@@ -115,12 +115,41 @@ export async function createPgVectorClient(
   return wrapAsEngramClient(backend, opts.logger);
 }
 
+/**
+ * Compose the embed text for a memory from its stored content plus any
+ * LLM-extracted enrichment stored in the metadata (ADR-020). When neither
+ * `summary` nor `keywords` is present the returned string equals `content`
+ * exactly, preserving byte-identical default behaviour.
+ */
+function composeEmbedText(
+  content: string,
+  metadata: Record<string, unknown>,
+): string {
+  const parts: string[] = [content];
+  if (typeof metadata["summary"] === "string" && metadata["summary"].trim().length > 0) {
+    parts.push(metadata["summary"].trim());
+  }
+  if (Array.isArray(metadata["keywords"]) && (metadata["keywords"] as unknown[]).length > 0) {
+    const kws = (metadata["keywords"] as unknown[])
+      .filter((k): k is string => typeof k === "string" && k.trim().length > 0)
+      .join(" ");
+    if (kws.length > 0) parts.push(kws);
+  }
+  return parts.join(" ");
+}
+
 function wrapAsEngramClient(
   backend: MemoryBackend,
   logger: Logger,
 ): EngramClient {
   const access: EngramAccess = {
-    ingest: (input) => backend.ingest(input),
+    ingest: (input) => {
+      const embedText = composeEmbedText(input.content, input.metadata ?? {});
+      // Only pass embedText when it differs from content — keeps the
+      // default (no enrichment) path byte-identical to the pre-ADR-020 path.
+      const composed = embedText !== input.content ? { ...input, embedText } : input;
+      return backend.ingest(composed);
+    },
     healthCheck: () => backend.healthCheck(),
   };
 
@@ -137,6 +166,10 @@ function wrapAsEngramClient(
         ...(args.sinceIso !== undefined ? { sinceIso: args.sinceIso } : {}),
         ...(args.domain !== undefined ? { domain: args.domain } : {}),
         ...(args.workspace !== undefined ? { workspace: args.workspace } : {}),
+        ...(args.maxSensitivity !== undefined
+          ? { maxSensitivity: args.maxSensitivity }
+          : {}),
+        ...(args.minTrust !== undefined ? { minTrust: args.minTrust } : {}),
       });
       // The MemoryBackend search shape is already a structural superset of
       // EngramMemory — just forward.

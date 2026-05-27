@@ -539,6 +539,7 @@ export async function startServer(): Promise<void> {
     engram,
     ...(router ? { llmRouter: router } : {}),
     ...(enrichmentQueue ? { enrichmentQueue } : {}),
+    extractorsConfig: cfg.extractors,
   };
 
   wireGithubRepoIngester({

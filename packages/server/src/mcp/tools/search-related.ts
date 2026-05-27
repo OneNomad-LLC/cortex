@@ -51,6 +51,20 @@ const inputSchema = z.object({
   since: z.string().datetime().optional(),
   /** Max results. Default 10, cap 50. */
   limit: z.number().int().positive().max(50).default(10),
+  /**
+   * Exclude rows whose sensitivity exceeds this level. Omit to return all
+   * sensitivity levels (default behavior — no filter applied).
+   * Ordering: public < internal < confidential < restricted.
+   */
+  maxSensitivity: z
+    .enum(["public", "internal", "confidential", "restricted"])
+    .optional(),
+  /**
+   * Strict trust filter. When set, rows below this trust level are excluded.
+   * Omit to use soft down-ranking of `experimental` and `external` rows.
+   * Ordering: external < experimental < approved.
+   */
+  minTrust: z.enum(["external", "experimental", "approved"]).optional(),
 });
 
 interface Output {
@@ -108,6 +122,10 @@ export const searchRelated: McpTool<typeof inputSchema, Output> = {
       ...(ctx.sessionWorkspace
         ? { workspace: ctx.sessionWorkspace }
         : {}),
+      ...(input.maxSensitivity
+        ? { maxSensitivity: input.maxSensitivity }
+        : {}),
+      ...(input.minTrust ? { minTrust: input.minTrust } : {}),
     });
 
     const results = rows.map((row) => {

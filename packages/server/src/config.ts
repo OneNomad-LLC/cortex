@@ -125,6 +125,28 @@ export const mcpConfigSchema = z
   .default({});
 
 /**
+ * Per-extractor opt-in config (ADR-020). Each key is an extractor name.
+ * Off by default — omitting the key or setting `enabled: false` disables
+ * the extractor. Only takes effect when an LLM provider is configured.
+ * Available extractors: `summary`, `keywords`.
+ */
+export const extractorEntrySchema = z.object({
+  enabled: z.boolean().default(false),
+});
+
+export const extractorsConfigSchema = z
+  .object({
+    /** LLM-generated 1–3 sentence gist → metadata.summary */
+    summary: extractorEntrySchema.default({}),
+    /** LLM-extracted domain terms/acronyms/jargon → metadata.keywords[] */
+    keywords: extractorEntrySchema.default({}),
+  })
+  .default({});
+
+export type ExtractorsConfig = z.infer<typeof extractorsConfigSchema>;
+export type ExtractorEntry = z.infer<typeof extractorEntrySchema>;
+
+/**
  * Customer-extensible memory taxonomy. Built-in canonical types are
  * defined in `@onenomad/przm-cortex-core > BUILT_IN_MEMORY_TYPES`; this
  * stanza adds per-workspace types on top. `source: "auto"` entries
@@ -161,6 +183,13 @@ export const cortexConfigSchema = z.object({
   mcp: mcpConfigSchema,
   adapters: z.record(adapterEntrySchema).default({}),
   taxonomy: taxonomyConfigSchema,
+  /**
+   * Ingest-time LLM enrichment extractors (ADR-020). Each extractor is
+   * individually opt-in and off by default. Only runs when an LLM
+   * provider is configured. See `extractorsConfigSchema` for the full
+   * list of available extractors.
+   */
+  extractors: extractorsConfigSchema,
   /**
    * Absolute paths to private/personal Cortex module directories
    * loaded at startup. Each must contain a `dist/index.js` exporting

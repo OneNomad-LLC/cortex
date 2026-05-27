@@ -16,13 +16,15 @@
  */
 
 import * as React from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Filter, Search, X } from "lucide-react";
+import { BookOpen, Filter, Plug, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -196,10 +198,8 @@ export function MemoriesPage(): React.ReactElement {
             Memories
           </h1>
           <p className="text-sm text-muted-foreground">
-            Browse every memory in this workspace. Dossier-typed memories
-            are the LLM-extracted briefs Slice A produces; full source
-            chunks land here too when the adapter runs in full or both
-            mode.
+            Everything Cortex has ingested. Dossier entries are
+            LLM-summarized briefs; other types are raw source content.
           </p>
         </div>
       </header>
@@ -304,20 +304,26 @@ export function MemoriesPage(): React.ReactElement {
 
           <div className="overflow-x-auto">
             {memories.isLoading ? (
-              <p className="px-1 py-4 text-sm text-muted-foreground">
-                Loading memories…
-              </p>
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
             ) : memories.isError ? (
-              <p className="px-1 py-4 text-sm text-destructive">
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 Failed to load memories:{" "}
                 {String(memories.error instanceof Error
                   ? memories.error.message
                   : memories.error)}
-              </p>
+              </div>
             ) : rows.length === 0 ? (
-              <p className="px-1 py-4 text-sm text-muted-foreground">
-                No memories match. Try widening the filters.
-              </p>
+              <MemoriesEmptyState hasFilters={
+                types.size > 0 ||
+                source !== ANY_SOURCE ||
+                debouncedProject !== "" ||
+                since !== "" ||
+                debouncedQuery !== ""
+              } />
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase text-muted-foreground">
@@ -362,6 +368,32 @@ export function MemoriesPage(): React.ReactElement {
         {activeId ? <MemoryDetailDialog id={activeId} /> : null}
       </Dialog>
     </main>
+  );
+}
+
+function MemoriesEmptyState(props: {
+  hasFilters: boolean;
+}): React.ReactElement {
+  if (props.hasFilters) {
+    return (
+      <p className="px-1 py-6 text-sm text-muted-foreground">
+        No memories match the current filters. Try widening or clearing them.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col items-start gap-3 px-1 py-8">
+      <p className="text-sm text-muted-foreground">
+        No memories yet — connect a source and run your first ingest.
+      </p>
+      <Link
+        href="/adapters"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+      >
+        <Plug className="size-3.5" />
+        Go to Adapters
+      </Link>
+    </div>
   );
 }
 

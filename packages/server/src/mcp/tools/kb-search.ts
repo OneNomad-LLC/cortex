@@ -31,6 +31,21 @@ const inputSchema = z.object({
   since: z.string().datetime().optional(),
   /** Result count. Default 10, cap 50. */
   topK: z.number().int().positive().max(50).default(10),
+  /**
+   * Exclude rows whose sensitivity exceeds this level. Omit to return all
+   * sensitivity levels (default behavior — no filter applied).
+   * Ordering: public < internal < confidential < restricted.
+   */
+  maxSensitivity: z
+    .enum(["public", "internal", "confidential", "restricted"])
+    .optional(),
+  /**
+   * Strict trust filter. When set, rows below this trust level are excluded.
+   * Omit to use the default soft down-ranking behavior where `experimental`
+   * and `external` rows remain visible but rank slightly lower than
+   * `approved` rows. Ordering: external < experimental < approved.
+   */
+  minTrust: z.enum(["external", "experimental", "approved"]).optional(),
 });
 
 /**
@@ -69,6 +84,10 @@ export const kbSearch: McpTool<typeof inputSchema, ReturnType<typeof searchRelat
         ...(input.type ? { type: input.type } : {}),
         ...(input.source ? { source: input.source } : {}),
         ...(input.since ? { since: input.since } : {}),
+        ...(input.maxSensitivity
+          ? { maxSensitivity: input.maxSensitivity }
+          : {}),
+        ...(input.minTrust ? { minTrust: input.minTrust } : {}),
       },
       ctx,
     );

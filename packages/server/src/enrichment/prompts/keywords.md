@@ -1,0 +1,1 @@
+Extract domain-specific terms, acronyms, product names, technical jargon, and proper nouns from the following work content. These terms must appear in or be directly implied by the text — do not invent terms. Return a JSON array of strings, lowercase, deduplicated, sorted alphabetically. Maximum 20 items. Output only the JSON array, no markdown fence, no commentary.

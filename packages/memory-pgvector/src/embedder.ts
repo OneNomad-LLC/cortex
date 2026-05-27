@@ -21,6 +21,7 @@
  * entirely separate so Cortex deploys remotely as a single artifact.
  */
 
+import { createHash } from "node:crypto";
 import type { EmbedFn } from "./types.js";
 
 /**
@@ -53,14 +54,64 @@ async function getExtractor(): Promise<unknown> {
 }
 
 /**
- * Build an EmbedFn that uses the local Xenova model. Use this as the
- * `embed` argument to createPgVectorClient when no LLM provider is
- * configured (or when the deploy explicitly wants to avoid the
- * latency / cost of LLM-routed embeddings).
+ * Per-process content-addressed embedding cache.
  *
- * The returned function caches nothing per-call — every text gets
- * embedded fresh. Memory-pgvector's caller is expected to do its
- * own dedupe / cache layer if needed.
+ * Design:
+ * - Key: SHA-256 hex of the input text (first 16 chars = 64 bits of
+ *   collision resistance, more than sufficient for a process-lifetime
+ *   cache of a few thousand strings).
+ * - Value: the embedding vector, stored as a frozen array reference
+ *   so callers can't mutate the cached copy.
+ * - Eviction: when the map reaches EMBED_CACHE_MAX, the oldest
+ *   insertion is deleted. JavaScript's Map guarantees insertion-order
+ *   iteration, so Map.keys().next() is always the oldest entry —
+ *   this gives O(1) eviction without a separate LRU structure.
+ * - Thread safety: Node.js is single-threaded; no lock needed.
+ */
+const EMBED_CACHE_MAX = 4096;
+const _embedCache = new Map<string, number[]>();
+
+function cacheKey(text: string): string {
+  // First 32 hex chars = 128 bits. Overkill for a process cache but
+  // still a trivially cheap slice vs. the embedding cost it avoids.
+  return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 32);
+}
+
+function cacheGet(key: string): number[] | undefined {
+  return _embedCache.get(key);
+}
+
+function cacheSet(key: string, vec: number[]): void {
+  if (_embedCache.size >= EMBED_CACHE_MAX) {
+    // Evict the oldest entry (first key in insertion order).
+    const oldest = _embedCache.keys().next().value;
+    if (oldest !== undefined) {
+      _embedCache.delete(oldest);
+    }
+  }
+  _embedCache.set(key, vec);
+}
+
+/**
+ * Exposed for tests — lets a test verify the cache is populated or
+ * drain it between cases. Not part of the public API surface.
+ */
+export const _testOnly = {
+  cache: _embedCache,
+  cacheMax: EMBED_CACHE_MAX,
+  clearCache: () => _embedCache.clear(),
+};
+
+/**
+ * Build an EmbedFn that uses the local Xenova model. Identical text
+ * inputs return the cached vector from a per-process Map (keyed by
+ * SHA-256 hash) without re-invoking the model. The cache is bounded
+ * to EMBED_CACHE_MAX entries; oldest entry is evicted when full.
+ *
+ * The embedding output is pure memoization — the cached value is
+ * identical to what the model would produce for the same input. The
+ * only observable difference is that repeated identical inputs do not
+ * call the underlying extractor a second time.
  */
 export function createLocalEmbedder(): EmbedFn {
   return async (text: string): Promise<number[]> => {
@@ -68,8 +119,15 @@ export function createLocalEmbedder(): EmbedFn {
       // Empty input → zero vector. Memory-pgvector validates dim
       // upstream of this so returning the right length matters more
       // than returning a meaningful vector for empty content.
-      return new Array(LOCAL_EMBEDDING_DIM).fill(0);
+      return new Array(LOCAL_EMBEDDING_DIM).fill(0) as number[];
     }
+
+    const key = cacheKey(text);
+    const cached = cacheGet(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const extractor = (await getExtractor()) as (
       input: string,
       opts: { pooling: "mean"; normalize: boolean },
@@ -77,6 +135,8 @@ export function createLocalEmbedder(): EmbedFn {
     const out = await extractor(text, { pooling: "mean", normalize: true });
     // out.data is a Float32Array; pg-vector's text encoding works
     // with regular number[]. Convert once at the boundary.
-    return Array.from(out.data as Float32Array);
+    const vec = Array.from(out.data as Float32Array);
+    cacheSet(key, vec);
+    return vec;
   };
 }

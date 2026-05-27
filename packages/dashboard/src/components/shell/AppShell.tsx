@@ -9,7 +9,6 @@ import {
   ListChecks,
   Menu,
   Plug,
-  Settings2,
   UserCog,
   Workflow,
   X,
@@ -43,20 +42,14 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-// Sidebar order mirrors the dashboard's logical grouping: data first
-// (adapters → ingest → memories), then ops + identity, then admin
-// (workspaces, identity). Logs/Jobs/Stats live near the bottom because
-// they're more diagnostic than primary action surfaces.
+// Sidebar order: Adapters first (connect a source → see value fast),
+// then content surfaces, then ops/diagnostic, then admin.
 // wouter's <Router base="/_dashboard"> auto-prepends the base segment
 // on every <Link href>. So these stay BASE-RELATIVE (no /_dashboard
 // prefix) — wouter renders them as /_dashboard/adapters etc. and
 // internal navigation routes by the unprefixed path.
-// "Connectors" is the user-facing source directory (browse + connect).
-// "Adapters" remains the ops view (configured rows + status + run
-// controls) — they serve different jobs so we keep both for now.
 const NAV_ITEMS: ReadonlyArray<NavItem> = [
-  { label: "Connectors", href: "/connectors", icon: Plug },
-  { label: "Adapters", href: "/adapters", icon: Settings2 },
+  { label: "Adapters", href: "/adapters", icon: Plug },
   { label: "Ingest", href: "/ingest", icon: Workflow },
   { label: "Memories", href: "/memories", icon: Brain },
   { label: "Logs", href: "/logs", icon: ListChecks },

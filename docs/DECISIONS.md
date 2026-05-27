@@ -926,3 +926,13 @@ Options considered:
 ---
 
 _Add new ADRs below this line._
+
+## ADR-020: LLM ingest-time extractors (summary + keywords) (2026-05-27)
+
+**Status**: Accepted
+
+**Context**: Both the `tsv` full-text column and the embedding vector were keyed off raw `content` only. Domain jargon and gist-level concepts absent from the ingested text were invisible to both retrieval channels. No production corpus exists, so the embedding/tsvector seam can be changed at zero migration cost.
+
+**Decision**: Add a uniform `Extractor` interface (`packages/server/src/enrichment/extractor.ts`) with a runner that merges `Partial<MemoryMetadata>` patches from enabled extractors. Ship two v1 extractors: `summary` (1–3 sentence gist → `metadata.summary`) and `keywords` (domain terms/jargon → `metadata.keywords[]`). Both are off by default, opt-in via the new `extractors` block in `cortex.yaml`. The `tsv` generated column now includes `coalesce(metadata->>'summary','')` and the joined keyword array, so rows without enrichment produce the identical tsvector as before. Ingest composes `embedText = content + summary + keywords` when enrichment is present, while `content` stays stored as-is. See `docs/adr-020-llm-ingest-extractors.md` for full detail.
+
+**Consequences**: Improved recall on jargon-gap and gist-level queries when extractors are enabled. Default behaviour (no extractor configured) is byte-identical to pre-ADR-020. The metadata contract grows by two optional fields (`summary`, `keywords`); the conformance test guards drift. Dev DBs bootstrapped before this release need recreation (the generated column expression changed; the bootstrap DDL includes an idempotent DO block that upgrades existing tables). Re-embedding is not required for existing rows — they have no enrichment and embed the same content they always did.

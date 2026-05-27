@@ -10,7 +10,6 @@ import { AccessPage } from "@/pages/AccessPage";
 import { AdapterAddPage } from "@/pages/AdapterAddPage";
 import { AdapterDetailPage } from "@/pages/AdapterDetailPage";
 import { AdaptersListPage } from "@/pages/AdaptersListPage";
-import { ConnectorsPage } from "@/pages/ConnectorsPage";
 import { GitHubReposPage } from "@/pages/GitHubReposPage";
 import { IdentityPage } from "@/pages/IdentityPage";
 import IngestPage from "@/pages/IngestPage";
@@ -29,8 +28,10 @@ import { WorkspacesPage } from "@/pages/WorkspacesPage";
  *
  * Surface map:
  *   /login                  → LoginPage (no auth, no shell chrome)
- *   /                       → redirect to /adapters
- *   /adapters{,/new,/:id}   → adapter management (wizard renderer)
+ *   /                       → redirect to /stats
+ *   /connectors             → redirect to /adapters (merged)
+ *   /adapters{,/new,/:id}   → adapter management (cards + wizard + ops table)
+ *   /integrations/github    → GitHubReposPage
  *   /logs                   → runtime log tail
  *   /jobs                   → background ingest jobs
  *   /stats                  → KB size + per-source counts
@@ -62,16 +63,22 @@ export default function App(): React.ReactElement {
                   <AppShell>
                     <Switch>
                       <Route path="/">
+                        <Redirect to="/stats" />
+                      </Route>
+
+                      {/* /connectors was merged into /adapters. Keep a
+                          redirect so any bookmarked or linked URLs land
+                          in the right place. */}
+                      <Route path="/connectors">
                         <Redirect to="/adapters" />
                       </Route>
 
-                      {/* Adapter management. */}
+                      {/* Adapter management (connector cards + ops table). */}
                       <Route path="/adapters" component={AdaptersListPage} />
                       <Route path="/adapters/new" component={AdapterAddPage} />
                       <Route path="/adapters/:id" component={AdapterDetailPage} />
 
-                      {/* Connectors directory + per-source integration surfaces. */}
-                      <Route path="/connectors" component={ConnectorsPage} />
+                      {/* Per-source integration surfaces. */}
                       <Route
                         path="/integrations/github"
                         component={GitHubReposPage}

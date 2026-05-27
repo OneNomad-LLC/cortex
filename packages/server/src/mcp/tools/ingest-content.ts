@@ -18,6 +18,11 @@ import {
   type Decision,
   type Entity,
 } from "../../enrichment/extract-structured-items.js";
+import {
+  runExtractors,
+} from "../../enrichment/extractor.js";
+import { summaryExtractor } from "../../enrichment/extractor-summary.js";
+import { keywordsExtractor } from "../../enrichment/extractor-keywords.js";
 import { requireSessionWorkspace } from "../../session-workspace-helpers.js";
 import type { McpTool } from "../tool.js";
 
@@ -259,6 +264,33 @@ export const ingestContent: McpTool<typeof inputSchema, Output> = {
       // Stamp the session's workspace so retrieval tools can filter
       // this memory back out of other-workspace sessions.
       mem.metadata = { ...mem.metadata, workspace: workspace.slug };
+
+      // LLM-based ingest-time metadata extraction (ADR-020). Runs when
+      // an LLM router is present AND at least one extractor is enabled
+      // in ctx.extractorsConfig. Failure is non-fatal — the memory is
+      // still ingested without enrichment.
+      if (ctx.llmRouter && ctx.extractorsConfig) {
+        try {
+          const enrichmentPatch = await runExtractors({
+            content: mem.content,
+            extractors: [summaryExtractor, keywordsExtractor],
+            config: ctx.extractorsConfig,
+            ctx: {
+              llmRouter: ctx.llmRouter,
+              logger: ctx.logger,
+              ...(traceId ? { traceId } : {}),
+            },
+          });
+          if (Object.keys(enrichmentPatch).length > 0) {
+            mem.metadata = { ...mem.metadata, ...enrichmentPatch };
+          }
+        } catch (err) {
+          ctx.logger.warn("ingest_content.extractor_runner_failed", {
+            error: err instanceof Error ? err.message : String(err),
+            traceId,
+          });
+        }
+      }
 
       // Normalize + register the memory type before validation. The
       // registry is customer-extensible (built-ins + per-workspace
