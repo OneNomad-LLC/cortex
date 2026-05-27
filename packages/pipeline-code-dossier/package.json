@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-pipeline-code-dossier",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Code dossier pipeline: 3-pass LLM extraction over a checked-out repo (structural -> synthesis -> brief). Emits ~20 high-signal architectural memories instead of ~1000 raw file chunks.",
   "type": "module",
   "main": "./dist/index.js",
