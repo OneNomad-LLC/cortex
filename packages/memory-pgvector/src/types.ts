@@ -15,6 +15,16 @@ export interface Logger {
 
 export interface MemoryIngestInput {
   content: string;
+  /**
+   * Optional composed text to embed instead of `content`. When present,
+   * the embedding vector is computed from this string while `content` is
+   * stored as-is. Use this to include LLM-extracted enrichment (summary,
+   * keywords) in the vector without altering the stored text.
+   *
+   * Defaults to `content` when omitted — existing behaviour is preserved.
+   * See ADR-020.
+   */
+  embedText?: string;
   metadata: Record<string, unknown>;
 }
 

@@ -219,6 +219,8 @@ describe("metadata contract — Zod round-trip (valid objects)", () => {
       urgency: "high",
       mentions_me: true,
       owner: "alice",
+      summary: "Sprint retro covering velocity and blockers.",
+      keywords: ["retro", "velocity", "sprint", "onenomad"],
     };
     const result = memoryMetadataSchema.safeParse(full);
     expect(result.success).toBe(true);
@@ -236,6 +238,46 @@ describe("metadata contract — Zod round-trip (valid objects)", () => {
       project: ["project-a", "project-b"],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("parses with summary (ADR-020 new field)", () => {
+    const result = memoryMetadataSchema.safeParse({
+      ...VALID_BASE,
+      summary: "Concise gist of the meeting.",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toBe("Concise gist of the meeting.");
+    }
+  });
+
+  it("parses with keywords as a string array (ADR-020 new field)", () => {
+    const result = memoryMetadataSchema.safeParse({
+      ...VALID_BASE,
+      keywords: ["api", "rate-limit", "oauth"],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.keywords).toEqual(["api", "rate-limit", "oauth"]);
+    }
+  });
+
+  it("parses with empty keywords array", () => {
+    const result = memoryMetadataSchema.safeParse({
+      ...VALID_BASE,
+      keywords: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses without summary and keywords (fields are optional)", () => {
+    // Baseline: neither field → should parse fine (same as pre-ADR-020).
+    const result = memoryMetadataSchema.safeParse({ ...VALID_BASE });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toBeUndefined();
+      expect(result.data.keywords).toBeUndefined();
+    }
   });
 
   it("parses an open (non-canonical) type value (MemoryTypeRegistry is open)", () => {
@@ -398,6 +440,22 @@ describe("metadata contract — Zod round-trip (invalid objects rejected)", () =
     const result = memoryMetadataSchema.safeParse({
       ...VALID_BASE,
       urgency: "critical",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects keywords containing non-string items", () => {
+    const result = memoryMetadataSchema.safeParse({
+      ...VALID_BASE,
+      keywords: ["valid", 42, null],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects summary as a non-string", () => {
+    const result = memoryMetadataSchema.safeParse({
+      ...VALID_BASE,
+      summary: 123,
     });
     expect(result.success).toBe(false);
   });

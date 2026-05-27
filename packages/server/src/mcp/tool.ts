@@ -4,6 +4,7 @@ import type { Logger, MemoryTypeRegistry } from "@onenomad/przm-cortex-core";
 import type { LLMRouter } from "@onenomad/przm-cortex-llm-core";
 import type { EngramClient } from "../clients/engram.js";
 import type { EnrichmentQueue } from "../enrichment.js";
+import type { ExtractorsConfig } from "../config.js";
 
 /**
  * Execution context handed to every MCP tool. Thin by design — tools that
@@ -57,6 +58,12 @@ export interface ToolContext {
    * can omit it.
    */
   invalidateTaxonomy?: (workspaceSlug: string) => void;
+  /**
+   * Ingest-time extractor config (ADR-020). Controls which LLM-backed
+   * metadata extractors run at ingest. Optional — absent means all
+   * extractors are disabled (default behavior).
+   */
+  extractorsConfig?: ExtractorsConfig;
 }
 
 /**

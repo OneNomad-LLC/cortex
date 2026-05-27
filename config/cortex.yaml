@@ -38,3 +38,14 @@ memory:
   #   embeddingDim: 768    # must match the embed model's dimension
 
 adapters: {}
+
+# LLM ingest-time extractors (ADR-020). Off by default. Only run when an LLM
+# provider is configured. Each extractor adds one LLM call per ingested chunk.
+# Enable per-extractor when you want the enrichment and are willing to pay the
+# per-call cost.
+#
+# extractors:
+#   summary:
+#     enabled: false    # 1-3 sentence gist → metadata.summary
+#   keywords:
+#     enabled: false    # domain terms / jargon → metadata.keywords[]

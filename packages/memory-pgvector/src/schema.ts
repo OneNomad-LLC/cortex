@@ -39,13 +39,70 @@ CREATE TABLE IF NOT EXISTS ${table} (
   content text NOT NULL,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   embedding vector(${embeddingDim}),
-  tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
+  tsv tsvector GENERATED ALWAYS AS (
+    to_tsvector('english',
+      content
+      || ' ' || coalesce(metadata->>'summary', '')
+      || ' ' || coalesce(
+        (SELECT string_agg(kw, ' ')
+         FROM jsonb_array_elements_text(
+           CASE jsonb_typeof(metadata->'keywords')
+             WHEN 'array' THEN metadata->'keywords'
+             ELSE '[]'::jsonb
+           END
+         ) AS kw),
+        ''
+      )
+    )
+  ) STORED,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- Pre-existing installs didn't have workspace — add it idempotently.
 ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS workspace text;
+
+-- ADR-020: upgrade the tsv generated column to include summary + keywords.
+-- Postgres GENERATED ALWAYS columns cannot be altered in-place; we must drop
+-- and re-add. The DO block is idempotent: it only replaces the column when
+-- the existing expression is the old content-only form. New tables get the
+-- right definition from the CREATE TABLE above and skip this block.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = '${table}'
+      AND column_name = 'tsv'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_attribute a
+    JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+    WHERE c.relname = '${table}'
+      AND a.attname = 'tsv'
+      AND pg_catalog.pg_get_expr(a.attgenerated, a.attrelid) LIKE '%metadata%'
+  ) THEN
+    ALTER TABLE ${table} DROP COLUMN tsv;
+    ALTER TABLE ${table} ADD COLUMN tsv tsvector
+      GENERATED ALWAYS AS (
+        to_tsvector('english',
+          content
+          || ' ' || coalesce(metadata->>'summary', '')
+          || ' ' || coalesce(
+            (SELECT string_agg(kw, ' ')
+             FROM jsonb_array_elements_text(
+               CASE jsonb_typeof(metadata->'keywords')
+                 WHEN 'array' THEN metadata->'keywords'
+                 ELSE '[]'::jsonb
+               END
+             ) AS kw),
+            ''
+          )
+        )
+      ) STORED;
+  END IF;
+END;
+$$;
 
 -- Partial unique index scoped to (workspace, source_id). Different
 -- workspaces can legitimately share a source_id (e.g. a shared Loom

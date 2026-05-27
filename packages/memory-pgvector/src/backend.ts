@@ -129,7 +129,10 @@ export function createPgVectorBackend(
     },
 
     async ingest(input: MemoryIngestInput) {
-      const embedding = await embed(input.content);
+      // Use embedText when present (ADR-020: enrichment-augmented vector);
+      // fall back to content so the default path is byte-identical to pre-ADR-020.
+      const textToEmbed = input.embedText ?? input.content;
+      const embedding = await embed(textToEmbed);
       if (embedding.length !== cfg.embeddingDim) {
         throw new Error(
           `memory-pgvector: embed() returned ${embedding.length} dims, table expects ${cfg.embeddingDim}. ` +

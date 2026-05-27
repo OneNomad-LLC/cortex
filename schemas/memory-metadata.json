@@ -154,6 +154,15 @@
       "type": "string",
       "minLength": 1,
       "description": "Cortex workspace slug. Stamped at ingest by ingest_content (packages/server/src/mcp/tools/ingest-content.ts) when the request is bound to a workspace. Used by the dashboard's per-workspace widget filter (Phase 1b). Optional — legacy memories from before workspace support don't carry it."
+    },
+    "summary": {
+      "type": "string",
+      "description": "LLM-generated concise gist of the memory's content. Produced by the summary extractor at ingest time (ADR-020). Absent when the extractor is disabled or not yet run. Both the tsvector column and the embedding compose this in when present."
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "LLM-extracted domain terms, acronyms, and jargon. Produced by the keywords extractor at ingest time (ADR-020). Indexed into the tsvector column and embedding so domain-specific terms surface on both BM25 and vector channels."
     }
   }
 }
