@@ -96,17 +96,6 @@ interface AdaptersResponse {
   adapters: AdapterRow[];
 }
 
-// Slim shape used only for connection-probe id matching.
-interface AdapterIdRow {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-interface AdaptersIdResponse {
-  adapters: AdapterIdRow[];
-}
-
 interface GithubProbeResponse {
   adapterMode?: RepoMode | null;
   [key: string]: unknown;
@@ -701,7 +690,3 @@ function AdapterOpsRow(props: {
   );
 }
 
-// Keep the slim AdapterIdRow type exported so ConnectorsPage.tsx can
-// reuse it if it still exists as a redirect shim. Currently unused but
-// avoids a stale-import error if there are other callers.
-export type { AdapterIdRow, AdaptersIdResponse };
