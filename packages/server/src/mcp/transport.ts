@@ -4,10 +4,17 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Logger } from "@onenomad/przm-cortex-core";
-import { enterSession, runWithSession, setSessionToolAllowList } from "../session-context.js";
+import {
+  enterSession,
+  runWithSession,
+  setSessionPrincipal,
+  setSessionToolAllowList,
+} from "../session-context.js";
 import { verifyCookie } from "../api/cookie-session.js";
 import { verifyScopeToken } from "../api/scope-token.js";
 import { expandScopes } from "@onenomad/przm-cortex-core";
+import type { Principal } from "@onenomad/przm-access";
+import { createAccessVerifier, type AccessVerifier } from "../access/verify-token.js";
 
 export interface TransportHandle {
   kind: "stdio" | "http";
@@ -103,6 +110,37 @@ async function connectHttp(
         "Generate one with `openssl rand -hex 32`.",
     );
   }
+
+  // przm-access multi-tenant auth (ADR-021). When the access public key is
+  // configured, a valid przm-access EdDSA bearer both SATISFIES auth and
+  // stamps a `Principal` on the session, so the memory backend runs tenant-
+  // scoped (RLS). Entirely opt-in: with the key unset this path is inert and
+  // existing auth (bearer / gateway secret / cookie) is unchanged.
+  let accessVerifier: AccessVerifier | undefined;
+  const accessPublicJwkRaw = process.env.PRZM_CORTEX_ACCESS_PUBLIC_JWK;
+  if (accessPublicJwkRaw) {
+    let publicJwk: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(accessPublicJwkRaw) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("not a JSON object");
+      }
+      publicJwk = parsed as Record<string, unknown>;
+    } catch (err) {
+      throw new Error(
+        "PRZM_CORTEX_ACCESS_PUBLIC_JWK must be a JWK JSON object: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+    const accessIssuer =
+      process.env.PRZM_CORTEX_ACCESS_ISSUER ?? "https://access.przm.sh";
+    accessVerifier = await createAccessVerifier({
+      publicJwk,
+      issuer: accessIssuer,
+      audience: process.env.PRZM_CORTEX_ACCESS_AUDIENCE ?? "przm-platform",
+    });
+    args.logger.info("mcp.access.enabled", { issuer: accessIssuer });
+  }
   // Two-track auth, same shape as the dashboard API's gate. Either the
   // user-facing bearer (Claude Code, scripts) or the pyre-web gateway
   // secret passes. When neither env var is set, no gate (local dev).
@@ -133,6 +171,27 @@ async function connectHttp(
     const claims = verifyScopeToken(match[1]!.trim(), gatewaySecret);
     if (!claims) return undefined;
     return expandScopes(claims.scopes);
+  };
+
+  /**
+   * Verify a przm-access bearer into a Principal. Returns undefined when there
+   * is no verifier configured, no bearer present, or the token isn't a valid
+   * access token (e.g. it's a cscope JWT or opaque bearer meant for another
+   * path) — a verification failure here is "no principal", not a hard error.
+   */
+  const resolveAccessPrincipal = async (
+    req: import("node:http").IncomingMessage,
+  ): Promise<Principal | undefined> => {
+    if (!accessVerifier) return undefined;
+    const authHeader = headerValue(req.headers["authorization"]);
+    if (!authHeader) return undefined;
+    const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+    if (!match) return undefined;
+    try {
+      return await accessVerifier(match[1]!.trim());
+    } catch {
+      return undefined;
+    }
   };
 
   const authOk = (req: import("node:http").IncomingMessage): boolean => {
@@ -242,7 +301,11 @@ async function connectHttp(
       : never,
     res: import("node:http").ServerResponse,
   ): Promise<void> => {
-    if (!authOk(req)) {
+    // A valid przm-access token both authenticates AND yields a Principal
+    // (ADR-021). Resolve it once; it satisfies auth on its own when the access
+    // path is configured, in addition to the existing credential paths.
+    const principal = await resolveAccessPrincipal(req);
+    if (!authOk(req) && principal === undefined) {
       args.logger.warn("mcp.http.auth_rejected", {
         ip: req.socket.remoteAddress ?? "unknown",
       });
@@ -252,15 +315,16 @@ async function connectHttp(
       return;
     }
     // Resolve scope claims once per request. The session that picks
-    // up this auth gets stamped with the resulting allow-list (or
-    // cleared when the request used a non-scoped credential, so an
-    // earlier scoped session can't poison a later unscoped one on
-    // the same session id).
+    // up this auth gets stamped with the resulting allow-list and principal
+    // (or cleared when the request used a non-scoped / non-access credential,
+    // so an earlier scoped session can't poison a later unscoped one on the
+    // same session id).
     const allowList = resolveAllowList(req);
     const headerId = headerValue(req.headers["mcp-session-id"]);
     // Existing session — route to the live transport.
     if (headerId && sessions.has(headerId)) {
       setSessionToolAllowList(headerId, allowList);
+      setSessionPrincipal(headerId, principal);
       const session = sessions.get(headerId)!;
       runWithSession(headerId, () => {
         void session.transport.handleRequest(req, res).catch((err) => {
@@ -283,6 +347,7 @@ async function connectHttp(
     // onsessioninitialized.
     const tempId = headerId ?? randomUUID();
     setSessionToolAllowList(tempId, allowList);
+    setSessionPrincipal(tempId, principal);
     runWithSession(tempId, () => {
       void session.transport.handleRequest(req, res).catch((err) => {
         args.logger.warn("mcp.http.initialize_failed", {

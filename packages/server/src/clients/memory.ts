@@ -131,6 +131,13 @@ export async function createMemoryClient(args: {
         table,
         embeddingDim,
         embedTask,
+        // ADR-021: multi-tenant RLS (external only, opt-in). When enabled, the
+        // transport sets app.tenant from a verified token and the backend runs
+        // tenant-scoped via appRole. Off → single-tenant, unchanged.
+        ...(memory.pgvector?.enableRls === true ? { enableRls: true } : {}),
+        ...(memory.pgvector?.appRole !== undefined
+          ? { appRole: memory.pgvector.appRole }
+          : {}),
         ...(effectiveRouter ? { llmRouter: effectiveRouter } : {}),
         logger,
       })

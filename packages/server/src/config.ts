@@ -48,6 +48,21 @@ export const memoryConfigSchema = z
         mode: z.enum(["external", "embedded"]).default("external"),
         connectionString: z.string().optional(),
         /**
+         * Enable Postgres row-level security for tenant isolation (ADR-021).
+         * External mode only — embedded PGlite ignores it (FORCE RLS with no
+         * `app.tenant` GUC would hide every row in single-user mode). Pairs
+         * with `appRole` and a verified przm-access token (the transport sets
+         * `app.tenant` from the token's tenant). Default false: single-tenant.
+         */
+        enableRls: z.boolean().default(false),
+        /**
+         * Restricted (NOSUPERUSER, non-BYPASSRLS) Postgres role the tenant-
+         * scoped query path lowers into via SET LOCAL ROLE so RLS actually
+         * enforces. The `connectionString` base role must be a member of it.
+         * External + `enableRls` only.
+         */
+        appRole: z.string().optional(),
+        /**
          * Filesystem path for the embedded PGlite database. Required
          * when mode='embedded'; ignored otherwise. Path can be relative
          * (resolved against cwd at boot) or absolute.

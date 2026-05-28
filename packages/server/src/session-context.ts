@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { Principal } from "@onenomad/przm-access";
 import { parseDotEnv } from "./cli/dotenv.js";
 
 /**
@@ -91,6 +92,15 @@ export interface SessionState {
    * file out of backups, same as cache_jobs.
    */
   githubAccessToken?: string;
+  /**
+   * Verified przm-access principal (ADR-021). Set by the HTTP transport when
+   * the request carried a valid przm-access scoped token. Carries the tenant
+   * (the RLS isolation key), user, and role. Absent for unauthenticated /
+   * stdio / single-tenant sessions — those run unscoped (embedded behavior).
+   * Not persisted: it is re-derived from the token on each authenticated
+   * request and must never outlive the credential that produced it.
+   */
+  principal?: Principal;
 }
 
 const sessionStates = new Map<string, SessionState>();
@@ -463,6 +473,44 @@ export function setSessionToolAllowList(
   }
   if (allowList) state.toolAllowList = allowList;
   else delete state.toolAllowList;
+}
+
+/**
+ * Stamp the verified przm-access principal onto a session (ADR-021). Called by
+ * the HTTP transport after verifying a przm-access token. `undefined` clears it
+ * (the request used a non-access credential, so an earlier authenticated
+ * principal must not leak onto a later request on the same session id).
+ */
+export function setSessionPrincipal(
+  sessionId: string,
+  principal: Principal | undefined,
+): void {
+  const state = sessionStates.get(sessionId);
+  if (!state) {
+    sessionStates.set(sessionId, {
+      workspace: undefined,
+      firstSeenAt: Date.now(),
+      lastSeenAt: Date.now(),
+      ...(principal ? { principal } : {}),
+    });
+    return;
+  }
+  if (principal) state.principal = principal;
+  else delete state.principal;
+}
+
+/** The verified principal for the current ALS-bound session, if any. */
+export function getCurrentPrincipal(): Principal | undefined {
+  return getCurrentSessionState()?.principal;
+}
+
+/**
+ * The tenant id for the current session — the RLS isolation key threaded into
+ * the memory backend's tenant-scoped query path. `undefined` when the session
+ * is unauthenticated / single-tenant (the backend then runs unscoped).
+ */
+export function getCurrentTenantId(): string | undefined {
+  return getCurrentSessionState()?.principal?.tenantId;
 }
 
 /** Tool allow-list for the current ALS-bound session. */

@@ -12,6 +12,7 @@ import type {
   EngramMemory,
   EngramSearchArgs,
 } from "./engram.js";
+import { getCurrentTenantId } from "../session-context.js";
 
 export interface PgVectorClientOptions {
   /**
@@ -167,10 +168,18 @@ function wrapAsEngramClient(
   const access: EngramAccess = {
     ingest: (input) => {
       const embedText = composeEmbedText(input.content, input.metadata ?? {});
-      // Only pass embedText when it differs from content — keeps the
-      // default (no enrichment) path byte-identical to the pre-ADR-020 path.
-      const composed = embedText !== input.content ? { ...input, embedText } : input;
-      return backend.ingest(composed);
+      // ADR-021: stamp the verified tenant from the current session (if any) so
+      // the row carries tenant_id and the insert runs RLS-scoped. ADR-020:
+      // pass embedText only when it differs. With neither, pass input as-is —
+      // byte-identical to the pre-ADR path.
+      const tenantId = getCurrentTenantId();
+      const extra = {
+        ...(embedText !== input.content ? { embedText } : {}),
+        ...(tenantId ? { tenantId } : {}),
+      };
+      return backend.ingest(
+        Object.keys(extra).length > 0 ? { ...input, ...extra } : input,
+      );
     },
     healthCheck: () => backend.healthCheck(),
   };
@@ -179,8 +188,12 @@ function wrapAsEngramClient(
     ...access,
 
     async search(args: EngramSearchArgs): Promise<EngramMemory[]> {
+      // ADR-021: scope the search to the current session's verified tenant (if
+      // any) so RLS restricts results to that tenant. Absent → unscoped.
+      const tenantId = getCurrentTenantId();
       const hits = await backend.search({
         query: args.query,
+        ...(tenantId ? { tenantId } : {}),
         ...(args.limit !== undefined ? { limit: args.limit } : {}),
         ...(args.project !== undefined ? { project: args.project } : {}),
         ...(args.type !== undefined ? { type: args.type } : {}),
