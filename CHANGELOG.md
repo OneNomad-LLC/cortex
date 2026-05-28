@@ -2,6 +2,16 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## Unreleased (0.7.1)
+
+**Bootstrap fix (important)**: v0.7.0's `tsv` generated column (ADR-020) was invalid DDL — Postgres forbids subqueries inside a `GENERATED ALWAYS` expression, and the idempotent upgrade `DO` block called `pg_get_expr(attgenerated, …)` on the wrong catalog column. Either fault made `bootstrap()` throw on a real engine, so v0.7.0 could not initialize a fresh database (or upgrade a pre-ADR-020 one) on Postgres **or** embedded PGlite. The existing tests used a fake pool, so neither was caught. A patch release is warranted.
+
+- fix(memory-pgvector): move the ADR-020 keyword projection into an `IMMUTABLE` `<table>_kw_text(jsonb)` function the generated column calls (subqueries are legal inside a function, not inline in a generation expression). Behavior is unchanged — a row without `summary`/`keywords` still yields the identical `tsv` as `content` alone.
+- fix(memory-pgvector): the tsv-upgrade `DO` block now reads the generation expression from `pg_attrdef.adbin` instead of `pg_attribute.attgenerated`, so the idempotent migration detection actually runs.
+- feat(memory-pgvector): ADR-021 Phase 1 — add a nullable `tenant_id uuid` column + index, and opt-in row-level-security DDL (`enableRls`, **external Postgres only**, off by default). When enabled, `ENABLE`/`FORCE` RLS with tenant policies keyed on `tenant_id = current_setting('app.tenant')`. Embedded PGlite is never given RLS (it would hide every row in single-user mode). A real-PGlite cross-tenant isolation test proves A cannot read/update/delete/insert B's rows, with a sanity guard that RLS isn't silently bypassed.
+- feat(server): `createPgVectorClient` accepts `enableRls`, honored only in `external` mode.
+- docs: ADR-021 (przm-access → cortex integration) accepted; the multi-tenant RLS substrate lands across five phases (Phase 1 here; Phase 0 hardening shipped in przm-access).
+
 ## v0.7.0 — 2026-05-27
 
 **Behavior changes**: (1) retrieval now down-ranks `experimental` / `external` `trust` memories by default (pass `minTrust` to exclude them outright); (2) the dashboard "Connectors" page is merged into **Adapters** (`/connectors` → `/adapters` redirect kept) and `/` now lands on `/stats`; (3) `get_session_workspace` suggests your last-active workspace when a session is unbound and `set_session_workspace` records it, so new sessions can resume. **Schema migration**: the `tsv` full-text column now composes `content + summary + keywords`; existing deployments upgrade via an idempotent `DO` block on bootstrap (or recreate the table). Rows without enrichment produce the identical `tsv` as before.
