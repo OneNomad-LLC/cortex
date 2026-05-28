@@ -73,6 +73,10 @@ import * as dashboardIngestRoute from "./routes/dashboard-ingest.js";
 import * as dashboardGithubReposRoute from "./routes/dashboard-github-repos.js";
 import * as dashboardMemoriesRoute from "./routes/dashboard-memories.js";
 import * as dashboardSettingsAllowlistRoute from "./routes/dashboard-settings-allowlist.js";
+import * as dashboardMembersRoute from "./routes/dashboard-members.js";
+import * as dashboardProjectsRoute from "./routes/dashboard-projects.js";
+import * as dashboardQueriesRoute from "./routes/dashboard-queries.js";
+import * as dashboardAuditRoute from "./routes/dashboard-audit.js";
 
 export interface DashboardApiOptions extends WidgetContext {
   host?: string;
@@ -173,6 +177,10 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "dashboard-github-repos", handle: dashboardGithubReposRoute.handle },
   { name: "dashboard-memories", handle: dashboardMemoriesRoute.handle },
   { name: "dashboard-settings-allowlist", handle: dashboardSettingsAllowlistRoute.handle },
+  { name: "dashboard-members", handle: dashboardMembersRoute.handle },
+  { name: "dashboard-projects", handle: dashboardProjectsRoute.handle },
+  { name: "dashboard-queries", handle: dashboardQueriesRoute.handle },
+  { name: "dashboard-audit", handle: dashboardAuditRoute.handle },
 ];
 
 export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
@@ -416,6 +424,15 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "GET /api/dashboard/settings/allowlist",
         "POST /api/dashboard/settings/allowlist",
         "DELETE /api/dashboard/settings/allowlist/:login",
+        "GET /api/dashboard/members",
+        "POST /api/dashboard/members",
+        "PATCH /api/dashboard/members/:userId",
+        "GET /api/dashboard/seats",
+        "PATCH /api/dashboard/seats/:userId",
+        "GET /api/dashboard/projects",
+        "POST /api/dashboard/projects",
+        "GET /api/dashboard/queries",
+        "GET /api/dashboard/audit",
       ];
     },
   };

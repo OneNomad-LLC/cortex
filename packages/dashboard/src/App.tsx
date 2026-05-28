@@ -10,14 +10,19 @@ import { AccessPage } from "@/pages/AccessPage";
 import { AdapterAddPage } from "@/pages/AdapterAddPage";
 import { AdapterDetailPage } from "@/pages/AdapterDetailPage";
 import { AdaptersListPage } from "@/pages/AdaptersListPage";
+import { AuditPage } from "@/pages/AuditPage";
 import { GitHubReposPage } from "@/pages/GitHubReposPage";
 import { IdentityPage } from "@/pages/IdentityPage";
 import IngestPage from "@/pages/IngestPage";
+import { InvitationsPage } from "@/pages/InvitationsPage";
 import JobsPage from "@/pages/JobsPage";
 import LogsPage from "@/pages/LogsPage";
 import { LoginPage } from "@/pages/LoginPage";
+import { MembersPage } from "@/pages/MembersPage";
 import { MemoriesPage } from "@/pages/MemoriesPage";
 import { NotFoundPage } from "@/pages/PlaceholderPage";
+import { ProjectsPage } from "@/pages/ProjectsPage";
+import { QueriesPage } from "@/pages/QueriesPage";
 import StatsPage from "@/pages/StatsPage";
 import { WorkspacesPage } from "@/pages/WorkspacesPage";
 
@@ -99,6 +104,13 @@ export default function App(): React.ReactElement {
                         <IdentityPage />
                       </Route>
                       <Route path="/settings/access" component={AccessPage} />
+
+                      {/* Org admin surfaces. */}
+                      <Route path="/members" component={MembersPage} />
+                      <Route path="/projects" component={ProjectsPage} />
+                      <Route path="/invitations" component={InvitationsPage} />
+                      <Route path="/queries" component={QueriesPage} />
+                      <Route path="/audit" component={AuditPage} />
 
                       <Route>
                         <NotFoundPage />
