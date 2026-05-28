@@ -2,6 +2,31 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## Unreleased (0.7.2)
+
+**Billing policy — initial-ingest credit (Task #15):**
+Initial corpus ingest is free. Re-ingest of the same source within 30 days is
+also free (covers "I changed chunking and re-ran" workflows). After 30 days,
+re-ingests are metered.
+
+- feat(memory-pgvector): `PgVectorBackendOptions` gains an optional
+  `onIngestUsage` callback (`OnIngestUsage`). After each successful ingest of
+  a `(tenantId, sourceId)` pair the backend fires this callback with
+  `{ tenantId, sourceId, contentLength, isInitial }`. Errors from the callback
+  are caught and logged as warnings — they never fail the ingest. Omit the
+  callback for embedded / single-tenant installs (no behavior change).
+- feat(memory-pgvector): `IngestUsageEvent` and `OnIngestUsage` types exported
+  from `@onenomad/przm-cortex-memory-pgvector`.
+- feat(memory-pgvector): `is_initial` detection — before each ingest the
+  backend queries the memory table for the earliest existing row with matching
+  `(tenant_id, source_id)`. No prior row → `isInitial = true`. Prior row
+  created ≤ 30 days ago → `isInitial = true` (grace period). Older → `false`.
+  The check is non-fatal: a query failure defaults to `isInitial = false`.
+- feat(server): `packages/server/src/usage/tracker.ts` — `createNullTracker()`
+  (no-op for embedded mode) and `createPrzmAccessTracker(baseUrl, adminKey)`
+  (ships events to przm-access `POST /admin/usage/event` for billing ledger +
+  Stripe metered flush).
+
 ## Unreleased (0.7.1)
 
 **Bootstrap fix (important)**: v0.7.0's `tsv` generated column (ADR-020) was invalid DDL — Postgres forbids subqueries inside a `GENERATED ALWAYS` expression, and the idempotent upgrade `DO` block called `pg_get_expr(attgenerated, …)` on the wrong catalog column. Either fault made `bootstrap()` throw on a real engine, so v0.7.0 could not initialize a fresh database (or upgrade a pre-ADR-020 one) on Postgres **or** embedded PGlite. The existing tests used a fake pool, so neither was caught. A patch release is warranted.

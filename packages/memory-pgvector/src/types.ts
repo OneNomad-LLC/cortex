@@ -185,3 +185,43 @@ export interface MemoryExportRow {
  * provider layer — any callable (Ollama, OpenAI, a fake, a cached fn) works.
  */
 export type EmbedFn = (text: string) => Promise<number[]>;
+
+// ---------------------------------------------------------------------------
+// Usage tracking (Task #15 — initial-ingest credit)
+// ---------------------------------------------------------------------------
+
+/**
+ * Event emitted by the backend after each successful ingest that has both a
+ * tenantId and a sourceId. Callers inject an `OnIngestUsage` callback via
+ * `PgVectorBackendOptions.onIngestUsage` to forward these events to the
+ * billing plane.
+ */
+export interface IngestUsageEvent {
+  /** Tenant isolation key (matches ingest input). */
+  tenantId: string;
+  /** Source identifier (matches cortex_memories.source_id). */
+  sourceId: string;
+  /**
+   * Byte length of the stored content string. Used as a proxy for token cost
+   * by the billing plane (1 token ≈ 4 bytes of UTF-8; callers may refine this
+   * estimate server-side if an exact token count is available).
+   */
+  contentLength: number;
+  /**
+   * True when this is the first ingest of `(tenantId, sourceId)`, or a
+   * re-ingest within 30 days of the original. These runs are covered by the
+   * initial-ingest credit and excluded from Stripe metered billing.
+   *
+   * Determined by checking the memory table for prior rows with the same
+   * `(tenant_id, source_id)` before the current write lands.
+   */
+  isInitial: boolean;
+}
+
+/**
+ * Optional fire-and-forget callback injected into the pgvector backend.
+ * The backend fires it after each successful ingest when both `tenantId` and
+ * `sourceId` are present. Errors from this callback are caught and logged as
+ * warnings — they never fail the ingest operation itself.
+ */
+export type OnIngestUsage = (event: IngestUsageEvent) => void | Promise<void>;
