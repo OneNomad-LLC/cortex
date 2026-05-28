@@ -2,6 +2,89 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## Unreleased — Platform commercialization (wave 3)
+
+This wave makes cortex sellable as a multi-tenant SaaS alongside `przm-access`
+(identity/tenancy) and `przm-web` (marketing + customer dashboard). The
+changes below are the cortex-side surface; the access-service migrations,
+Stripe wiring, and admin UI live in the sibling repos.
+
+**Multi-region / EU Cloud (Task #12):**
+- feat(infra): `infra/terraform/eu-region/` — full Terraform module for a
+  Frankfurt (`fra1`) DO deployment with a separate Neon `eu-central-1`
+  project. Not auto-applied; operator action required.
+- feat(server): region-aware transport. `verify-token.ts` returns
+  `{ principal, region }` instead of a bare Principal; `transport.ts` gates
+  on `PRZM_CORTEX_REGION` and refuses serving if the token's region claim
+  does not match the deployment region (`403 REGION_MISMATCH`).
+- docs(legal): `legal/dpa-template.md` — EU DPA template (operator must
+  have a lawyer review before execution).
+
+**Observability + SLA (Task #13):**
+- feat(observability): `packages/server/src/metrics.ts` — prom-client
+  histograms on a dedicated `metricsRegistry`. Tracks
+  `cortex_mcp_tool_duration_seconds` (labeled by tool + status),
+  `cortex_search_duration_seconds`, and `cortex_ingest_duration_seconds`.
+  `wrapEngramWithMetrics()` transparently wraps the engram client.
+- feat(server): `GET /metrics` Prometheus scrape endpoint, Bearer-gated.
+- docs(legal): `legal/sla-template.md` — 99.9% uptime, p95 ≤ 200ms,
+  p99 ≤ 500ms, 10/25/50% service-credit ladder.
+- docs(ops): `docs/operations/STATUS-PAGE.md` — Better Stack vs Statuspage,
+  setup runbook, Prometheus webhook bridge.
+
+**Air-gap deployment (Task #14):**
+- docs(deploy): `docs/AIR-GAP-DEPLOY.md` — operator guide for fully isolated
+  installs (no network beyond the configured LLM endpoint). Covers the
+  perpetual-license install path, telemetry kill-switch, and audit of
+  outbound calls.
+- feat(server): `PRZM_CORTEX_TELEMETRY=disabled` env hard-silences all
+  outbound calls except the configured LLM endpoint.
+
+**SOC 2 kickoff (Task #11):**
+- docs(security): `docs/security/COMPLIANCE.md` — public-facing SOC 2 status
+  page, Vanta-vs-Drata decision (Vanta recommended), CPA shortlist
+  (Prescient Assurance recommended), audit timeline, sub-processor table,
+  per-control status.
+- docs(runbooks): `docs/runbooks/INCIDENT-RESPONSE.md`, `ACCESS-REVIEW.md`,
+  `BACKUP-RESTORE.md` — skeleton runbooks (severity tiers, quarterly
+  procedures, restore drills) marked as operator-fillable.
+
+**Supply-chain hygiene (Task #08):**
+- chore(ci): `.github/workflows/sbom.yml` — generates CycloneDX SBOM on
+  release tags, attached to the GitHub Release.
+- chore(ci): `docker-publish.yml` extended with SLSA Level 2+ build
+  provenance + cosign signing of `ghcr.io/onenomad-llc/przm-cortex`.
+- chore(deps): production deps exact-pinned (no caret on top-level prod
+  paths). `pnpm-lock.yaml` regenerated.
+- docs(security): `SECURITY.md` + `docs/security/ADVISORIES.md` (empty
+  scaffold) + `docs/security/SBOM.md` (consumer guide).
+
+**Audit log export (Task #07):**
+- docs(integration): `docs/audit-datadog-integration.md` + `docs/audit-splunk-integration.md` —
+  customer guides for consuming the access-service webhook stream into their
+  SIEM. The webhook dispatcher and `GET /admin/orgs/:id/audit` endpoint live
+  in `przm-access`; cortex side is documentation only.
+
+**OSS parity guard (Task #03):**
+- chore(ci): OSS parity check workflow scans for license/plan/tier feature
+  gates outside the license verifier. `oss-parity-allowlist.txt` maintains
+  the small set of legitimate exemptions.
+- docs(parity): `docs/OSS-PARITY.md` — the contract: OSS install must run
+  every feature Cloud runs, with no license configured.
+
+**Admin dashboard (Task #05):**
+- feat(dashboard): `packages/dashboard/` admin pages — Members (with
+  invite + role + active-seat toggle from Task #02), Projects, Queries,
+  Audit. Wires the better-auth session to przm-access admin API.
+- feat(server): `packages/server/src/api/routes/dashboard-*.ts` — typed
+  bridge routes the dashboard reads from.
+
+**Identifier-scan + parity-check allowlist (CI hygiene):**
+- chore(ci): `scripts/identifier-scan-allow.txt` extended to cover
+  legitimate `@onenomad.com` / `@onenomad.app` SECURITY contacts, SLSA
+  framework GitHub paths, test-fixture URLs (`octo`, `acme`, `owner`),
+  and the operator's commit-signing email.
+
 ## Unreleased (0.7.2)
 
 **Billing policy — initial-ingest credit (Task #15):**
