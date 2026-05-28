@@ -29,6 +29,13 @@ export interface PgVectorClientOptions {
    * Defaults off; turn on only with the tenant-scoped query path in place.
    */
   enableRls?: boolean;
+  /**
+   * Restricted (NOSUPERUSER, non-BYPASSRLS) role the tenant-scoped query path
+   * lowers into via SET LOCAL ROLE so RLS actually enforces (ADR-021). External
+   * mode only; pairs with `enableRls`. The base connection role must be a
+   * member of it.
+   */
+  appRole?: string;
   /** Required when mode='embedded'. Absolute filesystem path. */
   dataDir?: string;
   table: string;
@@ -87,7 +94,10 @@ export async function createPgVectorClient(
     }
     pool = createPgPool(
       { connectionString: opts.connectionString },
-      { logger: opts.logger },
+      {
+        logger: opts.logger,
+        ...(opts.appRole !== undefined ? { appRole: opts.appRole } : {}),
+      },
     );
   }
 

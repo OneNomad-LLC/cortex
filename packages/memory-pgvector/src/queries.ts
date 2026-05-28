@@ -174,6 +174,8 @@ export function buildIngestQuery(args: {
   sourceId: string | null;
   domain: string;
   workspace: string | null;
+  /** Tenant isolation key (ADR-021). NULL for embedded/single-tenant ingests. */
+  tenantId?: string | null;
   content: string;
   metadata: Record<string, unknown>;
   embedding: number[];
@@ -182,11 +184,12 @@ export function buildIngestQuery(args: {
     throw new Error(`memory-pgvector: unsafe table name '${args.table}'`);
   }
   const vec = vectorLiteral(args.embedding);
+  const tenantId = args.tenantId ?? null;
   if (args.sourceId) {
     return {
       text: `
-INSERT INTO ${args.table} (source_id, domain, workspace, content, metadata, embedding, updated_at)
-VALUES ($1, $2, $3, $4, $5::jsonb, $6::vector, now())
+INSERT INTO ${args.table} (source_id, domain, workspace, tenant_id, content, metadata, embedding, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::vector, now())
 ON CONFLICT (workspace, source_id) WHERE source_id IS NOT NULL
 DO UPDATE SET
   content    = EXCLUDED.content,
@@ -194,6 +197,7 @@ DO UPDATE SET
   embedding  = EXCLUDED.embedding,
   domain     = EXCLUDED.domain,
   workspace  = EXCLUDED.workspace,
+  tenant_id  = EXCLUDED.tenant_id,
   updated_at = now()
 RETURNING id
 `.trim(),
@@ -201,6 +205,7 @@ RETURNING id
         args.sourceId,
         args.domain,
         args.workspace,
+        tenantId,
         args.content,
         JSON.stringify(args.metadata),
         vec,
@@ -209,13 +214,14 @@ RETURNING id
   }
   return {
     text: `
-INSERT INTO ${args.table} (domain, workspace, content, metadata, embedding)
-VALUES ($1, $2, $3, $4::jsonb, $5::vector)
+INSERT INTO ${args.table} (domain, workspace, tenant_id, content, metadata, embedding)
+VALUES ($1, $2, $3, $4, $5::jsonb, $6::vector)
 RETURNING id
 `.trim(),
     values: [
       args.domain,
       args.workspace,
+      tenantId,
       args.content,
       JSON.stringify(args.metadata),
       vec,
