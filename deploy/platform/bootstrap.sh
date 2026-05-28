@@ -35,8 +35,25 @@ if [[ -f .env ]]; then
   exit 1
 fi
 
+# When BOOTSTRAP_NON_INTERACTIVE=1, all inputs must come from env vars; the
+# script never prompts. Used by Terraform/cloud-init to drive setup unattended.
+NON_INTERACTIVE="${BOOTSTRAP_NON_INTERACTIVE:-0}"
+
 prompt() {
   local var="$1" label="$2" default="${3-}"
+  local current="${!var-}"
+  # Honor pre-set env (Terraform / CI) — skip the prompt entirely.
+  if [[ -n "$current" ]]; then
+    return
+  fi
+  if [[ "$NON_INTERACTIVE" == "1" ]]; then
+    if [[ -n "$default" ]]; then
+      printf -v "$var" '%s' "$default"
+      return
+    fi
+    echo "bootstrap: missing required env '$var' in non-interactive mode" >&2
+    exit 1
+  fi
   local val
   if [[ -n "$default" ]]; then
     read -r -p "$label [$default]: " val
