@@ -9,6 +9,7 @@ import {
 } from "./queries.js";
 import type {
   EmbedFn,
+  IngestUsageEvent,
   Logger,
   Memory,
   MemoryBackend,
@@ -16,6 +17,7 @@ import type {
   MemoryExportRow,
   MemoryIngestInput,
   MemorySearchArgs,
+  OnIngestUsage,
 } from "./types.js";
 
 /**
@@ -106,6 +108,13 @@ export interface PgVectorBackendOptions {
   embed: EmbedFn;
   config?: Partial<PgVectorConfig>;
   logger: Logger;
+  /**
+   * Optional fire-and-forget callback for usage tracking (Task #15).
+   * Fired after each successful ingest when both `tenantId` and `sourceId`
+   * are present. Errors are caught and logged as warnings — they never
+   * propagate to callers. Omit for embedded / single-tenant installs.
+   */
+  onIngestUsage?: OnIngestUsage;
 }
 
 /**
@@ -122,7 +131,7 @@ export function createPgVectorBackend(
   }
 
   let lastSuccessAt: number | undefined;
-  const { pool, embed, logger } = opts;
+  const { pool, embed, logger, onIngestUsage } = opts;
 
   // Run one statement tenant-scoped (RLS) when a tenantId is supplied AND the
   // pool supports scoping (external Postgres); otherwise a plain pooled query.
@@ -195,6 +204,50 @@ export function createPgVectorBackend(
       const workspace = typeof md.workspace === "string" ? md.workspace : null;
       const tenantId = typeof input.tenantId === "string" ? input.tenantId : null;
 
+      // Task #15 — initial-ingest credit.
+      // Determine whether this ingest is "initial" before writing:
+      //   - No prior row for (tenant_id, source_id) → initial.
+      //   - Prior row exists but created ≤ 30 days ago → still initial (grace
+      //     period covers "I changed chunking and re-ran" scenarios).
+      //   - Prior row older than 30 days → billable.
+      // Skip when either key is absent — can't determine initial status without both.
+      let isInitial = false;
+      if (onIngestUsage && tenantId && sourceId) {
+        try {
+          const priorRes = await runScoped<{ created_at: Date | string }>(
+            tenantId,
+            // Find the oldest row for this (tenant, source) — created_at is
+            // stable across upserts (only updated_at changes on conflict).
+            `SELECT created_at
+             FROM ${cfg.table}
+             WHERE tenant_id = $1 AND source_id = $2
+             ORDER BY created_at ASC
+             LIMIT 1`,
+            [tenantId, sourceId],
+          );
+          if (priorRes.rows.length === 0) {
+            isInitial = true; // First ever ingest for this (tenant, source).
+          } else {
+            const rawCreatedAt = priorRes.rows[0]?.created_at;
+            if (rawCreatedAt !== undefined) {
+              const createdAt =
+                rawCreatedAt instanceof Date
+                  ? rawCreatedAt
+                  : new Date(rawCreatedAt as string);
+              const ageMs = Date.now() - createdAt.getTime();
+              const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+              isInitial = ageMs <= thirtyDaysMs;
+            }
+          }
+        } catch (err) {
+          // Non-fatal: skip the initial check if the query fails. Defaulting
+          // to is_initial = false is the conservative (never over-credits) path.
+          logger.warn("memory-pgvector.ingest.initial_check_failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
       const q = buildIngestQuery({
         table: cfg.table,
         sourceId,
@@ -211,6 +264,22 @@ export function createPgVectorBackend(
       if (!row) {
         throw new Error("memory-pgvector: ingest returned no row");
       }
+
+      // Fire usage callback fire-and-forget — errors must never fail the ingest.
+      if (onIngestUsage && tenantId && sourceId) {
+        const usageEvent: IngestUsageEvent = {
+          tenantId,
+          sourceId,
+          contentLength: input.content.length,
+          isInitial,
+        };
+        Promise.resolve(onIngestUsage(usageEvent)).catch((err) => {
+          logger.warn("memory-pgvector.ingest.usage_callback_failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+
       return { id: row.id };
     },
 
