@@ -51,6 +51,7 @@ import * as configRoute from "./routes/config.js";
 import * as workspaceFilesRoute from "./routes/workspace-files.js";
 import * as workspaceDocsRoute from "./routes/workspace-docs.js";
 import * as statusRoute from "./routes/status.js";
+import * as metricsRoute from "./routes/metrics.js";
 import * as adminMemoryRoute from "./routes/admin-memory.js";
 import * as adminBackupRoute from "./routes/admin-backup.js";
 import * as typesRoute from "./routes/types.js";
@@ -147,6 +148,7 @@ const ROUTES: ReadonlyArray<{ name: string; handle: RouteHandler }> = [
   { name: "wizards", handle: wizardsRoute.handle },
   { name: "config", handle: configRoute.handle },
   { name: "status", handle: statusRoute.handle },
+  { name: "metrics", handle: metricsRoute.handle },
   { name: "admin-memory", handle: adminMemoryRoute.handle },
   { name: "admin-backup", handle: adminBackupRoute.handle },
   { name: "types", handle: typesRoute.handle },
@@ -357,6 +359,7 @@ export function createDashboardApi(opts: DashboardApiOptions): DashboardApi {
         "GET /api/workspace-files/:name",
         "PUT /api/workspace-files/:name",
         "GET /api/status",
+        "GET /metrics",
         "GET /api/logs",
         "GET /api/logs/stream",
         "GET /api/mcp/tools",
