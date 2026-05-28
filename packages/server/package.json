@@ -34,10 +34,10 @@
     "test:int": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.0.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
-    "@node-rs/argon2": "^2.0.2",
-    "@onenomad/przm-access": "^0.1.1",
+    "@inquirer/prompts": "7.0.0",
+    "@modelcontextprotocol/sdk": "1.12.1",
+    "@node-rs/argon2": "2.0.2",
+    "@onenomad/przm-access": "0.1.1",
     "@onenomad/przm-cortex-adapter-bitbucket": "workspace:*",
     "@onenomad/przm-cortex-adapter-confluence": "workspace:*",
     "@onenomad/przm-cortex-adapter-github": "workspace:*",
@@ -60,12 +60,12 @@
     "@onenomad/przm-cortex-pipeline-core": "workspace:*",
     "@onenomad/przm-cortex-pipeline-doc": "workspace:*",
     "@onenomad/przm-cortex-pipeline-meeting": "workspace:*",
-    "jose": "^5.9.0",
-    "pdf-parse": "^2.4.5",
-    "ws": "^8.18.0",
-    "yaml": "^2.6.0",
-    "zod": "^3.23.8",
-    "zod-to-json-schema": "^3.23.5"
+    "jose": "5.9.0",
+    "pdf-parse": "2.4.5",
+    "ws": "8.18.0",
+    "yaml": "2.6.0",
+    "zod": "3.23.8",
+    "zod-to-json-schema": "3.23.5"
   },
   "optionalDependencies": {
     "@onenomad/przm-cortex-llm-sdk": "workspace:*",

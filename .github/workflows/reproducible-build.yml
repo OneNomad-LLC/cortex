@@ -1,0 +1,87 @@
+# Reproducible build check — builds the Dockerfile twice in a single CI run
+# and diffs the resulting image manifests.
+#
+# This is a BEST-EFFORT signal, not a hard release gate. Some known sources
+# of non-determinism are documented in docs/security/REPRODUCIBLE-BUILDS.md.
+# A diff does not block the workflow; it uploads the diff as an artifact for
+# review.
+#
+# Runs on every push to main and on every v* tag.
+
+name: reproducible-build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  diff-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build #1 — no cache so both builds start from identical conditions.
+      - name: Build image (pass 1)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile
+          push: false
+          load: true
+          tags: cortex-repro:pass1
+          no-cache: true
+
+      # Build #2 — same conditions, no cache.
+      - name: Build image (pass 2)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile
+          push: false
+          load: true
+          tags: cortex-repro:pass2
+          no-cache: true
+
+      - name: Extract + diff manifests
+        id: diff
+        run: |
+          docker inspect cortex-repro:pass1 > manifest-pass1.json
+          docker inspect cortex-repro:pass2 > manifest-pass2.json
+          # Id (image digest) and RepoTags differ by design — strip them.
+          diff \
+            <(jq 'del(.[0].Id, .[0].RepoTags, .[0].RepoDigests)' manifest-pass1.json) \
+            <(jq 'del(.[0].Id, .[0].RepoTags, .[0].RepoDigests)' manifest-pass2.json) \
+            > manifest-diff.txt 2>&1 || true
+          echo "Manifest diff (empty = fully reproducible):"
+          cat manifest-diff.txt
+          if [ -s manifest-diff.txt ]; then
+            echo "has_diff=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_diff=false" >> "$GITHUB_OUTPUT"
+            echo "Builds are identical — fully reproducible."
+          fi
+
+      - name: Upload diff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reproducible-build-diff-${{ github.sha }}
+          path: |
+            manifest-diff.txt
+            manifest-pass1.json
+            manifest-pass2.json
+          retention-days: 30
+
+      - name: Annotate non-determinism
+        if: steps.diff.outputs.has_diff == 'true'
+        run: |
+          echo "::warning::Reproducible build check found differences between " \
+               "two identical builds. See manifest-diff.txt artifact. " \
+               "Consult docs/security/REPRODUCIBLE-BUILDS.md for known causes."

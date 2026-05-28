@@ -1,0 +1,83 @@
+# Generate a CycloneDX SBOM on every release tag and attach it to the
+# GitHub Release as an artifact. Also uploads as an OCI artifact to GHCR
+# so the SBOM is co-located with the image it describes.
+#
+# Consumers:
+#   gh release download <tag> --pattern '*sbom.json' --output sbom.json
+#   cosign download sbom ghcr.io/onenomad-llc/przm-cortex:<tag>
+#
+# See docs/security/SBOM.md for the full CISO consumption guide.
+
+name: sbom
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # attach artifact to release
+  packages: write   # push OCI artifact to GHCR
+  id-token: write   # OIDC for cosign / provenance
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: onenomad-llc/przm-cortex
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version is resolved from package.json packageManager field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: przm-cortex-${{ github.ref_name }}-sbom.json
+          output-file: przm-cortex-sbom.json
+
+      - name: Upload SBOM to GitHub Release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: przm-cortex-sbom.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attach SBOM as OCI artifact to GHCR image
+        # Attaches the SBOM alongside the image so `cosign download sbom`
+        # can retrieve it without separately downloading the release artifact.
+        # continue-on-error: the image may not exist yet if the sbom job
+        # runs before docker-publish completes on the same tag push.
+        # The release artifact upload above is the primary delivery channel.
+        run: |
+          cosign attach sbom \
+            --sbom przm-cortex-sbom.json \
+            --type cyclonedx \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+        continue-on-error: true

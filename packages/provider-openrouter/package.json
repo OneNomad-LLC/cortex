@@ -26,7 +26,7 @@
     "@onenomad/przm-cortex-core": "workspace:*",
     "@onenomad/przm-cortex-llm-core": "workspace:*",
     "@onenomad/przm-cortex-llm-sdk": "workspace:*",
-    "zod": "^3.23.8"
+    "zod": "3.23.8"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

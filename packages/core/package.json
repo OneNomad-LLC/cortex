@@ -24,7 +24,7 @@
     "test:int": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "3.23.8"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
