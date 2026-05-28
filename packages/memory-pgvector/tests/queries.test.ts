@@ -40,10 +40,27 @@ describe("buildIngestQuery", () => {
       "confluence:42",
       "work",
       "onenomad",
+      null, // tenant_id — unset (single-tenant / embedded ingest)
       "hello",
       JSON.stringify({ project: "alpha", type: "doc", workspace: "onenomad" }),
       "[0.1,0.2,0.3]",
     ]);
+  });
+
+  it("stamps tenant_id and updates it on conflict when provided (ADR-021)", () => {
+    const q = buildIngestQuery({
+      table: "cortex_memories",
+      sourceId: "loom:7",
+      domain: "work",
+      workspace: "acme",
+      tenantId: "11111111-1111-1111-1111-111111111111",
+      content: "hi",
+      metadata: {},
+      embedding: [1],
+    });
+    expect(q.text).toContain("tenant_id");
+    expect(q.text).toContain("tenant_id  = EXCLUDED.tenant_id");
+    expect(q.values[3]).toBe("11111111-1111-1111-1111-111111111111");
   });
 
   it("writes a null workspace when unbound (legacy-compat path)", () => {
@@ -72,7 +89,7 @@ describe("buildIngestQuery", () => {
     expect(q.text).not.toContain("ON CONFLICT");
     expect(q.text).toContain("INSERT INTO cortex_memories");
     expect(q.text).toContain("RETURNING id");
-    expect(q.values).toEqual(["work", null, "hi", "{}", "[1,2]"]);
+    expect(q.values).toEqual(["work", null, null, "hi", "{}", "[1,2]"]);
   });
 
   it("rejects unsafe table names", () => {

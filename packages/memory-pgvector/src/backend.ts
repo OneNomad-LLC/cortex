@@ -23,12 +23,37 @@ import type {
  * package can be unit-tested without spinning up a real pool — tests pass in
  * a hand-rolled `{ query }` shim.
  */
+/**
+ * A query function scoped to an open, tenant-bound transaction — handed to the
+ * `withRlsScope` callback. Same shape as `PgPoolLike.query`, but every call runs
+ * inside the transaction whose `app.tenant` GUC is already set.
+ */
+export type ScopedQuery = <T = unknown>(
+  text: string,
+  values?: unknown[],
+) => Promise<{ rows: T[] }>;
+
 export interface PgPoolLike {
   query<T = unknown>(
     text: string,
     values?: unknown[],
   ): Promise<{ rows: T[] }>;
   end?(): Promise<void>;
+  /**
+   * Tenant-scoped transaction (ADR-021, external Postgres + RLS). Runs `fn`
+   * inside `BEGIN` with `app.tenant = tenantId` set (and, where configured, the
+   * connection lowered to a restricted role) so the plane's RLS policies apply.
+   * Commits on success, rolls back on throw.
+   *
+   * Optional: pools without RLS support (embedded PGlite) omit it, and the
+   * backend falls back to `query()` — embedded is single-tenant by design, so
+   * there is nothing to isolate. The backend only routes through this when a
+   * `tenantId` is supplied AND this method exists.
+   */
+  withRlsScope?<T>(
+    tenantId: string,
+    fn: (q: ScopedQuery) => Promise<T>,
+  ): Promise<T>;
   /**
    * Embedded-mode dump hook. Implemented by the PGlite pool wrapper;
    * external-Postgres pools throw "not supported" because their dump
@@ -99,6 +124,21 @@ export function createPgVectorBackend(
   let lastSuccessAt: number | undefined;
   const { pool, embed, logger } = opts;
 
+  // Run one statement tenant-scoped (RLS) when a tenantId is supplied AND the
+  // pool supports scoping (external Postgres); otherwise a plain pooled query.
+  // Embedded PGlite has no withRlsScope, so it always takes the plain path —
+  // single-tenant by design, nothing to isolate.
+  const runScoped = async <T>(
+    tenantId: string | undefined,
+    text: string,
+    values?: unknown[],
+  ): Promise<{ rows: T[] }> => {
+    if (tenantId && pool.withRlsScope) {
+      return pool.withRlsScope<{ rows: T[] }>(tenantId, (q) => q<T>(text, values));
+    }
+    return pool.query<T>(text, values);
+  };
+
   return {
     async bootstrap() {
       const sql = buildBootstrapSql({
@@ -153,17 +193,19 @@ export function createPgVectorBackend(
       const sourceId = typeof md.source_id === "string" ? md.source_id : null;
       const domain = typeof md.domain === "string" ? md.domain : "work";
       const workspace = typeof md.workspace === "string" ? md.workspace : null;
+      const tenantId = typeof input.tenantId === "string" ? input.tenantId : null;
 
       const q = buildIngestQuery({
         table: cfg.table,
         sourceId,
         domain,
         workspace,
+        tenantId,
         content: input.content,
         metadata: md,
         embedding,
       });
-      const res = await pool.query<{ id: string }>(q.text, q.values);
+      const res = await runScoped<{ id: string }>(input.tenantId, q.text, q.values);
       lastSuccessAt = Date.now();
       const row = res.rows[0];
       if (!row) {
@@ -217,13 +259,13 @@ export function createPgVectorBackend(
           40,
         ),
       });
-      const res = await pool.query<{
+      const res = await runScoped<{
         id: string;
         content: string;
         metadata: Record<string, unknown>;
         created_at: Date | string | null;
         score: string | number;
-      }>(q.text, q.values);
+      }>(args.tenantId, q.text, q.values);
       lastSuccessAt = Date.now();
 
       return res.rows.map((r): Memory => {
@@ -252,7 +294,7 @@ export function createPgVectorBackend(
         ...(args.sourceId !== undefined ? { sourceId: args.sourceId } : {}),
         ...(args.id !== undefined ? { id: args.id } : {}),
       });
-      const res = await pool.query<{ id: string }>(q.text, q.values);
+      const res = await runScoped<{ id: string }>(args.tenantId, q.text, q.values);
       lastSuccessAt = Date.now();
       return { deleted: res.rows.length };
     },

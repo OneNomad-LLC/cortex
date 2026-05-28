@@ -26,6 +26,14 @@ export interface MemoryIngestInput {
    */
   embedText?: string;
   metadata: Record<string, unknown>;
+  /**
+   * Tenant isolation key (ADR-021). When set AND the pool supports RLS scoping
+   * (external Postgres), the row is stamped with this `tenant_id` and the insert
+   * runs inside a transaction with `app.tenant` set, so the RLS INSERT policy
+   * accepts it. Omitted (embedded PGlite / single-tenant) → `tenant_id` is NULL
+   * and behavior is unchanged. The server derives this from a verified Principal.
+   */
+  tenantId?: string;
 }
 
 /** Ordered sensitivity levels. Earlier = less sensitive. */
@@ -60,6 +68,13 @@ export interface MemorySearchArgs {
    */
   workspace?: string;
   /**
+   * Tenant isolation key (ADR-021). When set AND the pool supports RLS scoping,
+   * the search runs inside a transaction with `app.tenant` set so Postgres RLS
+   * restricts results to this tenant (the workspace filter remains as an
+   * in-query belt). Omitted → no tenant scoping (embedded / single-tenant).
+   */
+  tenantId?: string;
+  /**
    * Maximum sensitivity level to include. Rows whose `metadata.sensitivity`
    * is more sensitive than this level are excluded. Omit (default) to apply
    * no filter — existing behavior is preserved.
@@ -91,6 +106,13 @@ export interface MemoryDeleteArgs {
   /** Remove by source_id. Exactly one of `sourceId` / `id` required. */
   sourceId?: string;
   id?: string;
+  /**
+   * Tenant isolation key (ADR-021). When set AND the pool supports RLS scoping,
+   * the delete runs inside a transaction with `app.tenant` set, so RLS prevents
+   * deleting another tenant's rows even if an id/source_id collides. Omitted →
+   * no tenant scoping.
+   */
+  tenantId?: string;
 }
 
 /**
