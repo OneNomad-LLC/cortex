@@ -1,0 +1,19 @@
+# Operator-supplied secrets — never commit.
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Terraform state — contains sensitive values. Configure a remote backend for
+# any team use; the local files stay out of git either way.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.tfstate.lock.info
+
+# Provider plugins + module cache (downloaded on `terraform init`).
+.terraform/
+.terraform.lock.hcl
+
+# CLI diagnostics
+crash.log
+crash.*.log

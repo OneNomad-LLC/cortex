@@ -1,0 +1,33 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Mark this file 0600.
+# Sensitive values can also be sourced from env: `export TF_VAR_do_token=...`.
+
+# DigitalOcean API token with droplet:write + domain:write.
+do_token = "dop_v1_REDACTED"
+
+# Apex domain (already managed in this DO account). Terraform creates
+# cortex.<base> and access.<base> A/AAAA records pointing at the droplet.
+domain_base = "example.com"
+
+# Droplet sizing. Bump as load grows.
+droplet_name   = "przm-platform"
+droplet_region = "nyc3"
+droplet_size   = "s-2vcpu-4gb"
+
+# SSH keys authorized on the droplet (DO fingerprints).
+ssh_key_fingerprints = [
+  "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
+]
+
+# Neon (or any managed Postgres) connection strings. Two DBs (or schemas):
+# the access service's own + the cortex memory store. The cortex base role
+# must be a MEMBER of cortex_db_app_role (see deploy/platform/README.md).
+access_database_url = "postgres://access_owner:***@host.neon.tech/access_db?sslmode=require"
+cortex_database_url = "postgres://cortex_owner:***@host.neon.tech/cortex_db?sslmode=require"
+cortex_db_app_role  = "cortex_app"
+
+# Optional: OpenRouter for LLM-routed embeddings (blank = local Xenova only).
+openrouter_api_key = ""
+
+# Pin the cortex repo ref for stable channels. Default is `main` (rolling).
+cortex_repo_url = "https://github.com/OneNomad-LLC/cortex.git"
+cortex_repo_ref = "main"
