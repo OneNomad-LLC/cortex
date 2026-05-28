@@ -4,12 +4,17 @@ import {
   Activity,
   Boxes,
   Brain,
+  ClipboardList,
   Database,
+  FolderOpen,
   IdCard,
   ListChecks,
+  Mail,
   Menu,
   Plug,
+  Search,
   UserCog,
+  Users,
   Workflow,
   X,
 } from "lucide-react";
@@ -43,7 +48,7 @@ interface NavItem {
 }
 
 // Sidebar order: Adapters first (connect a source → see value fast),
-// then content surfaces, then ops/diagnostic, then admin.
+// then content surfaces, then ops/diagnostic, then org admin surfaces.
 // wouter's <Router base="/_dashboard"> auto-prepends the base segment
 // on every <Link href>. So these stay BASE-RELATIVE (no /_dashboard
 // prefix) — wouter renders them as /_dashboard/adapters etc. and
@@ -58,6 +63,12 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { label: "Workspaces", href: "/workspaces", icon: Database },
   { label: "Identity", href: "/identity", icon: IdCard },
   { label: "Access", href: "/settings/access", icon: UserCog },
+  // Org admin — requires PRZM_ACCESS_* env vars in the workspace .env.
+  { label: "Members", href: "/members", icon: Users },
+  { label: "Projects", href: "/projects", icon: FolderOpen },
+  { label: "Invitations", href: "/invitations", icon: Mail },
+  { label: "Queries", href: "/queries", icon: Search },
+  { label: "Audit", href: "/audit", icon: ClipboardList },
 ];
 
 interface AppShellProps {
