@@ -1,0 +1,68 @@
+#cloud-config
+# Cloud-init for the przm EU-region platform droplet (Frankfurt fra1).
+# Extends the US platform template with EU-specific env vars:
+#   PRZM_CORTEX_REGION          → enforced by transport.ts region gate
+#   PRZM_CORTEX_ACCESS_PUBLIC_JWK → przm-access EdDSA public key for bearer verify
+#   PRZM_CORTEX_ACCESS_ISSUER   → expected iss claim
+
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - openssl
+  - docker.io
+  - docker-compose-v2
+
+write_files:
+  - path: /opt/przm/.bootstrap-env
+    permissions: "0600"
+    content: |
+      DOMAIN_BASE=${domain_base}
+      ACCESS_DATABASE_URL=${access_database_url}
+      CORTEX_DATABASE_URL=${cortex_database_url}
+      CORTEX_DB_APP_ROLE=${cortex_db_app_role}
+      OPENROUTER_API_KEY=${openrouter_api_key}
+      PRZM_CORTEX_REGION=${cortex_region}
+      PRZM_CORTEX_ACCESS_PUBLIC_JWK=${access_public_jwk}
+      PRZM_CORTEX_ACCESS_ISSUER=${access_issuer}
+  - path: /etc/systemd/system/przm-platform.service
+    content: |
+      [Unit]
+      Description=przm platform EU region (cortex + przm-access)
+      Requires=docker.service
+      After=docker.service network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/opt/przm/cortex/deploy/platform
+      ExecStart=/usr/bin/docker compose -f docker-compose.platform.yml --env-file .env up -d
+      ExecStop=/usr/bin/docker compose -f docker-compose.platform.yml --env-file .env down
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl enable --now docker
+  - mkdir -p /opt/przm
+  - git clone --depth 1 --branch "${cortex_repo_ref}" "${cortex_repo_url}" /opt/przm/cortex
+  - cd /opt/przm/cortex/deploy/platform
+  - chmod +x bootstrap.sh
+  - |
+    set -a
+    . /opt/przm/.bootstrap-env
+    set +a
+    BOOTSTRAP_NON_INTERACTIVE=1 ./bootstrap.sh
+  - systemctl daemon-reload
+  - systemctl enable --now przm-platform.service
+
+final_message: |
+  przm EU-region platform bootstrap complete in $UPTIME seconds.
+  Cortex MCP (EU): https://cortex-eu.${domain_base}/api/health
+  SSH in to inspect: docker compose -f /opt/przm/cortex/deploy/platform/docker-compose.platform.yml logs -f
+  Operator secrets at /opt/przm/cortex/deploy/platform/.env (chmod 600).
+  VERIFY: PRZM_CORTEX_REGION=eu is set and region-gate is rejecting US-tenant tokens.
