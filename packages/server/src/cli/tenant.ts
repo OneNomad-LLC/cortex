@@ -99,8 +99,20 @@ function runSwitch(args: string[]): number {
  * Re-fetch the tenant list from pyre-web. We re-use the api_url +
  * api_key already on the shared credentials file — the user-token is
  * what authorizes the tenant-list call, no re-login needed.
+ *
+ * In air-gap mode (PRZM_CORTEX_TELEMETRY=disabled) this command is
+ * blocked: pyre-web is unreachable and the tenant list is managed
+ * by the operator via the credentials file directly.
  */
 async function runRefresh(): Promise<number> {
+  if (process.env["PRZM_CORTEX_TELEMETRY"] === "disabled") {
+    process.stderr.write(
+      "cortex tenant refresh: PRZM_CORTEX_TELEMETRY=disabled — network calls to pyre-web are not permitted in air-gap mode.\n" +
+        "  Manage tenants by editing the credentials file directly, or re-run with telemetry enabled.\n",
+    );
+    return 1;
+  }
+
   const file = readSharedCredentials();
   if (!file?.api_url || !file?.api_key) {
     process.stderr.write(
