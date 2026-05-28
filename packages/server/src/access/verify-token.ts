@@ -43,8 +43,18 @@ export interface AccessVerifyConfig {
   audience: string;
 }
 
-/** A verifier bound to an imported key: token string → resolved Principal. */
-export type AccessVerifier = (token: string) => Promise<Principal>;
+/** Result of access token verification. */
+export interface AccessVerifyResult {
+  principal: Principal;
+  /**
+   * Data-residency region from the `region` JWT claim ('us' | 'eu').
+   * Null when the claim is absent (pre-migration tokens — treat as 'us').
+   */
+  region: string | null;
+}
+
+/** A verifier bound to an imported key: token string → resolved Principal + region. */
+export type AccessVerifier = (token: string) => Promise<AccessVerifyResult>;
 
 /**
  * Import the public key once and return a verifier. Call at boot (the key
@@ -56,7 +66,7 @@ export async function createAccessVerifier(
 ): Promise<AccessVerifier> {
   const key = await importJWK(cfg.publicJwk as unknown as JWK, "EdDSA");
 
-  return async function verify(token: string): Promise<Principal> {
+  return async function verify(token: string): Promise<AccessVerifyResult> {
     let payload: Record<string, unknown>;
     try {
       const res = await jwtVerify(token, key, {
@@ -102,6 +112,10 @@ export async function createAccessVerifier(
       throw new AccessTokenError("MALFORMED_CLAIMS", `Invalid role claim: ${String(role)}`);
     }
 
+    // Extract optional `region` claim (absent on pre-migration tokens → null = 'us').
+    const rawRegion = payload["region"];
+    const region = typeof rawRegion === "string" && rawRegion.length > 0 ? rawRegion : null;
+
     const rawProjects = payload["projects"];
     if (rawProjects !== undefined) {
       if (
@@ -113,8 +127,8 @@ export async function createAccessVerifier(
           "Invalid 'projects' claim: must be an array of strings",
         );
       }
-      return { userId, tenantId, role, projects: rawProjects };
+      return { principal: { userId, tenantId, role, projects: rawProjects }, region };
     }
-    return { userId, tenantId, role };
+    return { principal: { userId, tenantId, role }, region };
   };
 }

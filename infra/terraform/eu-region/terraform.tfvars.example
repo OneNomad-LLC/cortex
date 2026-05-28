@@ -1,0 +1,40 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Mark this file 0600.
+# Sensitive values can also be sourced from env: `export TF_VAR_do_token=...`.
+
+# DigitalOcean API token with droplet:write + domain:write.
+do_token = "dop_v1_REDACTED"
+
+# Apex domain (already managed in this DO account).
+domain_base = "przm.sh"
+
+# EU Droplet. Keep fra1 (Frankfurt) for German/UK customer DPA compliance.
+droplet_name   = "przm-platform-eu"
+droplet_region = "fra1"
+droplet_size   = "s-2vcpu-4gb"
+
+# SSH keys authorized on the droplet (DO fingerprints).
+ssh_key_fingerprints = [
+  "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
+]
+
+# Neon connection strings.
+# IMPORTANT: cortex_database_url MUST point to a Neon project in eu-central-1.
+# Using a US Neon project defeats data-residency guarantees.
+access_database_url = "postgres://access_owner:***@host.neon.tech/access_db?sslmode=require"
+cortex_database_url = "postgres://cortex_owner:***@eu-central-1.neon.tech/cortex_eu_db?sslmode=require"
+cortex_db_app_role  = "cortex_app"
+
+# Optional: OpenRouter for LLM-routed embeddings (blank = local Xenova only).
+openrouter_api_key = ""
+
+# Cortex repo ref to deploy. Pin to a tag for stable channels.
+cortex_repo_url = "https://github.com/OneNomad-LLC/cortex.git"
+cortex_repo_ref = "main"
+
+# przm-access public JWK (EdDSA/Ed25519). Used by the EU cortex to verify
+# bearer tokens and enforce EU-only routing. Copy from przm-access service config.
+# Generate with: node -e "const{generateKeyPair}=require('jose');generateKeyPair('EdDSA').then(({publicKey})=>console.log(JSON.stringify(publicKey,null,2)))"
+access_public_jwk = "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"REDACTED\"}"
+
+# Expected `iss` claim in przm-access tokens (must match ACCESS_JWT_ISSUER in service).
+access_issuer = "https://access.przm.sh"

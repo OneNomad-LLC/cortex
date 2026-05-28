@@ -14,7 +14,11 @@ import { verifyCookie } from "../api/cookie-session.js";
 import { verifyScopeToken } from "../api/scope-token.js";
 import { expandScopes } from "@onenomad/przm-cortex-core";
 import type { Principal } from "@onenomad/przm-access";
-import { createAccessVerifier, type AccessVerifier } from "../access/verify-token.js";
+import {
+  createAccessVerifier,
+  type AccessVerifier,
+  type AccessVerifyResult,
+} from "../access/verify-token.js";
 
 export interface TransportHandle {
   kind: "stdio" | "http";
@@ -174,14 +178,13 @@ async function connectHttp(
   };
 
   /**
-   * Verify a przm-access bearer into a Principal. Returns undefined when there
-   * is no verifier configured, no bearer present, or the token isn't a valid
-   * access token (e.g. it's a cscope JWT or opaque bearer meant for another
-   * path) — a verification failure here is "no principal", not a hard error.
+   * Verify a przm-access bearer. Returns undefined when there is no verifier
+   * configured, no bearer present, or the token isn't a valid access token.
+   * Returns AccessVerifyResult { principal, region } on success.
    */
-  const resolveAccessPrincipal = async (
+  const resolveAccessVerifyResult = async (
     req: import("node:http").IncomingMessage,
-  ): Promise<Principal | undefined> => {
+  ): Promise<AccessVerifyResult | undefined> => {
     if (!accessVerifier) return undefined;
     const authHeader = headerValue(req.headers["authorization"]);
     if (!authHeader) return undefined;
@@ -192,6 +195,22 @@ async function connectHttp(
     } catch {
       return undefined;
     }
+  };
+
+  /**
+   * Region enforcement. When PRZM_CORTEX_REGION is set (e.g. "eu"), any
+   * verified access token whose `region` claim doesn't match is rejected with
+   * 403 REGION_MISMATCH. Tokens without a `region` claim are treated as "us"
+   * (backward-compatible with pre-migration tokens).
+   *
+   * This prevents EU-tenant data from being served by the US cortex cluster
+   * and vice versa — the data-residency guarantee for Task #12.
+   */
+  const clusterRegion = process.env["PRZM_CORTEX_REGION"];
+  const regionAllowed = (tokenRegion: string | null): boolean => {
+    if (!clusterRegion) return true; // no enforcement when env var not set
+    const effective = tokenRegion ?? "us"; // absent region claim = legacy US tenant
+    return effective === clusterRegion;
   };
 
   const authOk = (req: import("node:http").IncomingMessage): boolean => {
@@ -304,7 +323,8 @@ async function connectHttp(
     // A valid przm-access token both authenticates AND yields a Principal
     // (ADR-021). Resolve it once; it satisfies auth on its own when the access
     // path is configured, in addition to the existing credential paths.
-    const principal = await resolveAccessPrincipal(req);
+    const accessResult = await resolveAccessVerifyResult(req);
+    const principal = accessResult?.principal;
     if (!authOk(req) && principal === undefined) {
       args.logger.warn("mcp.http.auth_rejected", {
         ip: req.socket.remoteAddress ?? "unknown",
@@ -312,6 +332,30 @@ async function connectHttp(
       res.statusCode = 401;
       res.setHeader("WWW-Authenticate", "Bearer");
       res.end("unauthorized");
+      return;
+    }
+
+    // Region gate (Task #12 — EU data residency). When this cluster has a
+    // configured region (PRZM_CORTEX_REGION), reject any access token whose
+    // `region` claim doesn't match. Non-access-token paths (cookie, gateway
+    // secret, opaque bearer) are not gated — they bypass the region check.
+    if (accessResult !== undefined && !regionAllowed(accessResult.region)) {
+      args.logger.warn("mcp.http.region_mismatch", {
+        tokenRegion: accessResult.region ?? "us",
+        clusterRegion,
+        tenantId: principal?.tenantId,
+        ip: req.socket.remoteAddress ?? "unknown",
+      });
+      res.statusCode = 403;
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          error: "REGION_MISMATCH",
+          message: `This cortex cluster serves region '${clusterRegion ?? "?"}'. ` +
+            `Your tenant is configured for region '${accessResult.region ?? "us"}'. ` +
+            "Point your MCP client at the correct cortex endpoint.",
+        }),
+      );
       return;
     }
     // Resolve scope claims once per request. The session that picks
