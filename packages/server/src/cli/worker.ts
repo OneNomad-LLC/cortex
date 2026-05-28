@@ -179,6 +179,20 @@ async function execute(claimed: ClaimedJob): Promise<unknown> {
 }
 
 export async function runWorker(): Promise<number> {
+  // Air-gap guard: the worker's only function is polling pyre-web for jobs
+  // and reporting results back. In telemetry-disabled mode (air-gap deployments)
+  // this outbound traffic is not allowed — the operator's network policy will
+  // block it anyway, but we fail fast with a clear diagnostic rather than
+  // hanging on unreachable connections.
+  if (process.env["PRZM_CORTEX_TELEMETRY"] === "disabled") {
+    process.stderr.write(
+      "cortex worker: PRZM_CORTEX_TELEMETRY=disabled — worker is not permitted in air-gap mode.\n" +
+        "  The worker polls pyre-web for jobs, which requires outbound network access.\n" +
+        "  In air-gap deployments, trigger ingest directly via MCP tools (ingest_repo, ingest_url).\n",
+    );
+    return 1;
+  }
+
   const cfg = readConfig();
   process.stdout.write(
     `cortex worker: starting (id=${cfg.workerId}) — polling ${cfg.pyreWebUrl} every ${cfg.pollMs}ms\n`,
