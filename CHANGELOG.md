@@ -10,7 +10,8 @@ All notable changes to Cortex will be documented in this file.
 - fix(memory-pgvector): the tsv-upgrade `DO` block now reads the generation expression from `pg_attrdef.adbin` instead of `pg_attribute.attgenerated`, so the idempotent migration detection actually runs.
 - feat(memory-pgvector): ADR-021 Phase 1 — add a nullable `tenant_id uuid` column + index, and opt-in row-level-security DDL (`enableRls`, **external Postgres only**, off by default). When enabled, `ENABLE`/`FORCE` RLS with tenant policies keyed on `tenant_id = current_setting('app.tenant')`. Embedded PGlite is never given RLS (it would hide every row in single-user mode). A real-PGlite cross-tenant isolation test proves A cannot read/update/delete/insert B's rows, with a sanity guard that RLS isn't silently bypassed.
 - feat(server): `createPgVectorClient` accepts `enableRls`, honored only in `external` mode.
-- docs: ADR-021 (przm-access → cortex integration) accepted; the multi-tenant RLS substrate lands across five phases (Phase 1 here; Phase 0 hardening shipped in przm-access).
+- test(memory-pgvector): the RLS isolation suite now drives cortex's policies through the **real `withRlsSession`** from `@onenomad/przm-access` (a devDependency) — the Phase 2a end-to-end integration proof that the published contract helper, a scoped pool, and the cortex policy DDL isolate tenants together.
+- docs: ADR-021 (przm-access → cortex integration) accepted; the multi-tenant RLS substrate lands across five phases. Phase 0 (RLS hardening + publishable contract) shipped in przm-access; Phase 1 (schema + policies) and Phase 2a (contract adoption + integration proof) here. R4 resolved: `@onenomad/przm-access` is published Apache-2.0 (v0.1.1) on public npm.
 
 ## v0.7.0 — 2026-05-27
 
