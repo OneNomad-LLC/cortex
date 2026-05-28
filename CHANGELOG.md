@@ -2,6 +2,20 @@
 
 All notable changes to Cortex will be documented in this file.
 
+## v0.7.0 — 2026-05-27
+
+**Behavior changes**: (1) retrieval now down-ranks `experimental` / `external` `trust` memories by default (pass `minTrust` to exclude them outright); (2) the dashboard "Connectors" page is merged into **Adapters** (`/connectors` → `/adapters` redirect kept) and `/` now lands on `/stats`; (3) `get_session_workspace` suggests your last-active workspace when a session is unbound and `set_session_workspace` records it, so new sessions can resume. **Schema migration**: the `tsv` full-text column now composes `content + summary + keywords`; existing deployments upgrade via an idempotent `DO` block on bootstrap (or recreate the table). Rows without enrichment produce the identical `tsv` as before.
+
+- feat(server): LLM ingest extractors (ADR-020) — opt-in `summary` + `keywords` extractors, **off by default**, run only when an LLM provider is configured; prompts as `.md`. Outputs compose into the embedding (`embedText`) and the `tsv` full-text column. Default behavior is byte-identical when disabled; a retrieval eval demonstrates recall lift on jargon-gap queries.
+- feat(core): metadata contract gains optional `summary` + `keywords`; a conformance test enforces the Zod schema and `schemas/memory-metadata.json` stay in sync (and reconciles prior `project` / `due_date` / `urgency` / `mentions_me` / `owner` drift).
+- feat(server): retrieval governance — optional `maxSensitivity` filter and `minTrust` strict exclusion on search; default soft down-rank of untrusted memories.
+- feat(memory-pgvector): content-addressed SHA-256 embedding cache (bounded, pure memoization) + a Mongo-style filter translator (`$eq` / `$in` / `$gte` / `$eqOrNull` / `$inOrNull` / `$and` / `$or`) routing the existing WHERE predicates, behavior-preserving.
+- fix(server): session→workspace binding persists (hybrid resume); dashboard memories scope to the active workspace instead of leaking across all workspaces.
+- feat(dashboard): Connectors merged into a single Adapters page, `/` → `/stats`, loading skeletons + consistent empty / error states, de-jargoned copy, first-run callouts.
+- refactor(server): retire the dead engram-subprocess client path left from the 0.3 pgvector migration; remove a stale dashboard shim.
+- docs: CLAUDE.md posture updated to a cloud multi-tenant / multi-project / multi-user knowledgebase; ADR-020 logged.
+
+
 ## v0.6.0 — 2026-05-22
 
 **Behavior change**: `ingest_repo` now defaults to `mode: 'dossier'` — produces a small set of high-signal memories describing the repo (architectural brief, ADR decisions, public API references) instead of dumping every source file as chunks. The legacy per-file walk is still available via `mode: 'full'`, and `mode: 'both'` runs both pipelines. Existing scheduled GitHub syncs flip to dossier mode unless `mode: 'full'` or per-repo `repoModes` override is set in `cortex.yaml`.

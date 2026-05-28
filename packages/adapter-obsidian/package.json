@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-adapter-obsidian",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Obsidian vault source adapter for Cortex.",
   "type": "module",
   "main": "./dist/index.js",

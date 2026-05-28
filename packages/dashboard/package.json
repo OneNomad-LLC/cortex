@@ -1,6 +1,6 @@
 {
   "name": "@onenomad/przm-cortex-dashboard",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "description": "Cortex web dashboard — Vite + React 19 SPA served at /_dashboard.",
   "license": "MIT",
