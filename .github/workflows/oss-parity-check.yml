@@ -1,0 +1,89 @@
+name: OSS parity check
+
+# Fails if a non-allowlisted file references license state in a
+# feature-gating shape. See docs/OSS-PARITY.md for the contract.
+#
+# The parity rule: cortex's open-source install must run every feature
+# that Cloud runs, with NO license configured. The EdDSA-signed license
+# key (Self-Hosted Enterprise) gates support + telemetry + SLA — never
+# feature execution. This check is the regression guard.
+#
+# To intentionally land a change that trips this check (only legitimate
+# reason: extending the verifier itself), do BOTH:
+#   1. Add the file to .github/workflows/oss-parity-allowlist.txt
+#   2. Get a reviewer to comment `BREAK-OSS-PARITY: <reason>` on the PR
+#
+# See docs/OSS-PARITY.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  parity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for license / plan / tier feature gates
+        run: |
+          set -euo pipefail
+
+          # Forbidden patterns — feature-gating shapes that would break
+          # OSS / Cloud parity. The verifier itself (which legitimately
+          # decodes license claims for support + SLA) is allowlisted
+          # via .github/workflows/oss-parity-allowlist.txt.
+          forbidden='(if[[:space:]]*\(.*license|process\.env\.PRZM_LICENSE|plan[[:space:]]*===[[:space:]]*['\''\"]+(enterprise|cloud|pro|premium)|tier[[:space:]]*===[[:space:]]*['\''\"]+(enterprise|cloud|pro|premium)|isPremium|isEnterprise|hasLicense|isLicensed)'
+
+          # Load allowlist (paths relative to repo root; comments + blanks ignored).
+          allowlist_file=".github/workflows/oss-parity-allowlist.txt"
+          allow=()
+          if [[ -f "$allowlist_file" ]]; then
+            while IFS= read -r line; do
+              # Strip comments and surrounding whitespace.
+              line="${line%%#*}"
+              line="${line#"${line%%[![:space:]]*}"}"
+              line="${line%"${line##*[![:space:]]}"}"
+              [[ -z "$line" ]] && continue
+              allow+=("$line")
+            done < "$allowlist_file"
+          fi
+
+          # Scan only TypeScript source under packages/** and apps/**.
+          # Use `|| true` so an empty match doesn't kill the pipeline.
+          mapfile -t matches < <(git grep -lE "$forbidden" -- 'packages/**/*.ts' 'apps/**/*.ts' 2>/dev/null || true)
+
+          # Filter out allowlisted paths.
+          violations=()
+          for f in "${matches[@]:-}"; do
+            [[ -z "$f" ]] && continue
+            skip=0
+            for a in "${allow[@]:-}"; do
+              if [[ "$f" == "$a" ]]; then skip=1; break; fi
+            done
+            [[ "$skip" == 0 ]] && violations+=("$f")
+          done
+
+          if [[ ${#violations[@]} -gt 0 ]]; then
+            echo "::error::OSS parity violation: license / plan / tier feature gates found."
+            echo ""
+            echo "These files reference license state in a feature-gating shape:"
+            for f in "${violations[@]}"; do
+              echo "  $f"
+              git grep -nE "$forbidden" -- "$f" | sed 's/^/    /'
+            done
+            echo ""
+            echo "OSS install must run every feature Cloud runs, with no license configured."
+            echo "See docs/OSS-PARITY.md for the contract."
+            echo ""
+            echo "If this is legitimately the license verifier itself, add the file to"
+            echo ".github/workflows/oss-parity-allowlist.txt and get a reviewer to comment"
+            echo "BREAK-OSS-PARITY: <reason> on the PR."
+            exit 1
+          fi
+
+          echo "OSS parity check passed — no forbidden patterns found."

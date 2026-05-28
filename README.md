@@ -57,6 +57,7 @@ the adapter to backfill the structured layer.
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — internal data plane,
   pipelines, adapter contract.
 - **[docs/DECISIONS.md](docs/DECISIONS.md)** — ADR log.
+- **[docs/OSS-PARITY.md](docs/OSS-PARITY.md)** — Open-core posture: the OSS install runs every feature Cloud runs; the license gates support, not code.
 
 ## Status
 

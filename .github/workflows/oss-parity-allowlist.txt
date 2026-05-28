@@ -1,0 +1,20 @@
+# OSS parity allowlist
+#
+# Files listed here are exempt from the OSS parity check (see
+# .github/workflows/oss-parity-check.yml and docs/OSS-PARITY.md).
+#
+# The ONLY legitimate reason for code to reference license state is the
+# license verifier itself — the small surface that decodes an EdDSA-signed
+# license key and exposes its claims (seat count, expiry, customer id) for
+# support + telemetry + SLA enforcement. It must NOT gate feature execution.
+#
+# Format: one repo-relative path per line. Blank lines and lines beginning
+# with `#` are ignored.
+#
+# As of 2026-05-28 the verifier does not yet exist in this repo (it's planned
+# to live in @onenomad/przm-access; see ADR-021). When/if a verifier or
+# adjacent file is added here, append its path below and reference
+# docs/OSS-PARITY.md in the PR description.
+#
+# Example (do not uncomment unless the file exists):
+# packages/server/src/access/verify-license.ts

@@ -1,0 +1,39 @@
+name: OSS smoke
+
+# Runs scripts/smoke-oss.sh — the end-to-end "install works without a
+# license" check. The parity check in oss-parity-check.yml proves no
+# feature gates exist in source; this proves the install actually boots
+# and serves.
+#
+# Trigger: PRs that touch the compose / deploy / scripts / Dockerfile
+# surface, where boot-time regressions are most likely. The full unit
+# test surface in CI covers feature behavior; this guards the install path.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - "Dockerfile"
+      - "packages/server/Dockerfile"
+      - "deploy/**"
+      - "scripts/smoke-oss.sh"
+      - ".github/workflows/oss-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OSS smoke test
+        run: bash scripts/smoke-oss.sh
+
+      - name: Capture container logs on failure
+        if: failure()
+        run: docker compose logs cortex --tail 200 || true
