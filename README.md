@@ -58,6 +58,7 @@ the adapter to backfill the structured layer.
   pipelines, adapter contract.
 - **[docs/DECISIONS.md](docs/DECISIONS.md)** — ADR log.
 - **[docs/OSS-PARITY.md](docs/OSS-PARITY.md)** — Open-core posture: the OSS install runs every feature Cloud runs; the license gates support, not code.
+- **[docs/MIXED-DEPLOYMENT.md](docs/MIXED-DEPLOYMENT.md)** — Operator guide: mixed Cloud + self-hosted deployments under one billing org.
 
 ## Status
 
