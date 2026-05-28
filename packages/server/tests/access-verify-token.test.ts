@@ -50,14 +50,15 @@ beforeAll(async () => {
 describe("createAccessVerifier", () => {
   it("verifies a well-formed token into a Principal", async () => {
     const token = await mint({ tenant: "tenant-a", role: "editor" }, { sub: "user-a" });
-    const p = await verify(token);
-    expect(p).toEqual({ userId: "user-a", tenantId: "tenant-a", role: "editor" });
+    const result = await verify(token);
+    expect(result.principal).toEqual({ userId: "user-a", tenantId: "tenant-a", role: "editor" });
+    expect(result.region).toBeNull();
   });
 
   it("carries the projects claim when present", async () => {
     const token = await mint({ tenant: "t", role: "admin", projects: ["p1", "p2"] });
-    const p = await verify(token);
-    expect(p.projects).toEqual(["p1", "p2"]);
+    const result = await verify(token);
+    expect(result.principal.projects).toEqual(["p1", "p2"]);
   });
 
   it("rejects a tampered signature (wrong key)", async () => {
