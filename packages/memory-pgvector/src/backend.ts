@@ -58,6 +58,14 @@ export const pgVectorConfigSchema = z.object({
   /** Per-channel candidate cap. Higher = better fusion quality, slower. */
   channelMultiplier: z.number().int().positive().default(4),
   /**
+   * Emit row-level-security DDL at bootstrap (ADR-021). External multi-tenant
+   * Postgres only — must stay false for embedded PGlite (FORCE RLS with no
+   * `app.tenant` GUC would hide every row). Default false: no behavior change
+   * for any existing deployment until explicitly enabled alongside the
+   * tenant-scoped query path (Phase 2/3).
+   */
+  enableRls: z.boolean().default(false),
+  /**
    * Pool tuning — passed through to createPgPool when it owns the pool.
    * Ignored when callers construct their own pool and hand it in.
    */
@@ -96,6 +104,7 @@ export function createPgVectorBackend(
       const sql = buildBootstrapSql({
         table: cfg.table,
         embeddingDim: cfg.embeddingDim,
+        enableRls: cfg.enableRls,
       });
       // Postgres accepts multiple statements in a single simple-query; we
       // rely on that rather than splitting on `;` (which is fragile — a

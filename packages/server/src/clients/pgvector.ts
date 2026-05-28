@@ -22,6 +22,13 @@ export interface PgVectorClientOptions {
   mode: "external" | "embedded";
   /** Required when mode='external'. */
   connectionString?: string;
+  /**
+   * Enable Postgres row-level security for tenant isolation (ADR-021).
+   * Honored ONLY in `external` mode — embedded PGlite ignores it (FORCE RLS
+   * with no `app.tenant` GUC would hide every row in single-user mode).
+   * Defaults off; turn on only with the tenant-scoped query path in place.
+   */
+  enableRls?: boolean;
   /** Required when mode='embedded'. Absolute filesystem path. */
   dataDir?: string;
   table: string;
@@ -105,6 +112,11 @@ export async function createPgVectorClient(
     config: {
       table: opts.table,
       embeddingDim: opts.embeddingDim,
+      // RLS is an external-Postgres-only feature; never let it reach the
+      // embedded PGlite bootstrap where it would hide every row.
+      ...(opts.mode === "external" && opts.enableRls === true
+        ? { enableRls: true }
+        : {}),
     },
     logger: opts.logger,
   });

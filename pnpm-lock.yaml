@@ -519,6 +519,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@onenomad/przm-access':
+        specifier: ^0.1.1
+        version: 0.1.1
       '@types/pg':
         specifier: ^8.11.10
         version: 8.20.0
@@ -1841,6 +1844,9 @@ packages:
   '@node-rs/argon2@2.0.2':
     resolution: {integrity: sha512-t64wIsPEtNd4aUPuTAyeL2ubxATCBGmeluaKXEMAFk/8w6AJIVVkeLKMBpgLW6LU2t5cQxT+env/c6jxbtTQBg==}
     engines: {node: '>= 10'}
+
+  '@onenomad/przm-access@0.1.1':
+    resolution: {integrity: sha512-2SWGhtoMtAZEe7qEHKb0f5sHxVSsbe7QaTTiGNO8WDO71rhb/cK7kElee+A/+lGv45q2qxNahFbFlGTY4OnXtg==}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -5028,6 +5034,8 @@ snapshots:
       '@node-rs/argon2-win32-arm64-msvc': 2.0.2
       '@node-rs/argon2-win32-ia32-msvc': 2.0.2
       '@node-rs/argon2-win32-x64-msvc': 2.0.2
+
+  '@onenomad/przm-access@0.1.1': {}
 
   '@protobufjs/aspromise@1.1.2': {}
 
