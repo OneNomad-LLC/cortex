@@ -42,6 +42,7 @@ import {
   sessionCount,
   setSessionsStorage,
 } from "../session-context.js";
+import { mcpToolDuration, wrapEngramWithMetrics } from "../metrics.js";
 
 /**
  * Register the shared ListTools + CallTool handlers on a Server
@@ -132,13 +133,18 @@ function wireTools(args: {
     try {
       const parsed = tool.inputSchema.parse(req.params.arguments ?? {});
       const result = await tool.handler(parsed, callContext);
-      callLogger.info("tool.call.done", { ms: Date.now() - started });
+      const ms = Date.now() - started;
+      mcpToolDuration.labels({ tool: tool.name, status: "ok" }).observe(ms / 1000);
+      callLogger.info("tool.call.done", { ms });
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
     } catch (err) {
+      const ms = Date.now() - started;
+      mcpToolDuration.labels({ tool: tool.name, status: "error" }).observe(ms / 1000);
       logger.warn("tool.failed", {
         tool: tool.name,
+        ms,
         error: err instanceof Error ? err.message : String(err),
       });
       return {
@@ -283,7 +289,7 @@ export async function startServer(): Promise<void> {
     ...(router ? { llmRouter: router } : {}),
     logger,
   });
-  const engram = memoryBoot.client;
+  const engram = wrapEngramWithMetrics(memoryBoot.client);
   const engramHealth = await engram.healthCheck();
   logger.info("memory.ready", {
     selected: memoryBoot.selected,
