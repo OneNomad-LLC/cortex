@@ -17,6 +17,8 @@ boss@co.com
 
 # OneNomad public-facing identifiers (intentional in README + docs)
 @onenomad.dev
+@onenomad.com
+@onenomad.app
 OneNomad-LLC
 
 # Placeholder workspace subdomains
@@ -61,13 +63,27 @@ your-cortex.example
 github.com/anthropics
 github.com/modelcontextprotocol
 github.com/pgvector/pgvector
+github.com/slsa-framework/
+github.com/advisories/
+github.com/settings/
+docs.github.com/en/
 
 # Placeholder GitHub paths used in URL-parsing test fixtures
 github.com/user/
 github.com/foo/
+github.com/acme/
+github.com/owner/
+github.com/octo/
+api.github.com/repos/octo/
+git@github.com:octo/
 git@github.com:user/
 git@github.com:foo/
+git@github.com:owner/
+git@github.com[:port]/owner/
 ssh://git@git.example
+founder@acme.co
+@acme.co
+hello@mattstvartak.com
 # GitHub OAuth device flow — public, well-known vendor endpoints
 github.com/login/device
 github.com/login/oauth/access_token
